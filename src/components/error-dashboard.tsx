@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
 import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint } from "@/types";
-import { getErrorLogs, getErrorCountsByDate } from "@/app/actions";
+import { getErrorLogs } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
@@ -80,12 +80,43 @@ export default function ErrorDashboard() {
         setChartData([]);
         return;
       }
-      const [logsResult, countsResult] = await Promise.all([
-        getErrorLogs({ dateRange }),
-        getErrorCountsByDate({ dateRange })
-      ]);
+
+      const logsResult = await getErrorLogs({ dateRange });
       setAllLogs(logsResult);
-      setChartData(countsResult);
+
+      // Calculate chart data from the fetched logs
+      const countsByDate: Record<string, { count: number; breakdown: Record<string, number> }> = {};
+      
+      if (dateRange.from && dateRange.to) {
+        let current = new Date(dateRange.from);
+        const to = new Date(dateRange.to);
+
+        while (current <= to) {
+            const dateStr = format(current, 'yyyy-MM-dd');
+            countsByDate[dateStr] = { count: 0, breakdown: {} };
+            current.setDate(current.getDate() + 1);
+        }
+      }
+
+      logsResult.forEach(log => {
+        const dateStr = format(new Date(log.log_date_time), 'yyyy-MM-dd');
+        if (countsByDate[dateStr] !== undefined) {
+            countsByDate[dateStr].count++;
+            const host = log.host_name;
+            countsByDate[dateStr].breakdown[host] = (countsByDate[dateStr].breakdown[host] || 0) + 1;
+        }
+      });
+
+      const newChartData = Object.entries(countsByDate).map(([date, data]) => ({
+        date,
+        count: data.count,
+        formattedDate: format(new Date(date), "MMM d"),
+        breakdown: data.breakdown,
+      }));
+
+      newChartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
+      setChartData(newChartData);
     });
   }, [dateRange]);
   
@@ -159,10 +190,10 @@ export default function ErrorDashboard() {
 
   const handlePresetSelect = (value: string) => {
     setTimePreset(value);
-    setDatePickerOpen(false);
-
+    
     if (value === 'none') {
         setDateRange(undefined);
+        setDatePickerOpen(false);
         return;
     }
     
@@ -189,6 +220,7 @@ export default function ErrorDashboard() {
         break;
     }
     setDateRange({ from: fromDate, to: now });
+    setDatePickerOpen(false);
   };
   
   const handleRefresh = () => {
