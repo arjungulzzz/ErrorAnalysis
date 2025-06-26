@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from "react";
-import { type ErrorLog, type SortDescriptor } from "@/types";
+import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
+import { type ErrorLog, type SortDescriptor, type GroupedLogs } from "@/types";
 import { getErrorLogs } from "@/app/actions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { type DateRange } from "react-day-picker";
 import { subDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, RotateCw } from "lucide-react";
+import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 
 export default function ErrorDashboard() {
   const [data, setData] = useState<ErrorLog[]>([]);
@@ -22,6 +24,7 @@ export default function ErrorDashboard() {
   const [repoPath, setRepoPath] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: subDays(new Date(), 7), to: new Date() });
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
+  const [groupByUser, setGroupByUser] = useState(false);
   
   const [isPending, startTransition] = useTransition();
 
@@ -43,6 +46,29 @@ export default function ErrorDashboard() {
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  const groupedData = useMemo((): GroupedLogs | null => {
+    if (!groupByUser) return null;
+    
+    const groups: GroupedLogs = {};
+    
+    data.forEach(log => {
+        if (!groups[log.user_id]) {
+            groups[log.user_id] = { logs: [], count: 0, anomalousCount: 0 };
+        }
+        groups[log.user_id].logs.push(log);
+        groups[log.user_id].count++;
+        if (anomalousLogIds.includes(log.id)) {
+            groups[log.user_id].anomalousCount++;
+        }
+    });
+
+    for (const userId in groups) {
+        groups[userId].logs.sort((a, b) => new Date(b.log_date_time).getTime() - new Date(a.log_date_time).getTime());
+    }
+
+    return groups;
+  }, [data, groupByUser, anomalousLogIds]);
 
   const handleTimePresetChange = (value: string) => {
     const now = new Date();
@@ -134,6 +160,17 @@ export default function ErrorDashboard() {
                       className="mt-1"
                     />
                 </div>
+                 <div className="flex items-center space-x-2 pt-5">
+                    <Switch
+                        id="group-by-user"
+                        checked={groupByUser}
+                        onCheckedChange={(checked) => {
+                        setGroupByUser(checked);
+                        setPage(1);
+                        }}
+                    />
+                    <Label htmlFor="group-by-user">Group by User</Label>
+                </div>
             </div>
         </CardContent>
       </Card>
@@ -148,6 +185,8 @@ export default function ErrorDashboard() {
         pageSize={pageSize}
         totalLogs={total}
         setPage={setPage}
+        groupingEnabled={groupByUser}
+        groupedLogs={groupedData}
       />
     </div>
   );

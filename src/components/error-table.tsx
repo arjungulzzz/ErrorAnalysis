@@ -1,6 +1,6 @@
 "use client";
 
-import { type ErrorLog, type SortDescriptor } from "@/types";
+import { type ErrorLog, type SortDescriptor, type GroupedLogs } from "@/types";
 import {
   Table,
   TableBody,
@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTablePagination } from "./data-table-pagination";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 
 interface ErrorTableProps {
   logs: ErrorLog[];
@@ -34,6 +35,8 @@ interface ErrorTableProps {
   pageSize: number;
   totalLogs: number;
   setPage: (page: number) => void;
+  groupingEnabled: boolean;
+  groupedLogs: GroupedLogs | null;
 }
 
 export function ErrorTable({
@@ -46,6 +49,8 @@ export function ErrorTable({
   pageSize,
   totalLogs,
   setPage,
+  groupingEnabled,
+  groupedLogs
 }: ErrorTableProps) {
 
   const renderSkeleton = () => (
@@ -57,6 +62,125 @@ export function ErrorTable({
       </TableRow>
     ))
   );
+
+  if (groupingEnabled) {
+    if (isLoading) {
+      return (
+          <Card>
+              <CardHeader>
+                  <CardTitle>Error Logs by User</CardTitle>
+                  <CardDescription>
+                      Grouping errors by user...
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <div className="rounded-md border p-4 space-y-2">
+                      {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                  </div>
+              </CardContent>
+          </Card>
+      )
+    }
+    if (!groupedLogs || Object.keys(groupedLogs).length === 0) {
+        return (
+             <Card>
+                <CardHeader>
+                    <CardTitle>Error Logs by User</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="rounded-md border h-24 flex items-center justify-center">
+                        No results found.
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
+    
+    const sortedGroupedLogs = Object.entries(groupedLogs).sort(([, a], [, b]) => b.count - a.count);
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Error Logs by User</CardTitle>
+          <CardDescription>
+            Showing {Object.keys(groupedLogs).length} users with errors on this page. Anomalies are highlighted.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Accordion type="single" collapsible className="w-full">
+            {sortedGroupedLogs.map(([userId, groupData]) => (
+              <AccordionItem value={userId} key={userId} className="border-b">
+                 <AccordionTrigger className="hover:no-underline p-4">
+                   <div className="flex justify-between items-center w-full">
+                     <div className="flex items-center gap-4">
+                       <span className="font-semibold">{userId}</span>
+                       <Badge variant="secondary">{groupData.count} {groupData.count > 1 ? 'errors' : 'error'}</Badge>
+                     </div>
+                     {groupData.anomalousCount > 0 && (
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Badge variant="destructive">{groupData.anomalousCount} {groupData.anomalousCount > 1 ? 'anomalies' : 'anomaly'}</Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Anomalies detected by AI</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                     )}
+                   </div>
+                 </AccordionTrigger>
+                 <AccordionContent>
+                   <div className="rounded-md border mt-2">
+                     <Table>
+                       <TableHeader>
+                         <TableRow>
+                           <TableHead>Timestamp</TableHead>
+                           <TableHead>Repository</TableHead>
+                           <TableHead>Error Code</TableHead>
+                           <TableHead>Message</TableHead>
+                         </TableRow>
+                       </TableHeader>
+                       <TableBody>
+                         {groupData.logs.map(log => (
+                           <TableRow 
+                            key={log.id}
+                            className={anomalousLogIds.includes(log.id) ? "bg-accent/20 hover:bg-accent/30" : ""}
+                            data-ai-hint={anomalousLogIds.includes(log.id) ? "anomaly detected" : undefined}
+                           >
+                             <TableCell className="font-mono text-xs">{format(new Date(log.log_date_time), "yyyy-MM-dd HH:mm:ss")}</TableCell>
+                             <TableCell>{log.repository_path}</TableCell>
+                             <TableCell>
+                               <Badge variant={log.error_number >= 500 ? "destructive" : "secondary"}>
+                                 {log.error_number}
+                               </Badge>
+                             </TableCell>
+                             <TableCell className="max-w-[200px] sm:max-w-xs truncate">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span>{log.log_message}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p className="max-w-md">{log.log_message}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                             </TableCell>
+                           </TableRow>
+                         ))}
+                       </TableBody>
+                     </Table>
+                   </div>
+                 </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </CardContent>
+      </Card>
+    );
+  }
+
 
   return (
     <Card>

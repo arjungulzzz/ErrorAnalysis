@@ -19,3 +19,11 @@ export type SortDescriptor = {
   column: keyof ErrorLog | null;
   direction: 'ascending' | 'descending' | null;
 };
+
+export type GroupedLog = {
+    logs: ErrorLog[];
+    count: number;
+    anomalousCount: number;
+};
+
+export type GroupedLogs = Record<string, GroupedLog>;
