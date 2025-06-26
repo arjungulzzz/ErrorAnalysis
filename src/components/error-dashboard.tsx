@@ -10,8 +10,25 @@ import { DateRangePicker } from "@/components/date-range-picker";
 import { type DateRange } from "react-day-picker";
 import { subDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RotateCw } from "lucide-react";
+import { RotateCw, ChevronDown } from "lucide-react";
 import { Label } from "./ui/label";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+const allColumns: { id: keyof ErrorLog; name: string }[] = [
+    { id: 'log_date_time', name: 'Timestamp' },
+    { id: 'host_name', name: 'Host' },
+    { id: 'repository_path', name: 'Repository' },
+    { id: 'port_number', name: 'Port' },
+    { id: 'version_number', name: 'Version' },
+    { id: 'as_server_mode', name: 'Server Mode' },
+    { id: 'as_start_date_time', name: 'Server Start Time' },
+    { id: 'as_server_config', name: 'Server Config' },
+    { id: 'user_id', name: 'User' },
+    { id: 'report_id_name', name: 'Report Name' },
+    { id: 'error_number', name: 'Error Code' },
+    { id: 'xql_query_id', name: 'Query ID' },
+    { id: 'log_message', name: 'Message' },
+];
 
 export default function ErrorDashboard() {
   const [data, setData] = useState<ErrorLog[]>([]);
@@ -23,6 +40,21 @@ export default function ErrorDashboard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: subDays(new Date(), 7), to: new Date() });
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption>('none');
+  const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
+    log_date_time: true,
+    host_name: true,
+    repository_path: true,
+    port_number: true,
+    version_number: true,
+    as_server_mode: true,
+    as_start_date_time: true,
+    as_server_config: true,
+    user_id: true,
+    report_id_name: true,
+    error_number: true,
+    xql_query_id: true,
+    log_message: true,
+  });
   
   const [isPending, startTransition] = useTransition();
 
@@ -162,6 +194,36 @@ export default function ErrorDashboard() {
                         </SelectContent>
                     </Select>
                 </div>
+                 <div className="ml-auto">
+                    <Label className="block text-sm font-medium">View Options</Label>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-[180px] mt-1">
+                          Columns <ChevronDown className="ml-auto h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {allColumns.map((column) => (
+                              <DropdownMenuCheckboxItem
+                                  key={column.id}
+                                  className="capitalize"
+                                  checked={columnVisibility[column.id] ?? false}
+                                  onCheckedChange={(value) =>
+                                      setColumnVisibility((prev) => ({
+                                          ...prev,
+                                          [column.id]: !!value,
+                                      }))
+                                  }
+                                  onSelect={(e) => e.preventDefault()}
+                              >
+                                  {column.name}
+                              </DropdownMenuCheckboxItem>
+                          ))}
+                      </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
             </div>
         </CardContent>
       </Card>
@@ -180,6 +242,7 @@ export default function ErrorDashboard() {
         groupedLogs={groupedData}
         columnFilters={columnFilters}
         setColumnFilters={setColumnFilters}
+        columnVisibility={columnVisibility}
       />
     </div>
   );

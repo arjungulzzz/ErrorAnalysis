@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption } from "@/types";
 import {
   Table,
@@ -24,6 +25,7 @@ import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTablePagination } from "./data-table-pagination";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { cn } from "@/lib/utils";
 
 interface ErrorTableProps {
   logs: ErrorLog[];
@@ -39,7 +41,30 @@ interface ErrorTableProps {
   groupedLogs: GroupedLogs | null;
   columnFilters: ColumnFilters;
   setColumnFilters: (filters: React.SetStateAction<ColumnFilters>) => void;
+  columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
 }
+
+const columnConfig: {
+  id: keyof ErrorLog;
+  name: string;
+  isFilterable: boolean;
+  cellClassName?: string;
+  truncate?: boolean;
+}[] = [
+    { id: 'log_date_time', name: 'Timestamp', isFilterable: false, cellClassName: "font-mono text-xs" },
+    { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "font-mono text-xs" },
+    { id: 'repository_path', name: 'Repository', isFilterable: true },
+    { id: 'port_number', name: 'Port', isFilterable: true },
+    { id: 'version_number', name: 'Version', isFilterable: true },
+    { id: 'as_server_mode', name: 'Server Mode', isFilterable: true },
+    { id: 'as_start_date_time', name: 'Server Start Time', isFilterable: false, cellClassName: "font-mono text-xs" },
+    { id: 'as_server_config', name: 'Server Config', isFilterable: true },
+    { id: 'user_id', name: 'User', isFilterable: true },
+    { id: 'report_id_name', name: 'Report Name', isFilterable: true },
+    { id: 'error_number', name: 'Error Code', isFilterable: true },
+    { id: 'xql_query_id', name: 'Query ID', isFilterable: true, cellClassName: "font-mono text-xs" },
+    { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-[200px] sm:max-w-xs", truncate: true },
+];
 
 const getFriendlyGroupName = (groupByValue: GroupByOption) => {
     switch (groupByValue) {
@@ -65,12 +90,44 @@ export function ErrorTable({
   groupedLogs,
   columnFilters,
   setColumnFilters,
+  columnVisibility
 }: ErrorTableProps) {
+    
+  const visibleColumns = React.useMemo(() => columnConfig.filter(c => columnVisibility[c.id]), [columnVisibility]);
+  const visibleColumnCount = visibleColumns.length;
+
+  const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog) => {
+    const value = log[columnId];
+    switch (columnId) {
+        case 'log_date_time':
+        case 'as_start_date_time':
+            return format(new Date(value as Date), "yyyy-MM-dd HH:mm:ss");
+        case 'error_number':
+            return (
+                <Badge variant={(value as number) >= 500 ? "destructive" : "secondary"}>
+                    {value as number}
+                </Badge>
+            );
+        case 'log_message':
+            return (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span>{String(value)}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p className="max-w-md">{String(value)}</p>
+                    </TooltipContent>
+                </Tooltip>
+            );
+        default:
+            return String(value);
+    }
+  }
 
   const renderSkeleton = () => (
     Array.from({ length: 10 }).map((_, i) => (
       <TableRow key={`skeleton-${i}`}>
-        <TableCell colSpan={6}>
+        <TableCell colSpan={visibleColumnCount || 1}>
           <Skeleton className="h-8 w-full" />
         </TableCell>
       </TableRow>
@@ -210,12 +267,19 @@ export function ErrorTable({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <DataTableColumnHeader column="log_date_time" title="Timestamp" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} />
-                  <DataTableColumnHeader column="repository_path" title="Repository" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} columnFilters={columnFilters} setColumnFilters={setColumnFilters} />
-                  <DataTableColumnHeader column="error_number" title="Error Code" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} columnFilters={columnFilters} setColumnFilters={setColumnFilters} />
-                  <DataTableColumnHeader column="log_message" title="Message" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} columnFilters={columnFilters} setColumnFilters={setColumnFilters} />
-                  <DataTableColumnHeader column="host_name" title="Host" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} columnFilters={columnFilters} setColumnFilters={setColumnFilters} />
-                  <DataTableColumnHeader column="user_id" title="User" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} columnFilters={columnFilters} setColumnFilters={setColumnFilters} />
+                  {columnConfig.map(column => (
+                      columnVisibility[column.id] && (
+                        <DataTableColumnHeader 
+                          key={column.id}
+                          column={column.id} 
+                          title={column.name} 
+                          sortDescriptor={sortDescriptor} 
+                          setSortDescriptor={setSortDescriptor} 
+                          columnFilters={column.isFilterable ? columnFilters : undefined} 
+                          setColumnFilters={column.isFilterable ? setColumnFilters : undefined}
+                        />
+                      )
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -226,30 +290,16 @@ export function ErrorTable({
                       className={anomalousLogIds.includes(log.id) ? "bg-accent/20 hover:bg-accent/30 transition-colors duration-300" : ""}
                       data-ai-hint={anomalousLogIds.includes(log.id) ? "anomaly detected" : undefined}
                     >
-                      <TableCell className="font-mono text-xs">{format(new Date(log.log_date_time), "yyyy-MM-dd HH:mm:ss")}</TableCell>
-                      <TableCell>{log.repository_path}</TableCell>
-                      <TableCell>
-                        <Badge variant={log.error_number >= 500 ? "destructive" : "secondary"}>
-                          {log.error_number}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] sm:max-w-xs truncate">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <span>{log.log_message}</span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p className="max-w-md">{log.log_message}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{log.host_name}</TableCell>
-                      <TableCell>{log.user_id}</TableCell>
+                      {visibleColumns.map(column => (
+                        <TableCell key={column.id} className={cn(column.cellClassName, column.truncate && 'truncate')}>
+                          {renderCellContent(log, column.id)}
+                        </TableCell>
+                      ))}
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={visibleColumnCount || 1} className="h-24 text-center">
                       No results found.
                     </TableCell>
                   </TableRow>
