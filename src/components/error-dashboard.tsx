@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
 import { type DateRange } from "react-day-picker";
-import { format, subDays, subMonths } from "date-fns";
+import { format, subDays, subMonths, addMonths } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RotateCw, ChevronDown, Calendar as CalendarIcon } from "lucide-react";
 import { Label } from "./ui/label";
@@ -244,7 +244,23 @@ export default function ErrorDashboard() {
                                 }}
                                 numberOfMonths={2}
                                 toMonth={new Date()}
-                                disabled={{ after: new Date() }}
+                                disabled={(date: Date) => {
+                                    const today = new Date();
+                                    const oneMonthAgo = subMonths(today, 1);
+                                
+                                    if (date > today || date < oneMonthAgo) {
+                                        return true;
+                                    }
+                                
+                                    if (dateRange?.from && !dateRange.to) {
+                                        const oneMonthFromStart = addMonths(dateRange.from, 1);
+                                        if (date > oneMonthFromStart) {
+                                            return true;
+                                        }
+                                    }
+                                
+                                    return false;
+                                }}
                             />
                         </PopoverContent>
                     </Popover>
