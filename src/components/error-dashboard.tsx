@@ -34,6 +34,7 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
 ];
 
 const TIME_PRESETS = [
+    { value: 'none', label: 'None' },
     { value: '4h', label: 'Last 4 hours' },
     { value: '8h', label: 'Last 8 hours' },
     { value: '1d', label: 'Last 1 day' },
@@ -49,8 +50,8 @@ export default function ErrorDashboard() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(15);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: subDays(new Date(), 7), to: new Date() });
-  const [timePreset, setTimePreset] = useState<string>('7d');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [timePreset, setTimePreset] = useState<string>('none');
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption>('none');
   const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
@@ -115,6 +116,14 @@ export default function ErrorDashboard() {
 
   const handlePresetSelect = (value: string) => {
     setTimePreset(value);
+    setPage(1);
+    setDatePickerOpen(false);
+
+    if (value === 'none') {
+        setDateRange(undefined);
+        return;
+    }
+    
     const now = new Date();
     let fromDate: Date | undefined;
     switch (value) {
@@ -138,8 +147,6 @@ export default function ErrorDashboard() {
         break;
     }
     setDateRange({ from: fromDate, to: now });
-    setPage(1);
-    setDatePickerOpen(false);
   };
   
   const handleRefresh = () => {

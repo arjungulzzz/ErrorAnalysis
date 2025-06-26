@@ -123,10 +123,19 @@ export async function getErrorCountsByDate({
 
   logsInDateRange.forEach(log => {
     const dateStr = format(new Date(log.log_date_time), 'yyyy-MM-dd');
-    if (countsByDate[dateStr] !== undefined) {
-      countsByDate[dateStr].count++;
-      const host = log.host_name;
-      countsByDate[dateStr].breakdown[host] = (countsByDate[dateStr].breakdown[host] || 0) + 1;
+    if (dateRange) {
+        if (countsByDate[dateStr] !== undefined) {
+            countsByDate[dateStr].count++;
+            const host = log.host_name;
+            countsByDate[dateStr].breakdown[host] = (countsByDate[dateStr].breakdown[host] || 0) + 1;
+        }
+    } else {
+        if (!countsByDate[dateStr]) {
+            countsByDate[dateStr] = { count: 0, breakdown: {} };
+        }
+        countsByDate[dateStr].count++;
+        const host = log.host_name;
+        countsByDate[dateStr].breakdown[host] = (countsByDate[dateStr].breakdown[host] || 0) + 1;
     }
   });
 
