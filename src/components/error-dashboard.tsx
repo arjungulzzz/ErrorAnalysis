@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
@@ -39,6 +38,7 @@ const TIME_PRESETS = [
     { value: '1d', label: 'Last 1 day' },
     { value: '7d', label: 'Last 7 days' },
     { value: '15d', label: 'Last 15 days' },
+    { value: '1m', label: 'Last month' },
 ];
 
 export default function ErrorDashboard() {
@@ -132,6 +132,9 @@ export default function ErrorDashboard() {
       case "15d":
         fromDate = subDays(now, 15);
         break;
+      case "1m":
+        fromDate = subMonths(now, 1);
+        break;
     }
     setDateRange({ from: fromDate, to: now });
     setPage(1);
@@ -140,6 +143,24 @@ export default function ErrorDashboard() {
   const handleRefresh = () => {
     fetchLogs();
   };
+
+  const calendarDefaultMonth = useMemo(() => {
+    const today = new Date();
+    if (!dateRange?.from) {
+      return subMonths(today, 1);
+    }
+    
+    const isFromInCurrentMonth = dateRange.from.getMonth() === today.getMonth() && dateRange.from.getFullYear() === today.getFullYear();
+    
+    if (isFromInCurrentMonth) {
+      const isToInCurrentMonth = !dateRange.to || (dateRange.to.getMonth() === today.getMonth() && dateRange.to.getFullYear() === today.getFullYear());
+      if (isToInCurrentMonth) {
+        return subMonths(today, 1);
+      }
+    }
+    
+    return dateRange.from;
+  }, [dateRange]);
 
   return (
     <div className="space-y-6">
@@ -208,7 +229,7 @@ export default function ErrorDashboard() {
                             <Calendar
                                 initialFocus
                                 mode="range"
-                                defaultMonth={dateRange?.from}
+                                defaultMonth={calendarDefaultMonth}
                                 selected={dateRange}
                                 onSelect={(range) => {
                                     setDateRange(range);
