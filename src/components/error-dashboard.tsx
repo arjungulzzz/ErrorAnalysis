@@ -73,8 +73,15 @@ export default function ErrorDashboard() {
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
-      // If no date range is selected, clear the data and don't fetch.
-      if (!dateRange) {
+      // If no time preset or custom range is selected, do nothing.
+      if (timePreset === 'none') {
+        setAllLogs([]);
+        setChartData([]);
+        return;
+      }
+      
+      // For custom ranges, ensure a range is actually selected.
+      if (timePreset === 'custom' && !dateRange?.from) {
         setAllLogs([]);
         setChartData([]);
         return;
@@ -84,12 +91,16 @@ export default function ErrorDashboard() {
         // In a real app, this URL would point to your external service and likely be stored in an environment variable.
         const externalApiUrl = "https://api.error-insights.com/v1/logs";
 
+        const requestBody = timePreset === 'custom'
+            ? { dateRange }
+            : { preset: timePreset };
+
         const response = await fetch(externalApiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ dateRange }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -104,6 +115,7 @@ export default function ErrorDashboard() {
         // Dates in JSON are strings, convert them back to Date objects for sorting
         const logsWithDates = logsResult.map(log => ({
           ...log,
+          id: String(log.id), // ensure id is a string
           log_date_time: new Date(log.log_date_time),
           as_start_date_time: new Date(log.as_start_date_time),
         }));
@@ -113,15 +125,19 @@ export default function ErrorDashboard() {
         // Calculate chart data from the fetched logs
         const countsByDate: Record<string, { count: number; breakdown: Record<string, number> }> = {};
         
-        if (dateRange.from && dateRange.to) {
-          let current = new Date(dateRange.from);
-          const to = new Date(dateRange.to);
+        if (logsWithDates.length > 0) {
+            const sortedLogs = [...logsWithDates].sort((a,b) => a.log_date_time.getTime() - b.log_date_time.getTime());
+            let current = new Date(sortedLogs[0].log_date_time);
+            const to = new Date(sortedLogs[sortedLogs.length - 1].log_date_time);
 
-          while (current <= to) {
-              const dateStr = format(current, 'yyyy-MM-dd');
-              countsByDate[dateStr] = { count: 0, breakdown: {} };
-              current.setDate(current.getDate() + 1);
-          }
+            current.setUTCHours(0,0,0,0);
+            to.setUTCHours(23,59,59,999);
+
+            while (current <= to) {
+                const dateStr = format(current, 'yyyy-MM-dd');
+                countsByDate[dateStr] = { count: 0, breakdown: {} };
+                current.setDate(current.getDate() + 1);
+            }
         }
 
         logsWithDates.forEach(log => {
@@ -150,11 +166,11 @@ export default function ErrorDashboard() {
         setChartData([]);
       }
     });
-  }, [dateRange]);
+  }, [dateRange, timePreset]);
   
   useEffect(() => {
     setPage(1);
-  }, [columnFilters, groupBy, dateRange]);
+  }, [columnFilters, groupBy, dateRange, timePreset]);
 
   useEffect(() => {
     fetchData();
@@ -229,6 +245,7 @@ export default function ErrorDashboard() {
         return;
     }
     
+    // For UI display purposes, we still calculate a date range for presets
     const now = new Date();
     let fromDate: Date | undefined;
     switch (value) {
@@ -284,7 +301,7 @@ export default function ErrorDashboard() {
           <h1 className="text-3xl font-bold font-headline tracking-tight">Error Insights Dashboard</h1>
           <p className="text-muted-foreground">Analyze and investigate application errors.</p>
         </div>
-        <Button onClick={handleRefresh} disabled={isPending}>
+        <Button onClick={handleRefresh} disabled={isPending || timePreset === 'none'}>
           <RotateCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
@@ -305,7 +322,7 @@ export default function ErrorDashboard() {
                                 variant={"outline"}
                                 className={cn(
                                     "w-[260px] justify-start text-left font-normal",
-                                    !dateRange && "text-muted-foreground"
+                                    timePreset === 'none' && "text-muted-foreground"
                                 )}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -354,15 +371,13 @@ export default function ErrorDashboard() {
                                     }
                                 }}
                                 numberOfMonths={2}
-                                toMonth={new Date()}
+                                fromDate={subMonths(new Date(), 1)}
+                                toDate={new Date()}
                                 disabled={(date: Date) => {
                                     const today = new Date();
-                                    const oneMonthAgo = subMonths(today, 1);
                                 
-                                    if (date > today || date < oneMonthAgo) {
-                                        return true;
-                                    }
-                                
+                                    if (date > today) return true;
+
                                     if (dateRange?.from && !dateRange.to) {
                                         const oneMonthFromStart = addMonths(dateRange.from, 1);
                                         if (date > oneMonthFromStart) {
