@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
 import { type DateRange } from "react-day-picker";
-import { format, subDays, subMonths, addMonths } from "date-fns";
+import { format, subDays, subMonths, addMonths, subHours } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RotateCw, ChevronDown, Calendar as CalendarIcon } from "lucide-react";
 import { Label } from "./ui/label";
@@ -34,12 +34,12 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
 
 const TIME_PRESETS = [
     { value: 'none', label: 'None' },
-    { value: '4h', label: 'Last 4 hours' },
-    { value: '8h', label: 'Last 8 hours' },
-    { value: '1d', label: 'Last 1 day' },
-    { value: '7d', label: 'Last 7 days' },
-    { value: '15d', label: 'Last 15 days' },
-    { value: '1m', label: 'Last month' },
+    { value: '4 hours', label: 'Last 4 hours' },
+    { value: '8 hours', label: 'Last 8 hours' },
+    { value: '1 day', label: 'Last 1 day' },
+    { value: '7 days', label: 'Last 7 days' },
+    { value: '15 days', label: 'Last 15 days' },
+    { value: '1 month', label: 'Last 1 month' },
 ];
 
 export default function ErrorDashboard() {
@@ -93,7 +93,7 @@ export default function ErrorDashboard() {
 
         const requestBody = timePreset === 'custom'
             ? { dateRange }
-            : { preset: timePreset };
+            : { interval: timePreset };
 
         const response = await fetch(externalApiUrl, {
           method: 'POST',
@@ -249,22 +249,22 @@ export default function ErrorDashboard() {
     const now = new Date();
     let fromDate: Date | undefined;
     switch (value) {
-      case "4h":
-        fromDate = subDays(now, 1/6);
+      case "4 hours":
+        fromDate = subHours(now, 4);
         break;
-      case "8h":
-        fromDate = subDays(now, 1/3);
+      case "8 hours":
+        fromDate = subHours(now, 8);
         break;
-      case "1d":
+      case "1 day":
         fromDate = subDays(now, 1);
         break;
-      case "7d":
+      case "7 days":
         fromDate = subDays(now, 7);
         break;
-      case "15d":
+      case "15 days":
         fromDate = subDays(now, 15);
         break;
-      case "1m":
+      case "1 month":
         fromDate = subMonths(now, 1);
         break;
     }
