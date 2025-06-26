@@ -1,3 +1,10 @@
+/**
+ * @fileoverview
+ * The main component for the Error Insights Dashboard.
+ * This component manages the state for the entire dashboard, including data fetching,
+ * filters (date range, grouping, column visibility), and layout of sub-components
+ * like the error table and trend chart.
+ */
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
@@ -34,13 +41,13 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
 ];
 
 const TIME_PRESETS = [
-    { value: 'none', label: 'None' },
-    { value: '4 hours', label: 'Last 4 hours' },
-    { value: '8 hours', label: 'Last 8 hours' },
-    { value: '1 day', label: 'Last 1 day' },
-    { value: '7 days', label: 'Last 7 days' },
-    { value: '15 days', label: 'Last 15 days' },
-    { value: '1 month', label: 'Last 1 month' },
+    { value: 'none', label: 'None', interval: null },
+    { value: '4 hours', label: 'Last 4 hours', interval: '4 hours' },
+    { value: '8 hours', label: 'Last 8 hours', interval: '8 hours' },
+    { value: '1 day', label: 'Last 1 day', interval: '1 day' },
+    { value: '7 days', label: 'Last 7 days', interval: '7 days' },
+    { value: '15 days', label: 'Last 15 days', interval: '15 days' },
+    { value: '1 month', label: 'Last 1 month', interval: '1 month' },
 ];
 
 export default function ErrorDashboard() {
@@ -103,9 +110,10 @@ export default function ErrorDashboard() {
       }
       
       try {
+        const preset = TIME_PRESETS.find(p => p.value === timePreset);
         const requestBody = timePreset === 'custom'
             ? { dateRange }
-            : { interval: timePreset };
+            : { interval: preset?.interval };
 
         const response = await fetch(externalApiUrl, {
           method: 'POST',

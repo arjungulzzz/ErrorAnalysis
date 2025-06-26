@@ -1,4 +1,9 @@
-
+/**
+ * @fileoverview
+ * A component that visualizes the frequency of errors over a period of time.
+ * It uses an area chart to plot the total number of errors per day and includes
+ * a detailed tooltip showing a breakdown of errors by host for each data point.
+ */
 "use client"
 
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"

@@ -1,3 +1,9 @@
+/**
+ * @fileoverview
+ * A component that renders error logs in a sortable, filterable, and paginated table.
+ * It supports two display modes: a flat table view and a grouped view where logs
+ * are collapsible under a common key (e.g., hostname or error code).
+ */
 "use client";
 
 import React from "react";
