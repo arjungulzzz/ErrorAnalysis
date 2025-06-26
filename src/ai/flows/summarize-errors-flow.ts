@@ -26,7 +26,7 @@ const prompt = ai.definePrompt({
 Based on the following list of errors, identify patterns and common themes.
 
 Error Logs:
-{{#each this}}
+{{#each logs}}
 - Error {{error_number}}: {{log_message}}
 {{/each}}
 
@@ -40,8 +40,8 @@ const summarizeErrorsFlow = ai.defineFlow(
     inputSchema: SummarizeErrorsInputSchema,
     outputSchema: SummarizeErrorsOutputSchema,
   },
-  async (logs) => {
-    if (logs.length === 0) {
+  async (input) => {
+    if (input.logs.length === 0) {
       // Return a default value that matches the schema
       return {
         summary: "No logs provided for analysis.",
@@ -50,7 +50,7 @@ const summarizeErrorsFlow = ai.defineFlow(
         priority: "Low",
       };
     }
-    const {output} = await prompt(logs);
+    const {output} = await prompt(input);
     return output!;
   }
 );

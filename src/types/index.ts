@@ -46,7 +46,9 @@ const PartialErrorLogSchema = z.object({
   log_message: z.string(),
 });
 
-export const SummarizeErrorsInputSchema = z.array(PartialErrorLogSchema);
+export const SummarizeErrorsInputSchema = z.object({
+  logs: z.array(PartialErrorLogSchema),
+});
 export type SummarizeErrorsInput = z.infer<typeof SummarizeErrorsInputSchema>;
 
 export const SummarizeErrorsOutputSchema = z.object({
