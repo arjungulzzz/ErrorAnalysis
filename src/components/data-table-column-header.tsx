@@ -4,9 +4,9 @@ import { ArrowDown, ArrowUp, ChevronsUpDown, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters } from "@/types";
 import { cn } from "@/lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {

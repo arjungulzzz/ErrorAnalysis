@@ -159,7 +159,7 @@ export function ErrorTable({
              <Card>
                 <CardHeader>
                     <CardTitle>Error Logs by {getFriendlyGroupName(groupBy)}</CardTitle>
-                </Header>
+                </CardHeader>
                 <CardContent>
                     <div className="rounded-md border h-24 flex items-center justify-center">
                         No results found.
