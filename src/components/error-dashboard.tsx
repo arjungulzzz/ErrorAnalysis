@@ -70,6 +70,7 @@ export default function ErrorDashboard() {
   });
   
   const [isPending, startTransition] = useTransition();
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
@@ -183,7 +184,7 @@ export default function ErrorDashboard() {
             <div className="flex flex-wrap items-end gap-4">
                 <div>
                     <Label className="block text-sm font-medium mb-1">Time Range</Label>
-                    <Popover>
+                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                         <PopoverTrigger asChild>
                             <Button
                                 id="date"
@@ -220,7 +221,10 @@ export default function ErrorDashboard() {
                                         variant={timePreset === p.value ? "secondary" : "ghost"}
                                         size="sm"
                                         className="justify-start"
-                                        onClick={() => handlePresetSelect(p.value)}
+                                        onClick={() => {
+                                            handlePresetSelect(p.value);
+                                            setDatePickerOpen(false);
+                                        }}
                                     >
                                         {p.label}
                                     </Button>
@@ -235,6 +239,9 @@ export default function ErrorDashboard() {
                                     setDateRange(range);
                                     setTimePreset('custom');
                                     setPage(1);
+                                    if(range?.from && range.to){
+                                        setDatePickerOpen(false);
+                                    }
                                 }}
                                 numberOfMonths={2}
                                 toMonth={new Date()}
