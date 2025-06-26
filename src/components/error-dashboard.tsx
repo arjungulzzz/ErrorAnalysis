@@ -75,6 +75,13 @@ export default function ErrorDashboard() {
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
+      // If no date range is selected, clear the data and don't fetch.
+      if (!dateRange) {
+        setData([]);
+        setTotal(0);
+        setChartData([]);
+        return;
+      }
       const [logsResult, countsResult] = await Promise.all([
         getErrorLogs({ columnFilters, dateRange, page, pageSize, sort }),
         getErrorCountsByDate({ columnFilters, dateRange })
