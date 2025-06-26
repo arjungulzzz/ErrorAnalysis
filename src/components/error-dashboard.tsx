@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
@@ -6,13 +7,15 @@ import { getErrorLogs } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
-import { DateRangePicker } from "@/components/date-range-picker";
 import { type DateRange } from "react-day-picker";
-import { subDays, subMonths } from "date-fns";
+import { format, subDays, subMonths } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RotateCw, ChevronDown } from "lucide-react";
+import { RotateCw, ChevronDown, Calendar as CalendarIcon } from "lucide-react";
 import { Label } from "./ui/label";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -30,6 +33,13 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_message', name: 'Message' },
 ];
 
+const TIME_PRESETS = [
+    { value: '4h', label: 'Last 4 hours' },
+    { value: '8h', label: 'Last 8 hours' },
+    { value: '1d', label: 'Last 1 day' },
+    { value: '7d', label: 'Last 7 days' },
+];
+
 export default function ErrorDashboard() {
   const [data, setData] = useState<ErrorLog[]>([]);
   const [total, setTotal] = useState(0);
@@ -37,6 +47,7 @@ export default function ErrorDashboard() {
   const [pageSize] = useState(15);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: subDays(new Date(), 7), to: new Date() });
+  const [timePreset, setTimePreset] = useState<string>('7d');
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption>('none');
   const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
@@ -100,7 +111,8 @@ export default function ErrorDashboard() {
     return groups;
   }, [data, groupBy]);
 
-  const handleTimePresetChange = (value: string) => {
+  const handlePresetSelect = (value: string) => {
+    setTimePreset(value);
     const now = new Date();
     let fromDate: Date | undefined;
     switch (value) {
@@ -145,30 +157,65 @@ export default function ErrorDashboard() {
         <CardContent>
             <div className="flex flex-wrap items-end gap-4">
                 <div>
-                    <Label htmlFor="time-preset" className="text-sm font-medium">Time Range</Label>
-                    <Select onValueChange={handleTimePresetChange} defaultValue="7d">
-                    <SelectTrigger className="w-[180px] mt-1" id="time-preset">
-                        <SelectValue placeholder="Select a time range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="4h">Last 4 hours</SelectItem>
-                        <SelectItem value="8h">Last 8 hours</SelectItem>
-                        <SelectItem value="1d">Last 1 day</SelectItem>
-                        <SelectItem value="7d">Last 1 week</SelectItem>
-                    </SelectContent>
-                    </Select>
-                </div>
-                <div>
-                    <Label className="text-sm font-medium">Custom Range</Label>
-                    <DateRangePicker 
-                      date={dateRange}
-                      onDateChange={(range) => {
-                        setDateRange(range);
-                        setPage(1);
-                      }}
-                      className="mt-1"
-                      disabled={{ before: subMonths(new Date(), 1), after: new Date() }}
-                    />
+                    <Label className="block text-sm font-medium mb-1">Time Range</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                id="date"
+                                variant={"outline"}
+                                className={cn(
+                                    "w-[260px] justify-start text-left font-normal",
+                                    !dateRange && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {timePreset === 'custom' ? (
+                                    dateRange?.from ? (
+                                        dateRange.to ? (
+                                            <>
+                                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                                {format(dateRange.to, "LLL dd, y")}
+                                            </>
+                                        ) : (
+                                            format(dateRange.from, "LLL dd, y")
+                                        )
+                                    ) : (
+                                        <span>Pick a date</span>
+                                    )
+                                ) : (
+                                    TIME_PRESETS.find(p => p.value === timePreset)?.label
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 flex" align="start">
+                            <div className="flex flex-col gap-1 p-2 border-r">
+                                {TIME_PRESETS.map(p => (
+                                    <Button 
+                                        key={p.value}
+                                        variant={timePreset === p.value ? "secondary" : "ghost"}
+                                        size="sm"
+                                        className="justify-start"
+                                        onClick={() => handlePresetSelect(p.value)}
+                                    >
+                                        {p.label}
+                                    </Button>
+                                ))}
+                            </div>
+                            <Calendar
+                                initialFocus
+                                mode="range"
+                                defaultMonth={dateRange?.from}
+                                selected={dateRange}
+                                onSelect={(range) => {
+                                    setDateRange(range);
+                                    setTimePreset('custom');
+                                    setPage(1);
+                                }}
+                                numberOfMonths={2}
+                                disabled={{ before: subMonths(new Date(), 1), after: new Date() }}
+                            />
+                        </PopoverContent>
+                    </Popover>
                 </div>
                 <div>
                     <Label htmlFor="group-by" className="text-sm font-medium">Group By</Label>
