@@ -90,10 +90,19 @@ export default function ErrorDashboard() {
         return;
       }
 
+      const externalApiUrl = process.env.NEXT_PUBLIC_API_URL;
+      
+      if (!externalApiUrl) {
+        console.error("API URL not configured. Set NEXT_PUBLIC_API_URL in .env");
+        toast({
+          variant: "destructive",
+          title: "Configuration Error",
+          description: "The application's API endpoint is not set.",
+        });
+        return;
+      }
+      
       try {
-        // In a real app, this URL would point to your external service and likely be stored in an environment variable.
-        const externalApiUrl = "https://api.error-insights.com/v1/logs";
-
         const requestBody = timePreset === 'custom'
             ? { dateRange }
             : { interval: timePreset };
