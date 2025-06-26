@@ -1,7 +1,8 @@
 "use server";
 
 import { MOCK_LOGS } from "@/lib/mock-data";
-import { type ErrorLog, type SortDescriptor, type ColumnFilters } from "@/types";
+import { type ErrorLog, type SortDescriptor, type ColumnFilters, type SummarizeErrorsInput } from "@/types";
+import { summarizeErrorGroup } from "@/ai/flows/summarize-errors-flow";
 
 // This is a placeholder for a real AI-based anomaly detection service.
 // For this demo, it identifies logs with messages that appear more than once in the paginated view.
@@ -99,4 +100,16 @@ export async function getErrorLogs(
   const anomalousLogIds = await detectAnomalies(paginatedLogs);
 
   return { logs: paginatedLogs, total, anomalousLogIds };
+}
+
+export async function getGroupSummary(logs: ErrorLog[]) {
+  // To avoid sending too much data to the model, we only send a subset of fields and limit the number of logs.
+  const preparedLogs: SummarizeErrorsInput = logs
+    .slice(0, 20) // Limit to the most recent 20 logs in the group
+    .map(log => ({
+      error_number: log.error_number,
+      log_message: log.log_message,
+    }));
+  
+  return await summarizeErrorGroup(preparedLogs);
 }
