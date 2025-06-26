@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
-import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type SummarizeErrorsOutput } from "@/types";
+import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
 import { type DateRange } from "react-day-picker";
 import { format, subDays, subMonths, addMonths, subHours } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RotateCw, ChevronDown, Calendar as CalendarIcon, Bot, Loader2 } from "lucide-react";
+import { RotateCw, ChevronDown, Calendar as CalendarIcon } from "lucide-react";
 import { Label } from "./ui/label";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -16,9 +16,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { ErrorTrendChart } from "./error-trend-chart";
 import { useToast } from "@/hooks/use-toast";
-import { summarizeErrorGroup } from "@/ai/flows/summarize-errors-flow";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
-import { Badge } from "./ui/badge";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -73,9 +70,6 @@ export default function ErrorDashboard() {
   });
   
   const [isPending, startTransition] = useTransition();
-  const [isAnalyzing, startAnalyzing] = useTransition();
-  const [analysisResult, setAnalysisResult] = useState<SummarizeErrorsOutput | null>(null);
-  const [isAnalysisDialogOpen, setIsAnalysisDialogOpen] = useState(false);
   
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const { toast } = useToast();
@@ -255,43 +249,6 @@ export default function ErrorDashboard() {
     return groups;
   }, [filteredAndSortedLogs, groupBy]);
   
-  useEffect(() => {
-    if (isAnalysisDialogOpen && filteredAndSortedLogs.length > 0) {
-      startAnalyzing(async () => {
-        setAnalysisResult(null); // Clear previous results
-        try {
-          const logsToAnalyze = filteredAndSortedLogs
-            .slice(0, 50) // Limit to 50 logs to avoid huge payloads
-            .map(log => ({
-              error_number: log.error_number,
-              log_message: log.log_message,
-            }));
-          
-          if (logsToAnalyze.length === 0) {
-              setAnalysisResult({
-                  summary: "No errors to analyze.",
-                  rootCause: "There are no logs matching the current filters.",
-                  impact: "N/A",
-                  priority: "Low"
-              });
-              return;
-          }
-  
-          const result = await summarizeErrorGroup({ logs: logsToAnalyze });
-          setAnalysisResult(result);
-        } catch (error) {
-          console.error("AI Analysis Error:", error);
-          setAnalysisResult({
-            summary: "Error: Could not generate analysis.",
-            rootCause: "An error occurred while contacting the AI service.",
-            impact: "N/A",
-            priority: "Low",
-          });
-        }
-      });
-    }
-  }, [isAnalysisDialogOpen, filteredAndSortedLogs, startAnalyzing]);
-
   const handlePresetSelect = (value: string) => {
     setTimePreset(value);
     
@@ -358,65 +315,6 @@ export default function ErrorDashboard() {
           <p className="text-muted-foreground">Analyze and investigate application errors.</p>
         </div>
         <div className="flex items-center gap-2">
-           <Dialog open={isAnalysisDialogOpen} onOpenChange={setIsAnalysisDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                disabled={isPending || filteredAndSortedLogs.length === 0}
-              >
-                <Bot className="mr-2 h-4 w-4" />
-                Analyze with AI
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Bot /> AI Analysis of Error Logs
-                </DialogTitle>
-                <DialogDescription>
-                  Here's a summary of the {filteredAndSortedLogs.length} currently visible error logs.
-                </DialogDescription>
-              </DialogHeader>
-              {isAnalyzing ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="ml-4 text-muted-foreground">Analyzing logs...</p>
-                </div>
-              ) : analysisResult ? (
-                <div className="space-y-4 py-4 text-sm">
-                  <div className="space-y-1">
-                    <h3 className="font-semibold">Summary</h3>
-                    <p className="text-muted-foreground">{analysisResult.summary}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-semibold">Likely Root Cause</h3>
-                    <p className="text-muted-foreground">{analysisResult.rootCause}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-semibold">Potential Impact</h3>
-                    <p className="text-muted-foreground">{analysisResult.impact}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-semibold">Recommended Priority</h3>
-                    <div className="text-muted-foreground">
-                       <Badge variant={
-                          analysisResult.priority === "Critical" || analysisResult.priority === "High" ? "destructive" :
-                          analysisResult.priority === "Medium" ? "secondary" : "outline"
-                       }>{analysisResult.priority}</Badge>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-12 text-center text-muted-foreground">
-                  No analysis available.
-                </div>
-              )}
-              <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsAnalysisDialogOpen(false)}>Close</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
           <Button onClick={handleRefresh} disabled={isPending || timePreset === 'none'}>
             <RotateCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
             Refresh
