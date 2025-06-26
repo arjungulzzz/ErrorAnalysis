@@ -12,7 +12,7 @@ import { subDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RotateCw, ChevronDown } from "lucide-react";
 import { Label } from "./ui/label";
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -204,6 +204,17 @@ export default function ErrorDashboard() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
                           <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                           <DropdownMenuItem onSelect={() => setColumnVisibility(
+                              Object.fromEntries(allColumns.map(col => [col.id, true]))
+                            )}>
+                              Select All
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setColumnVisibility(
+                              Object.fromEntries(allColumns.map(col => [col.id, false]))
+                            )}>
+                              Deselect All
+                            </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {allColumns.map((column) => (
                               <DropdownMenuCheckboxItem

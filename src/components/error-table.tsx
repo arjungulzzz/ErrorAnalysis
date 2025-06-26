@@ -98,6 +98,8 @@ export function ErrorTable({
 
   const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog) => {
     const value = log[columnId];
+    if (value === null || value === undefined) return "";
+    
     switch (columnId) {
         case 'log_date_time':
         case 'as_start_date_time':
@@ -204,40 +206,27 @@ export function ErrorTable({
                  <AccordionContent>
                    <div className="rounded-md border mt-2">
                      <Table>
-                       <TableHeader>
-                         <TableRow>
-                           <TableHead>Timestamp</TableHead>
-                           <TableHead>Repository</TableHead>
-                           <TableHead>Error Code</TableHead>
-                           <TableHead>Message</TableHead>
-                         </TableRow>
-                       </TableHeader>
+                        <TableHeader>
+                          <TableRow>
+                            {visibleColumns.map((column) => (
+                              <TableHead key={column.id} className={cn('p-2', column.cellClassName)}>
+                                {column.name}
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
                        <TableBody>
                          {groupData.logs.map(log => (
                            <TableRow 
                             key={log.id}
-                            className={anomalousLogIds.includes(log.id) ? "bg-accent/20 hover:bg-accent/30" : ""}
+                            className={cn("transition-colors", anomalousLogIds.includes(log.id) ? "bg-accent/20 hover:bg-accent/30" : "")}
                             data-ai-hint={anomalousLogIds.includes(log.id) ? "anomaly detected" : undefined}
                            >
-                             <TableCell className="font-mono text-xs">{format(new Date(log.log_date_time), "yyyy-MM-dd HH:mm:ss")}</TableCell>
-                             <TableCell>{log.repository_path}</TableCell>
-                             <TableCell>
-                               <Badge variant={log.error_number >= 500 ? "destructive" : "secondary"}>
-                                 {log.error_number}
-                               </Badge>
-                             </TableCell>
-                             <TableCell className="max-w-[200px] sm:max-w-xs truncate">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <span>{log.log_message}</span>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p className="max-w-md">{log.log_message}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                             </TableCell>
+                            {visibleColumns.map((column) => (
+                                <TableCell key={column.id} className={cn(column.cellClassName, column.truncate && 'truncate')}>
+                                  {renderCellContent(log, column.id)}
+                                </TableCell>
+                            ))}
                            </TableRow>
                          ))}
                        </TableBody>
