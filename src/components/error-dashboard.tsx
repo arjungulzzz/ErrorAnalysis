@@ -223,7 +223,6 @@ export default function ErrorDashboard() {
                                         className="justify-start"
                                         onClick={() => {
                                             handlePresetSelect(p.value);
-                                            setDatePickerOpen(false);
                                         }}
                                     >
                                         {p.label}
@@ -239,13 +238,13 @@ export default function ErrorDashboard() {
                                     setDateRange(range);
                                     setTimePreset('custom');
                                     setPage(1);
-                                    if(range?.from && range.to){
-                                        setDatePickerOpen(false);
+                                    if (range?.from && range.to) {
+                                      setDatePickerOpen(false);
                                     }
                                 }}
                                 numberOfMonths={2}
                                 toMonth={new Date()}
-                                disabled={{ before: subMonths(new Date(), 1), after: new Date() }}
+                                disabled={{ after: new Date() }}
                             />
                         </PopoverContent>
                     </Popover>
