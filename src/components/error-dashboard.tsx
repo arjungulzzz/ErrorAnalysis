@@ -139,6 +139,7 @@ export default function ErrorDashboard() {
     }
     setDateRange({ from: fromDate, to: now });
     setPage(1);
+    setDatePickerOpen(false);
   };
   
   const handleRefresh = () => {
@@ -221,9 +222,7 @@ export default function ErrorDashboard() {
                                         variant={timePreset === p.value ? "secondary" : "ghost"}
                                         size="sm"
                                         className="justify-start"
-                                        onClick={() => {
-                                            handlePresetSelect(p.value);
-                                        }}
+                                        onClick={() => handlePresetSelect(p.value)}
                                     >
                                         {p.label}
                                     </Button>
