@@ -29,3 +29,5 @@ export type GroupedLog = {
 };
 
 export type GroupedLogs = Record<string, GroupedLog>;
+
+export type GroupByOption = 'none' | 'host_name' | 'repository_path' | 'error_number' | 'user_id';

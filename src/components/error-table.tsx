@@ -1,6 +1,6 @@
 "use client";
 
-import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters } from "@/types";
+import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption } from "@/types";
 import {
   Table,
   TableBody,
@@ -35,11 +35,21 @@ interface ErrorTableProps {
   pageSize: number;
   totalLogs: number;
   setPage: (page: number) => void;
-  groupingEnabled: boolean;
+  groupBy: GroupByOption;
   groupedLogs: GroupedLogs | null;
   columnFilters: ColumnFilters;
   setColumnFilters: (filters: React.SetStateAction<ColumnFilters>) => void;
 }
+
+const getFriendlyGroupName = (groupByValue: GroupByOption) => {
+    switch (groupByValue) {
+      case 'host_name': return 'Host';
+      case 'repository_path': return 'Repository';
+      case 'error_number': return 'Error Code';
+      case 'user_id': return 'User';
+      default: return 'Group';
+    }
+};
 
 export function ErrorTable({
   logs,
@@ -51,7 +61,7 @@ export function ErrorTable({
   pageSize,
   totalLogs,
   setPage,
-  groupingEnabled,
+  groupBy,
   groupedLogs,
   columnFilters,
   setColumnFilters,
@@ -67,14 +77,14 @@ export function ErrorTable({
     ))
   );
 
-  if (groupingEnabled) {
+  if (groupBy !== 'none') {
     if (isLoading) {
       return (
           <Card>
               <CardHeader>
-                  <CardTitle>Error Logs by User</CardTitle>
+                  <CardTitle>Error Logs by {getFriendlyGroupName(groupBy)}</CardTitle>
                   <CardDescription>
-                      Grouping errors by user...
+                      Grouping errors...
                   </CardDescription>
               </CardHeader>
               <CardContent>
@@ -89,7 +99,7 @@ export function ErrorTable({
         return (
              <Card>
                 <CardHeader>
-                    <CardTitle>Error Logs by User</CardTitle>
+                    <CardTitle>Error Logs by {getFriendlyGroupName(groupBy)}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="rounded-md border h-24 flex items-center justify-center">
@@ -105,19 +115,19 @@ export function ErrorTable({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Error Logs by User</CardTitle>
+          <CardTitle>Error Logs by {getFriendlyGroupName(groupBy)}</CardTitle>
           <CardDescription>
-            Showing {Object.keys(groupedLogs).length} users with errors on this page. Anomalies are highlighted.
+            Showing {Object.keys(groupedLogs).length} groups with errors on this page. Anomalies are highlighted.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Accordion type="single" collapsible className="w-full">
-            {sortedGroupedLogs.map(([userId, groupData]) => (
-              <AccordionItem value={userId} key={userId} className="border-b">
+            {sortedGroupedLogs.map(([groupKey, groupData]) => (
+              <AccordionItem value={groupKey} key={groupKey} className="border-b">
                  <AccordionTrigger className="hover:no-underline p-4">
                    <div className="flex justify-between items-center w-full">
                      <div className="flex items-center gap-4">
-                       <span className="font-semibold">{userId}</span>
+                       <span className="font-semibold truncate max-w-xs">{groupKey}</span>
                        <Badge variant="secondary">{groupData.count} {groupData.count > 1 ? 'errors' : 'error'}</Badge>
                      </div>
                      {groupData.anomalousCount > 0 && (

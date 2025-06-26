@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
-import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters } from "@/types";
+import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption } from "@/types";
 import { getErrorLogs } from "@/app/actions";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
@@ -12,7 +11,6 @@ import { type DateRange } from "react-day-picker";
 import { subDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RotateCw } from "lucide-react";
-import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 
 export default function ErrorDashboard() {
@@ -24,7 +22,7 @@ export default function ErrorDashboard() {
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: subDays(new Date(), 7), to: new Date() });
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
-  const [groupByUser, setGroupByUser] = useState(false);
+  const [groupBy, setGroupBy] = useState<GroupByOption>('none');
   
   const [isPending, startTransition] = useTransition();
 
@@ -45,34 +43,35 @@ export default function ErrorDashboard() {
   
   useEffect(() => {
     setPage(1);
-  }, [columnFilters]);
+  }, [columnFilters, groupBy]);
 
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
 
   const groupedData = useMemo((): GroupedLogs | null => {
-    if (!groupByUser) return null;
+    if (groupBy === 'none') return null;
     
     const groups: GroupedLogs = {};
     
     data.forEach(log => {
-        if (!groups[log.user_id]) {
-            groups[log.user_id] = { logs: [], count: 0, anomalousCount: 0 };
+        const groupKey = String(log[groupBy]);
+        if (!groups[groupKey]) {
+            groups[groupKey] = { logs: [], count: 0, anomalousCount: 0 };
         }
-        groups[log.user_id].logs.push(log);
-        groups[log.user_id].count++;
+        groups[groupKey].logs.push(log);
+        groups[groupKey].count++;
         if (anomalousLogIds.includes(log.id)) {
-            groups[log.user_id].anomalousCount++;
+            groups[groupKey].anomalousCount++;
         }
     });
 
-    for (const userId in groups) {
-        groups[userId].logs.sort((a, b) => new Date(b.log_date_time).getTime() - new Date(a.log_date_time).getTime());
+    for (const groupKey in groups) {
+        groups[groupKey].logs.sort((a, b) => new Date(b.log_date_time).getTime() - new Date(a.log_date_time).getTime());
     }
 
     return groups;
-  }, [data, groupByUser, anomalousLogIds]);
+  }, [data, groupBy, anomalousLogIds]);
 
   const handleTimePresetChange = (value: string) => {
     const now = new Date();
@@ -123,9 +122,9 @@ export default function ErrorDashboard() {
         <CardContent>
             <div className="flex flex-wrap items-end gap-4">
                 <div>
-                    <label htmlFor="time-preset" className="text-sm font-medium">Time Range</label>
+                    <Label htmlFor="time-preset" className="text-sm font-medium">Time Range</Label>
                     <Select onValueChange={handleTimePresetChange} defaultValue="7d">
-                    <SelectTrigger className="w-[180px] mt-1">
+                    <SelectTrigger className="w-[180px] mt-1" id="time-preset">
                         <SelectValue placeholder="Select a time range" />
                     </SelectTrigger>
                     <SelectContent>
@@ -138,7 +137,7 @@ export default function ErrorDashboard() {
                     </Select>
                 </div>
                 <div>
-                    <label className="text-sm font-medium">Custom Range</label>
+                    <Label className="text-sm font-medium">Custom Range</Label>
                     <DateRangePicker 
                       date={dateRange}
                       onDateChange={(range) => {
@@ -148,16 +147,20 @@ export default function ErrorDashboard() {
                       className="mt-1"
                     />
                 </div>
-                 <div className="flex items-center space-x-2 pt-5">
-                    <Switch
-                        id="group-by-user"
-                        checked={groupByUser}
-                        onCheckedChange={(checked) => {
-                        setGroupByUser(checked);
-                        setPage(1);
-                        }}
-                    />
-                    <Label htmlFor="group-by-user">Group by User</Label>
+                <div>
+                    <Label htmlFor="group-by" className="text-sm font-medium">Group By</Label>
+                    <Select onValueChange={(value) => setGroupBy(value as GroupByOption)} value={groupBy}>
+                        <SelectTrigger className="w-[180px] mt-1" id="group-by">
+                            <SelectValue placeholder="Select grouping" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="host_name">Host</SelectItem>
+                            <SelectItem value="repository_path">Repository</SelectItem>
+                            <SelectItem value="error_number">Error Code</SelectItem>
+                            <SelectItem value="user_id">User</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
         </CardContent>
@@ -173,7 +176,7 @@ export default function ErrorDashboard() {
         pageSize={pageSize}
         totalLogs={total}
         setPage={setPage}
-        groupingEnabled={groupByUser}
+        groupBy={groupBy}
         groupedLogs={groupedData}
         columnFilters={columnFilters}
         setColumnFilters={setColumnFilters}
