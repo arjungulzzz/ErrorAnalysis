@@ -174,7 +174,7 @@ export function ErrorTable({
         <CardHeader>
           <CardTitle>Error Logs by {getFriendlyGroupName(groupBy)}</CardTitle>
           <CardDescription>
-            Showing {Object.keys(groupedLogs).length} groups with errors on this page.
+            Showing {sortedGroupedLogs.length} error groups.
           </CardDescription>
         </CardHeader>
         <CardContent>

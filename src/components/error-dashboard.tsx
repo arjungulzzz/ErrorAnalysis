@@ -44,9 +44,8 @@ const TIME_PRESETS = [
 ];
 
 export default function ErrorDashboard() {
-  const [data, setData] = useState<ErrorLog[]>([]);
+  const [allLogs, setAllLogs] = useState<ErrorLog[]>([]);
   const [chartData, setChartData] = useState<ErrorTrendDataPoint[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(15);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
@@ -77,35 +76,72 @@ export default function ErrorDashboard() {
     startTransition(async () => {
       // If no date range is selected, clear the data and don't fetch.
       if (!dateRange) {
-        setData([]);
-        setTotal(0);
+        setAllLogs([]);
         setChartData([]);
         return;
       }
       const [logsResult, countsResult] = await Promise.all([
-        getErrorLogs({ columnFilters, dateRange, page, pageSize, sort }),
-        getErrorCountsByDate({ columnFilters, dateRange })
+        getErrorLogs({ dateRange }),
+        getErrorCountsByDate({ dateRange })
       ]);
-      setData(logsResult.logs);
-      setTotal(logsResult.total);
+      setAllLogs(logsResult);
       setChartData(countsResult);
     });
-  }, [columnFilters, dateRange, page, pageSize, sort]);
+  }, [dateRange]);
   
   useEffect(() => {
     setPage(1);
-  }, [columnFilters, groupBy]);
+  }, [columnFilters, groupBy, dateRange]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const { paginatedLogs, total, filteredAndSortedLogs } = useMemo(() => {
+    let logs = [...allLogs];
+
+    // Client-side filtering
+    if (Object.values(columnFilters).some(v => v)) {
+      logs = logs.filter(log => {
+        return Object.entries(columnFilters).every(([key, value]) => {
+          if (!value) return true;
+          const logValue = log[key as keyof ErrorLog];
+          return String(logValue).toLowerCase().includes(value.toLowerCase());
+        });
+      });
+    }
+    
+    // Client-side sorting
+    if (sort && sort.column && sort.direction) {
+      logs.sort((a, b) => {
+        const aValue = a[sort.column!];
+        const bValue = b[sort.column!];
+        if (aValue === null || aValue === undefined) return 1;
+        if (bValue === null || bValue === undefined) return -1;
+        let comparison = 0;
+        if (aValue instanceof Date && bValue instanceof Date) {
+          comparison = aValue.getTime() - bValue.getTime();
+        } else if (typeof aValue === 'string' && typeof bValue === 'string') {
+          comparison = aValue.localeCompare(bValue);
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          comparison = aValue - bValue;
+        }
+        return sort.direction === 'descending' ? comparison * -1 : comparison;
+      });
+    }
+    
+    const totalCount = logs.length;
+    const paginated = logs.slice((page - 1) * pageSize, page * pageSize);
+
+    return { paginatedLogs: paginated, total: totalCount, filteredAndSortedLogs: logs };
+  }, [allLogs, columnFilters, sort, page, pageSize]);
 
   const groupedData = useMemo((): GroupedLogs | null => {
     if (groupBy === 'none') return null;
     
     const groups: GroupedLogs = {};
     
-    data.forEach(log => {
+    filteredAndSortedLogs.forEach(log => {
         const groupKey = String(log[groupBy]);
         if (!groups[groupKey]) {
             groups[groupKey] = { logs: [], count: 0 };
@@ -119,11 +155,10 @@ export default function ErrorDashboard() {
     }
 
     return groups;
-  }, [data, groupBy]);
+  }, [filteredAndSortedLogs, groupBy]);
 
   const handlePresetSelect = (value: string) => {
     setTimePreset(value);
-    setPage(1);
     setDatePickerOpen(false);
 
     if (value === 'none') {
@@ -250,7 +285,6 @@ export default function ErrorDashboard() {
                                 onSelect={(range) => {
                                     setDateRange(range);
                                     setTimePreset('custom');
-                                    setPage(1);
                                     if (range?.from && range.to) {
                                       setDatePickerOpen(false);
                                     }
@@ -339,7 +373,7 @@ export default function ErrorDashboard() {
       </Card>
       
       <ErrorTable 
-        logs={data} 
+        logs={paginatedLogs} 
         isLoading={isPending}
         sortDescriptor={sort}
         setSortDescriptor={setSort}
