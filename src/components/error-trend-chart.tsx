@@ -1,7 +1,7 @@
 
 "use client"
 
-import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Skeleton } from "./ui/skeleton";
@@ -62,7 +62,7 @@ export function ErrorTrendChart({ data, isLoading }: ErrorTrendChartProps) {
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <LineChart
+          <AreaChart
             accessibilityLayer
             data={data}
             margin={{
@@ -105,15 +105,31 @@ export function ErrorTrendChart({ data, isLoading }: ErrorTrendChartProps) {
                 />
               }
             />
-            <Line
+            <defs>
+              <linearGradient id="fillErrors" x1="0" y1="0" x2="0" y2="1">
+                <stop
+                  offset="5%"
+                  stopColor="var(--color-errors)"
+                  stopOpacity={0.8}
+                />
+                <stop
+                  offset="95%"
+                  stopColor="var(--color-errors)"
+                  stopOpacity={0.1}
+                />
+              </linearGradient>
+            </defs>
+            <Area
               dataKey="count"
               type="monotone"
+              fill="url(#fillErrors)"
+              fillOpacity={1}
               stroke="var(--color-errors)"
               strokeWidth={2}
               dot={true}
               name="errors"
             />
-          </LineChart>
+          </AreaChart>
         </ChartContainer>
       </CardContent>
     </Card>
