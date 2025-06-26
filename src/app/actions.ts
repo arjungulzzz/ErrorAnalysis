@@ -1,7 +1,8 @@
 "use server";
 
 import { MOCK_LOGS } from "@/lib/mock-data";
-import { type ErrorLog, type SortDescriptor, type ColumnFilters } from "@/types";
+import { type ErrorLog, type SortDescriptor, type ColumnFilters, type ErrorTrendDataPoint } from "@/types";
+import { format } from "date-fns";
 
 export async function getErrorLogs(
   {
@@ -75,4 +76,65 @@ export async function getErrorLogs(
   );
 
   return { logs: paginatedLogs, total };
+}
+
+export async function getErrorCountsByDate({
+  dateRange,
+  columnFilters,
+}: {
+  dateRange?: { from?: Date; to?: Date };
+  columnFilters?: ColumnFilters,
+}): Promise<ErrorTrendDataPoint[]> {
+  await new Promise(resolve => setTimeout(resolve, 300));
+
+  let filteredLogs = MOCK_LOGS;
+
+  if (columnFilters) {
+    Object.entries(columnFilters).forEach(([key, value]) => {
+      if (value) {
+        filteredLogs = filteredLogs.filter(log => {
+          const logValue = log[key as keyof ErrorLog];
+          return String(logValue).toLowerCase().includes(value.toLowerCase());
+        });
+      }
+    });
+  }
+
+  const countsByDate: Record<string, number> = {};
+  if(dateRange?.from && dateRange?.to){
+    let current = new Date(dateRange.from);
+    const to = new Date(dateRange.to);
+
+    while (current <= to) {
+        const dateStr = format(current, 'yyyy-MM-dd');
+        countsByDate[dateStr] = 0;
+        current.setDate(current.getDate() + 1);
+    }
+  }
+
+  let logsInDateRange = filteredLogs;
+  if (dateRange?.from) {
+    logsInDateRange = logsInDateRange.filter(log => new Date(log.log_date_time) >= new Date(dateRange.from!));
+  }
+  if (dateRange?.to) {
+    const toDate = new Date(dateRange.to);
+    logsInDateRange = logsInDateRange.filter(log => new Date(log.log_date_time) <= toDate);
+  }
+
+  logsInDateRange.forEach(log => {
+    const dateStr = format(new Date(log.log_date_time), 'yyyy-MM-dd');
+    if (countsByDate[dateStr] !== undefined) {
+      countsByDate[dateStr]++;
+    }
+  });
+
+  const chartData = Object.entries(countsByDate).map(([date, count]) => ({
+    date,
+    count,
+    formattedDate: format(new Date(date), "MMM d")
+  }));
+
+  chartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return chartData;
 }

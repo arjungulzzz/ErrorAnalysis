@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
-import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption } from "@/types";
-import { getErrorLogs } from "@/app/actions";
+import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint } from "@/types";
+import { getErrorLogs, getErrorCountsByDate } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { ErrorTrendChart } from "./error-trend-chart";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -43,6 +44,7 @@ const TIME_PRESETS = [
 
 export default function ErrorDashboard() {
   const [data, setData] = useState<ErrorLog[]>([]);
+  const [chartData, setChartData] = useState<ErrorTrendDataPoint[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(15);
@@ -69,17 +71,15 @@ export default function ErrorDashboard() {
   
   const [isPending, startTransition] = useTransition();
 
-  const fetchLogs = useCallback(() => {
+  const fetchData = useCallback(() => {
     startTransition(async () => {
-      const result = await getErrorLogs({
-        columnFilters,
-        dateRange,
-        page,
-        pageSize,
-        sort,
-      });
-      setData(result.logs);
-      setTotal(result.total);
+      const [logsResult, countsResult] = await Promise.all([
+        getErrorLogs({ columnFilters, dateRange, page, pageSize, sort }),
+        getErrorCountsByDate({ columnFilters, dateRange })
+      ]);
+      setData(logsResult.logs);
+      setTotal(logsResult.total);
+      setChartData(countsResult);
     });
   }, [columnFilters, dateRange, page, pageSize, sort]);
   
@@ -88,8 +88,8 @@ export default function ErrorDashboard() {
   }, [columnFilters, groupBy]);
 
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    fetchData();
+  }, [fetchData]);
 
   const groupedData = useMemo((): GroupedLogs | null => {
     if (groupBy === 'none') return null;
@@ -141,7 +141,7 @@ export default function ErrorDashboard() {
   };
   
   const handleRefresh = () => {
-    fetchLogs();
+    fetchData();
   };
 
   const calendarDefaultMonth = useMemo(() => {
@@ -318,6 +318,9 @@ export default function ErrorDashboard() {
         setColumnFilters={setColumnFilters}
         columnVisibility={columnVisibility}
       />
+      <div className="mt-6">
+        <ErrorTrendChart data={chartData} isLoading={isPending} />
+      </div>
     </div>
   );
 }

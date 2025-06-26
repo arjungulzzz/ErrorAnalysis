@@ -33,6 +33,12 @@ export type GroupedLogs = Record<string, GroupedLog>;
 
 export type GroupByOption = 'none' | 'host_name' | 'repository_path' | 'error_number' | 'user_id';
 
+export type ErrorTrendDataPoint = {
+  date: string;
+  count: number;
+  formattedDate: string;
+};
+
 // Types for AI Error Summary Flow
 const PartialErrorLogSchema = z.object({
   error_number: z.number(),
