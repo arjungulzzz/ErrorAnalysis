@@ -1,0 +1,154 @@
+"use client";
+
+import { useState, useEffect, useCallback, useTransition } from "react";
+import { type ErrorLog, type SortDescriptor } from "@/types";
+import { getErrorLogs } from "@/app/actions";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ErrorTable } from "@/components/error-table";
+import { DateRangePicker } from "@/components/date-range-picker";
+import { type DateRange } from "react-day-picker";
+import { subDays } from "date-fns";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, RotateCw } from "lucide-react";
+
+export default function ErrorDashboard() {
+  const [data, setData] = useState<ErrorLog[]>([]);
+  const [anomalousLogIds, setAnomalousLogIds] = useState<string[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(15);
+  const [repoPath, setRepoPath] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: subDays(new Date(), 7), to: new Date() });
+  const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
+  
+  const [isPending, startTransition] = useTransition();
+
+  const fetchLogs = useCallback(() => {
+    startTransition(async () => {
+      const result = await getErrorLogs({
+        repoPath,
+        dateRange,
+        page,
+        pageSize,
+        sort,
+      });
+      setData(result.logs);
+      setTotal(result.total);
+      setAnomalousLogIds(result.anomalousLogIds);
+    });
+  }, [repoPath, dateRange, page, pageSize, sort]);
+  
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
+
+  const handleTimePresetChange = (value: string) => {
+    const now = new Date();
+    let fromDate: Date | undefined;
+    switch (value) {
+      case "4h":
+        fromDate = subDays(now, 1/6);
+        break;
+      case "8h":
+        fromDate = subDays(now, 1/3);
+        break;
+      case "1d":
+        fromDate = subDays(now, 1);
+        break;
+      case "7d":
+        fromDate = subDays(now, 7);
+        break;
+      case "all":
+        setDateRange(undefined);
+        setPage(1);
+        return;
+    }
+    setDateRange({ from: fromDate, to: now });
+    setPage(1);
+  };
+  
+  const handleRefresh = () => {
+    fetchLogs();
+  };
+
+  return (
+    <div className="space-y-6">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold font-headline tracking-tight">Error Insights Dashboard</h1>
+          <p className="text-muted-foreground">Analyze and investigate application errors.</p>
+        </div>
+        <Button onClick={handleRefresh} disabled={isPending}>
+          <RotateCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </header>
+
+      <Card>
+        <CardHeader>
+            <CardTitle>Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div className="flex flex-wrap items-end gap-4">
+                <div className="flex-grow min-w-[250px]">
+                    <label htmlFor="repo-path" className="text-sm font-medium">Repository Path</label>
+                    <div className="relative mt-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            id="repo-path"
+                            placeholder="e.g., /apps/main-service"
+                            value={repoPath}
+                            onChange={(e) => {
+                                setRepoPath(e.target.value);
+                                setPage(1);
+                            }}
+                            className="pl-10"
+                        />
+                    </div>
+                </div>
+                <div>
+                    <label htmlFor="time-preset" className="text-sm font-medium">Time Range</label>
+                    <Select onValueChange={handleTimePresetChange} defaultValue="7d">
+                    <SelectTrigger className="w-[180px] mt-1">
+                        <SelectValue placeholder="Select a time range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="4h">Last 4 hours</SelectItem>
+                        <SelectItem value="8h">Last 8 hours</SelectItem>
+                        <SelectItem value="1d">Last 1 day</SelectItem>
+                        <SelectItem value="7d">Last 1 week</SelectItem>
+                        <SelectItem value="all">All time</SelectItem>
+                    </SelectContent>
+                    </Select>
+                </div>
+                <div>
+                    <label className="text-sm font-medium">Custom Range</label>
+                    <DateRangePicker 
+                      date={dateRange}
+                      onDateChange={(range) => {
+                        setDateRange(range);
+                        setPage(1);
+                      }}
+                      className="mt-1"
+                    />
+                </div>
+            </div>
+        </CardContent>
+      </Card>
+      
+      <ErrorTable 
+        logs={data} 
+        isLoading={isPending}
+        sortDescriptor={sort}
+        setSortDescriptor={setSort}
+        anomalousLogIds={anomalousLogIds}
+        page={page}
+        pageSize={pageSize}
+        totalLogs={total}
+        setPage={setPage}
+      />
+    </div>
+  );
+}
