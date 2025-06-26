@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts"
@@ -90,8 +91,17 @@ export function ErrorTrendChart({ data, isLoading }: ErrorTrendChartProps) {
               content={
                 <ChartTooltipContent
                   indicator="dot"
-                  labelKey="date"
-                  labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', {timeZone: 'UTC'})}
+                  labelFormatter={(_label, payload) => {
+                    const fullDate = payload?.[0]?.payload?.date;
+                    if (fullDate) {
+                      // The date string 'YYYY-MM-DD' is parsed as UTC. Using toLocaleDateString
+                      // with the UTC timezone prevents off-by-one-day errors.
+                      return new Date(fullDate).toLocaleDateString('en-US', {
+                        timeZone: 'UTC',
+                      });
+                    }
+                    return null;
+                  }}
                 />
               }
             />
