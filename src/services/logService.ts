@@ -12,21 +12,27 @@ interface DateRange {
  * @returns A promise that resolves to an array of filtered error logs.
  */
 export async function getLogsByDateRange(dateRange?: DateRange): Promise<ErrorLog[]> {
-    // Simulate network delay to mimic a real API call
-    await new Promise(resolve => setTimeout(resolve, 500));
+    /*
+        This service logic would now live in the external microservice.
+        It's kept here (commented out) for reference.
 
-    let filteredLogs: ErrorLog[] = MOCK_LOGS;
+        // Simulate network delay to mimic a real API call
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Filter by date range if provided
-    if (dateRange?.from) {
-        const fromDate = new Date(dateRange.from);
-        filteredLogs = filteredLogs.filter(log => new Date(log.log_date_time) >= fromDate);
-    }
-    if (dateRange?.to) {
-        const toDate = new Date(dateRange.to);
-        toDate.setHours(23, 59, 59, 999); // Include all logs on the end date
-        filteredLogs = filteredLogs.filter(log => new Date(log.log_date_time) <= toDate);
-    }
+        let filteredLogs: ErrorLog[] = MOCK_LOGS;
 
-    return filteredLogs;
+        // Filter by date range if provided
+        if (dateRange?.from) {
+            const fromDate = new Date(dateRange.from);
+            filteredLogs = filteredLogs.filter(log => new Date(log.log_date_time) >= fromDate);
+        }
+        if (dateRange?.to) {
+            const toDate = new Date(dateRange.to);
+            toDate.setHours(23, 59, 59, 999); // Include all logs on the end date
+            filteredLogs = filteredLogs.filter(log => new Date(log.log_date_time) <= toDate);
+        }
+
+        return filteredLogs;
+    */
+    return []; // Return empty array to satisfy TypeScript contract.
 }

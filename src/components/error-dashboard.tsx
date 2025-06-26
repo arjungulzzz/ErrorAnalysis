@@ -81,7 +81,10 @@ export default function ErrorDashboard() {
       }
 
       try {
-        const response = await fetch('/api/logs', {
+        // In a real app, this URL would point to your external service and likely be stored in an environment variable.
+        const externalApiUrl = "https://api.error-insights.com/v1/logs";
+
+        const response = await fetch(externalApiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
