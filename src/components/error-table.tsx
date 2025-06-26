@@ -180,62 +180,62 @@ export function ErrorTable({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            {sortedGroupedLogs.map(([groupKey, groupData]) => (
-              <AccordionItem value={groupKey} key={groupKey} className="border-b">
-                 <AccordionTrigger className="hover:no-underline p-4">
-                   <div className="flex justify-between items-center w-full">
-                     <div className="flex items-center gap-4">
-                       <span className="font-semibold truncate max-w-xs">{groupKey}</span>
-                       <Badge variant="secondary">{groupData.count} {groupData.count > 1 ? 'errors' : 'error'}</Badge>
-                     </div>
-                     {groupData.anomalousCount > 0 && (
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Badge variant="destructive">{groupData.anomalousCount} {groupData.anomalousCount > 1 ? 'anomalies' : 'anomaly'}</Badge>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Anomalies detected by AI</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                     )}
-                   </div>
-                 </AccordionTrigger>
-                 <AccordionContent>
-                   <div className="rounded-md border mt-2">
-                     <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {visibleColumns.map((column) => (
-                              <TableHead key={column.id} className={cn('p-2', column.cellClassName)}>
-                                {column.name}
-                              </TableHead>
-                            ))}
-                          </TableRow>
-                        </TableHeader>
-                       <TableBody>
-                         {groupData.logs.map(log => (
-                           <TableRow 
-                            key={log.id}
-                            className={cn("transition-colors", anomalousLogIds.includes(log.id) ? "bg-accent/20 hover:bg-accent/30" : "")}
-                            data-ai-hint={anomalousLogIds.includes(log.id) ? "anomaly detected" : undefined}
-                           >
-                            {visibleColumns.map((column) => (
-                                <TableCell key={column.id} className={cn(column.cellClassName, column.truncate && 'truncate')}>
-                                  {renderCellContent(log, column.id)}
-                                </TableCell>
-                            ))}
-                           </TableRow>
-                         ))}
-                       </TableBody>
-                     </Table>
-                   </div>
-                 </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <TooltipProvider>
+            <Accordion type="single" collapsible className="w-full">
+              {sortedGroupedLogs.map(([groupKey, groupData]) => (
+                <AccordionItem value={groupKey} key={groupKey} className="border-b">
+                  <AccordionTrigger className="hover:no-underline p-4">
+                    <div className="flex justify-between items-center w-full">
+                      <div className="flex items-center gap-4">
+                        <span className="font-semibold truncate max-w-xs">{groupKey}</span>
+                        <Badge variant="secondary">{groupData.count} {groupData.count > 1 ? 'errors' : 'error'}</Badge>
+                      </div>
+                      {groupData.anomalousCount > 0 && (
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Badge variant="destructive">{groupData.anomalousCount} {groupData.anomalousCount > 1 ? 'anomalies' : 'anomaly'}</Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                  <p>Anomalies detected by AI</p>
+                              </TooltipContent>
+                          </Tooltip>
+                      )}
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="rounded-md border mt-2">
+                      <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {visibleColumns.map((column) => (
+                                <TableHead key={column.id} className={cn('p-2', column.cellClassName)}>
+                                  {column.name}
+                                </TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                        <TableBody>
+                          {groupData.logs.map(log => (
+                            <TableRow 
+                              key={log.id}
+                              className={cn("transition-colors", anomalousLogIds.includes(log.id) ? "bg-accent/20 hover:bg-accent/30" : "")}
+                              data-ai-hint={anomalousLogIds.includes(log.id) ? "anomaly detected" : undefined}
+                            >
+                              {visibleColumns.map((column) => (
+                                  <TableCell key={column.id} className={cn(column.cellClassName, column.truncate && 'truncate')}>
+                                    {renderCellContent(log, column.id)}
+                                  </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </TooltipProvider>
         </CardContent>
       </Card>
     );
