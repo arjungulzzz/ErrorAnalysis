@@ -3,28 +3,6 @@
 import { MOCK_LOGS } from "@/lib/mock-data";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters } from "@/types";
 
-// This is a placeholder for a real AI-based anomaly detection service.
-// For this demo, it identifies logs with messages that appear more than once in the paginated view.
-async function detectAnomalies(logs: ErrorLog[]): Promise<string[]> {
-  const messageCounts = new Map<string, number>();
-  logs.forEach(log => {
-    messageCounts.set(log.log_message, (messageCounts.get(log.log_message) || 0) + 1);
-  });
-
-  const anomalousMessages = new Set<string>();
-  for (const [message, count] of messageCounts.entries()) {
-    if (count > 1) { // Highlight if a message appears more than once in the current view
-      anomalousMessages.add(message);
-    }
-  }
-
-  const anomalousLogIds = logs
-    .filter(log => anomalousMessages.has(log.log_message))
-    .map(log => log.id);
-  
-  return anomalousLogIds;
-}
-
 export async function getErrorLogs(
   {
     dateRange,
@@ -39,7 +17,7 @@ export async function getErrorLogs(
     pageSize?: number;
     sort?: SortDescriptor;
   }
-): Promise<{ logs: ErrorLog[], total: number, anomalousLogIds: string[] }> {
+): Promise<{ logs: ErrorLog[], total: number }> {
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -96,7 +74,5 @@ export async function getErrorLogs(
     page * pageSize
   );
 
-  const anomalousLogIds = await detectAnomalies(paginatedLogs);
-
-  return { logs: paginatedLogs, total, anomalousLogIds };
+  return { logs: paginatedLogs, total };
 }

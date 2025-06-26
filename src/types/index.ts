@@ -27,7 +27,6 @@ export type ColumnFilters = Partial<Record<keyof ErrorLog, string>>;
 export type GroupedLog = {
     logs: ErrorLog[];
     count: number;
-    anomalousCount: number;
 };
 
 export type GroupedLogs = Record<string, GroupedLog>;

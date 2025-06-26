@@ -32,7 +32,6 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
 
 export default function ErrorDashboard() {
   const [data, setData] = useState<ErrorLog[]>([]);
-  const [anomalousLogIds, setAnomalousLogIds] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(15);
@@ -69,7 +68,6 @@ export default function ErrorDashboard() {
       });
       setData(result.logs);
       setTotal(result.total);
-      setAnomalousLogIds(result.anomalousLogIds);
     });
   }, [columnFilters, dateRange, page, pageSize, sort]);
   
@@ -89,13 +87,10 @@ export default function ErrorDashboard() {
     data.forEach(log => {
         const groupKey = String(log[groupBy]);
         if (!groups[groupKey]) {
-            groups[groupKey] = { logs: [], count: 0, anomalousCount: 0 };
+            groups[groupKey] = { logs: [], count: 0 };
         }
         groups[groupKey].logs.push(log);
         groups[groupKey].count++;
-        if (anomalousLogIds.includes(log.id)) {
-            groups[groupKey].anomalousCount++;
-        }
     });
 
     for (const groupKey in groups) {
@@ -103,7 +98,7 @@ export default function ErrorDashboard() {
     }
 
     return groups;
-  }, [data, groupBy, anomalousLogIds]);
+  }, [data, groupBy]);
 
   const handleTimePresetChange = (value: string) => {
     const now = new Date();
@@ -244,7 +239,6 @@ export default function ErrorDashboard() {
         isLoading={isPending}
         sortDescriptor={sort}
         setSortDescriptor={setSort}
-        anomalousLogIds={anomalousLogIds}
         page={page}
         pageSize={pageSize}
         totalLogs={total}

@@ -32,7 +32,6 @@ interface ErrorTableProps {
   isLoading: boolean;
   sortDescriptor: SortDescriptor;
   setSortDescriptor: (descriptor: SortDescriptor) => void;
-  anomalousLogIds: string[];
   page: number;
   pageSize: number;
   totalLogs: number;
@@ -81,7 +80,6 @@ export function ErrorTable({
   isLoading,
   sortDescriptor,
   setSortDescriptor,
-  anomalousLogIds,
   page,
   pageSize,
   totalLogs,
@@ -176,7 +174,7 @@ export function ErrorTable({
         <CardHeader>
           <CardTitle>Error Logs by {getFriendlyGroupName(groupBy)}</CardTitle>
           <CardDescription>
-            Showing {Object.keys(groupedLogs).length} groups with errors on this page. Anomalies are highlighted.
+            Showing {Object.keys(groupedLogs).length} groups with errors on this page.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -190,16 +188,6 @@ export function ErrorTable({
                         <span className="font-semibold truncate max-w-xs">{groupKey}</span>
                         <Badge variant="secondary">{groupData.count} {groupData.count > 1 ? 'errors' : 'error'}</Badge>
                       </div>
-                      {groupData.anomalousCount > 0 && (
-                          <Tooltip>
-                              <TooltipTrigger asChild>
-                                  <Badge variant="destructive">{groupData.anomalousCount} {groupData.anomalousCount > 1 ? 'anomalies' : 'anomaly'}</Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                  <p>Anomalies detected by AI</p>
-                              </TooltipContent>
-                          </Tooltip>
-                      )}
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -218,8 +206,7 @@ export function ErrorTable({
                           {groupData.logs.map(log => (
                             <TableRow 
                               key={log.id}
-                              className={cn("transition-colors", anomalousLogIds.includes(log.id) ? "bg-accent/20 hover:bg-accent/30" : "")}
-                              data-ai-hint={anomalousLogIds.includes(log.id) ? "anomaly detected" : undefined}
+                              className="transition-colors"
                             >
                               {visibleColumns.map((column) => (
                                   <TableCell key={column.id} className={cn(column.cellClassName, column.truncate && 'truncate')}>
@@ -247,7 +234,7 @@ export function ErrorTable({
       <CardHeader>
         <CardTitle>Error Logs</CardTitle>
         <CardDescription>
-          Showing {logs.length} of {totalLogs} errors. Anomalies detected by AI are highlighted.
+          Showing {logs.length} of {totalLogs} errors.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -275,9 +262,7 @@ export function ErrorTable({
                 {isLoading ? renderSkeleton() : logs.length > 0 ? (
                   logs.map((log) => (
                     <TableRow 
-                      key={log.id} 
-                      className={anomalousLogIds.includes(log.id) ? "bg-accent/20 hover:bg-accent/30 transition-colors duration-300" : ""}
-                      data-ai-hint={anomalousLogIds.includes(log.id) ? "anomaly detected" : undefined}
+                      key={log.id}
                     >
                       {visibleColumns.map(column => (
                         <TableCell key={column.id} className={cn(column.cellClassName, column.truncate && 'truncate')}>
