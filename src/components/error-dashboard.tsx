@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ErrorTable } from "@/components/error-table";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { type DateRange } from "react-day-picker";
-import { subDays } from "date-fns";
+import { subDays, subMonths } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RotateCw, ChevronDown } from "lucide-react";
 import { Label } from "./ui/label";
@@ -116,10 +116,6 @@ export default function ErrorDashboard() {
       case "7d":
         fromDate = subDays(now, 7);
         break;
-      case "all":
-        setDateRange(undefined);
-        setPage(1);
-        return;
     }
     setDateRange({ from: fromDate, to: now });
     setPage(1);
@@ -159,7 +155,6 @@ export default function ErrorDashboard() {
                         <SelectItem value="8h">Last 8 hours</SelectItem>
                         <SelectItem value="1d">Last 1 day</SelectItem>
                         <SelectItem value="7d">Last 1 week</SelectItem>
-                        <SelectItem value="all">All time</SelectItem>
                     </SelectContent>
                     </Select>
                 </div>
@@ -172,6 +167,7 @@ export default function ErrorDashboard() {
                         setPage(1);
                       }}
                       className="mt-1"
+                      disabled={{ before: subMonths(new Date(), 1), after: new Date() }}
                     />
                 </div>
                 <div>
