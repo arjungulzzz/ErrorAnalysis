@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
 import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint } from "@/types";
-import { getErrorLogs } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
@@ -81,42 +80,72 @@ export default function ErrorDashboard() {
         return;
       }
 
-      const logsResult = await getErrorLogs({ dateRange });
-      setAllLogs(logsResult);
+      try {
+        const response = await fetch('/api/logs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ dateRange }),
+        });
 
-      // Calculate chart data from the fetched logs
-      const countsByDate: Record<string, { count: number; breakdown: Record<string, number> }> = {};
-      
-      if (dateRange.from && dateRange.to) {
-        let current = new Date(dateRange.from);
-        const to = new Date(dateRange.to);
-
-        while (current <= to) {
-            const dateStr = format(current, 'yyyy-MM-dd');
-            countsByDate[dateStr] = { count: 0, breakdown: {} };
-            current.setDate(current.getDate() + 1);
+        if (!response.ok) {
+          console.error("Failed to fetch logs:", response.statusText);
+          setAllLogs([]);
+          setChartData([]);
+          return;
         }
+
+        const logsResult: ErrorLog[] = await response.json();
+        
+        // Dates in JSON are strings, convert them back to Date objects for sorting
+        const logsWithDates = logsResult.map(log => ({
+          ...log,
+          log_date_time: new Date(log.log_date_time),
+          as_start_date_time: new Date(log.as_start_date_time),
+        }));
+        
+        setAllLogs(logsWithDates);
+
+        // Calculate chart data from the fetched logs
+        const countsByDate: Record<string, { count: number; breakdown: Record<string, number> }> = {};
+        
+        if (dateRange.from && dateRange.to) {
+          let current = new Date(dateRange.from);
+          const to = new Date(dateRange.to);
+
+          while (current <= to) {
+              const dateStr = format(current, 'yyyy-MM-dd');
+              countsByDate[dateStr] = { count: 0, breakdown: {} };
+              current.setDate(current.getDate() + 1);
+          }
+        }
+
+        logsWithDates.forEach(log => {
+          const dateStr = format(new Date(log.log_date_time), 'yyyy-MM-dd');
+          if (countsByDate[dateStr] !== undefined) {
+              countsByDate[dateStr].count++;
+              const host = log.host_name;
+              countsByDate[dateStr].breakdown[host] = (countsByDate[dateStr].breakdown[host] || 0) + 1;
+          }
+        });
+
+        const newChartData = Object.entries(countsByDate).map(([date, data]) => ({
+          date,
+          count: data.count,
+          formattedDate: format(new Date(date), "MMM d"),
+          breakdown: data.breakdown,
+        }));
+
+        newChartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        setChartData(newChartData);
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setAllLogs([]);
+        setChartData([]);
       }
-
-      logsResult.forEach(log => {
-        const dateStr = format(new Date(log.log_date_time), 'yyyy-MM-dd');
-        if (countsByDate[dateStr] !== undefined) {
-            countsByDate[dateStr].count++;
-            const host = log.host_name;
-            countsByDate[dateStr].breakdown[host] = (countsByDate[dateStr].breakdown[host] || 0) + 1;
-        }
-      });
-
-      const newChartData = Object.entries(countsByDate).map(([date, data]) => ({
-        date,
-        count: data.count,
-        formattedDate: format(new Date(date), "MMM d"),
-        breakdown: data.breakdown,
-      }));
-
-      newChartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      
-      setChartData(newChartData);
     });
   }, [dateRange]);
   
