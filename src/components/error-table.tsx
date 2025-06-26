@@ -26,7 +26,6 @@ import { DataTablePagination } from "./data-table-pagination";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { cn } from "@/lib/utils";
-import { ErrorGroupSummary } from "./error-group-summary";
 
 interface ErrorTableProps {
   logs: ErrorLog[];
@@ -160,7 +159,7 @@ export function ErrorTable({
              <Card>
                 <CardHeader>
                     <CardTitle>Error Logs by {getFriendlyGroupName(groupBy)}</CardTitle>
-                </CardHeader>
+                </Header>
                 <CardContent>
                     <div className="rounded-md border h-24 flex items-center justify-center">
                         No results found.
@@ -204,7 +203,6 @@ export function ErrorTable({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <ErrorGroupSummary logs={groupData.logs} />
                     <div className="rounded-md border">
                       <Table>
                           <TableHeader>
