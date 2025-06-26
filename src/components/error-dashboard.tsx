@@ -284,7 +284,7 @@ export default function ErrorDashboard() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-[180px] mt-1">
-                          Columns <ChevronDown className="ml-auto h-4 w-4" />
+                          All Columns <ChevronDown className="ml-auto h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
