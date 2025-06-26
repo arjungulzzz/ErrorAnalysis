@@ -3,7 +3,7 @@
 
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
 import { Skeleton } from "./ui/skeleton";
 import { type ErrorTrendDataPoint } from "@/types";
 
@@ -18,6 +18,45 @@ const chartConfig = {
     color: "hsl(var(--destructive))",
   },
 }
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload as ErrorTrendDataPoint;
+    const fullDate = new Date(data.date).toLocaleDateString('en-US', {
+      timeZone: 'UTC',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const breakdownEntries = Object.entries(data.breakdown).sort(([, a], [, b]) => b - a);
+
+    return (
+      <div className="min-w-[12rem] rounded-lg border bg-background p-2 text-xs shadow-lg">
+        <div className="mb-2">
+          <p className="font-bold text-sm">{fullDate}</p>
+          <p className="text-muted-foreground">{`Total Errors: ${data.count}`}</p>
+        </div>
+        {breakdownEntries.length > 0 && (
+          <div className="pt-2 border-t">
+            <p className="font-semibold mb-1">By Host</p>
+            <div className="space-y-1">
+              {breakdownEntries.map(([host, count]) => (
+                <div key={host} className="flex justify-between items-center text-muted-foreground">
+                  <span className="truncate" title={host}>{host}</span>
+                  <span className="font-medium text-foreground ml-2">{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+};
+
 
 export function ErrorTrendChart({ data, isLoading }: ErrorTrendChartProps) {
   if (isLoading) {
@@ -88,22 +127,7 @@ export function ErrorTrendChart({ data, isLoading }: ErrorTrendChartProps) {
             />
             <ChartTooltip
               cursor={false}
-              content={
-                <ChartTooltipContent
-                  indicator="dot"
-                  labelFormatter={(_label, payload) => {
-                    const fullDate = payload?.[0]?.payload?.date;
-                    if (fullDate) {
-                      // The date string 'YYYY-MM-DD' is parsed as UTC. Using toLocaleDateString
-                      // with the UTC timezone prevents off-by-one-day errors.
-                      return new Date(fullDate).toLocaleDateString('en-US', {
-                        timeZone: 'UTC',
-                      });
-                    }
-                    return null;
-                  }}
-                />
-              }
+              content={<CustomTooltip />}
             />
             <defs>
               <linearGradient id="fillErrors" x1="0" y1="0" x2="0" y2="1">

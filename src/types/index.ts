@@ -37,6 +37,7 @@ export type ErrorTrendDataPoint = {
   date: string;
   count: number;
   formattedDate: string;
+  breakdown: Record<string, number>;
 };
 
 // Types for AI Error Summary Flow

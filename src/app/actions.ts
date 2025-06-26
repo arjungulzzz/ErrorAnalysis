@@ -100,14 +100,14 @@ export async function getErrorCountsByDate({
     });
   }
 
-  const countsByDate: Record<string, number> = {};
+  const countsByDate: Record<string, { count: number; breakdown: Record<string, number> }> = {};
   if(dateRange?.from && dateRange?.to){
     let current = new Date(dateRange.from);
     const to = new Date(dateRange.to);
 
     while (current <= to) {
         const dateStr = format(current, 'yyyy-MM-dd');
-        countsByDate[dateStr] = 0;
+        countsByDate[dateStr] = { count: 0, breakdown: {} };
         current.setDate(current.getDate() + 1);
     }
   }
@@ -124,14 +124,17 @@ export async function getErrorCountsByDate({
   logsInDateRange.forEach(log => {
     const dateStr = format(new Date(log.log_date_time), 'yyyy-MM-dd');
     if (countsByDate[dateStr] !== undefined) {
-      countsByDate[dateStr]++;
+      countsByDate[dateStr].count++;
+      const host = log.host_name;
+      countsByDate[dateStr].breakdown[host] = (countsByDate[dateStr].breakdown[host] || 0) + 1;
     }
   });
 
-  const chartData = Object.entries(countsByDate).map(([date, count]) => ({
+  const chartData = Object.entries(countsByDate).map(([date, data]) => ({
     date,
-    count,
-    formattedDate: format(new Date(date), "MMM d")
+    count: data.count,
+    formattedDate: format(new Date(date), "MMM d"),
+    breakdown: data.breakdown,
   }));
 
   chartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
