@@ -38,6 +38,7 @@ const TIME_PRESETS = [
     { value: '8h', label: 'Last 8 hours' },
     { value: '1d', label: 'Last 1 day' },
     { value: '7d', label: 'Last 7 days' },
+    { value: '15d', label: 'Last 15 days' },
 ];
 
 export default function ErrorDashboard() {
@@ -128,6 +129,9 @@ export default function ErrorDashboard() {
       case "7d":
         fromDate = subDays(now, 7);
         break;
+      case "15d":
+        fromDate = subDays(now, 15);
+        break;
     }
     setDateRange({ from: fromDate, to: now });
     setPage(1);
@@ -212,6 +216,7 @@ export default function ErrorDashboard() {
                                     setPage(1);
                                 }}
                                 numberOfMonths={2}
+                                toMonth={new Date()}
                                 disabled={{ before: subMonths(new Date(), 1), after: new Date() }}
                             />
                         </PopoverContent>
