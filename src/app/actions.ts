@@ -1,7 +1,7 @@
 "use server";
 
 import { MOCK_LOGS } from "@/lib/mock-data";
-import { type ErrorLog, type SortDescriptor } from "@/types";
+import { type ErrorLog, type SortDescriptor, type ColumnFilters } from "@/types";
 
 // This is a placeholder for a real AI-based anomaly detection service.
 // For this demo, it identifies logs with messages that appear more than once in the paginated view.
@@ -27,14 +27,14 @@ async function detectAnomalies(logs: ErrorLog[]): Promise<string[]> {
 
 export async function getErrorLogs(
   {
-    repoPath,
     dateRange,
+    columnFilters,
     page = 1,
     pageSize = 10,
     sort,
   }: {
-    repoPath?: string;
     dateRange?: { from?: Date; to?: Date };
+    columnFilters?: ColumnFilters,
     page?: number;
     pageSize?: number;
     sort?: SortDescriptor;
@@ -45,11 +45,16 @@ export async function getErrorLogs(
 
   let filteredLogs = MOCK_LOGS;
 
-  // Filter by repository path
-  if (repoPath) {
-    filteredLogs = filteredLogs.filter(log =>
-      log.repository_path.toLowerCase().includes(repoPath.toLowerCase())
-    );
+  // Filter by column filters
+  if (columnFilters) {
+    Object.entries(columnFilters).forEach(([key, value]) => {
+      if (value) {
+        filteredLogs = filteredLogs.filter(log => {
+          const logValue = log[key as keyof ErrorLog];
+          return String(logValue).toLowerCase().includes(value.toLowerCase());
+        });
+      }
+    });
   }
 
   // Filter by date range

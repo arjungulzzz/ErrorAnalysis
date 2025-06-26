@@ -1,6 +1,6 @@
 "use client";
 
-import { type ErrorLog, type SortDescriptor, type GroupedLogs } from "@/types";
+import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters } from "@/types";
 import {
   Table,
   TableBody,
@@ -37,6 +37,8 @@ interface ErrorTableProps {
   setPage: (page: number) => void;
   groupingEnabled: boolean;
   groupedLogs: GroupedLogs | null;
+  columnFilters: ColumnFilters;
+  setColumnFilters: (filters: React.SetStateAction<ColumnFilters>) => void;
 }
 
 export function ErrorTable({
@@ -50,7 +52,9 @@ export function ErrorTable({
   totalLogs,
   setPage,
   groupingEnabled,
-  groupedLogs
+  groupedLogs,
+  columnFilters,
+  setColumnFilters,
 }: ErrorTableProps) {
 
   const renderSkeleton = () => (
@@ -197,11 +201,11 @@ export function ErrorTable({
               <TableHeader>
                 <TableRow>
                   <DataTableColumnHeader column="log_date_time" title="Timestamp" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} />
-                  <DataTableColumnHeader column="repository_path" title="Repository" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} />
-                  <DataTableColumnHeader column="error_number" title="Error Code" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} />
-                  <DataTableColumnHeader column="log_message" title="Message" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} />
-                  <DataTableColumnHeader column="host_name" title="Host" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} />
-                  <DataTableColumnHeader column="user_id" title="User" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} />
+                  <DataTableColumnHeader column="repository_path" title="Repository" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} columnFilters={columnFilters} setColumnFilters={setColumnFilters} />
+                  <DataTableColumnHeader column="error_number" title="Error Code" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} columnFilters={columnFilters} setColumnFilters={setColumnFilters} />
+                  <DataTableColumnHeader column="log_message" title="Message" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} columnFilters={columnFilters} setColumnFilters={setColumnFilters} />
+                  <DataTableColumnHeader column="host_name" title="Host" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} columnFilters={columnFilters} setColumnFilters={setColumnFilters} />
+                  <DataTableColumnHeader column="user_id" title="User" sortDescriptor={sortDescriptor} setSortDescriptor={setSortDescriptor} columnFilters={columnFilters} setColumnFilters={setColumnFilters} />
                 </TableRow>
               </TableHeader>
               <TableBody>

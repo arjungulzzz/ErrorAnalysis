@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
-import { type ErrorLog, type SortDescriptor, type GroupedLogs } from "@/types";
+import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters } from "@/types";
 import { getErrorLogs } from "@/app/actions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { DateRangePicker } from "@/components/date-range-picker";
 import { type DateRange } from "react-day-picker";
 import { subDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, RotateCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 
@@ -21,7 +21,7 @@ export default function ErrorDashboard() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(15);
-  const [repoPath, setRepoPath] = useState("");
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: subDays(new Date(), 7), to: new Date() });
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupByUser, setGroupByUser] = useState(false);
@@ -31,7 +31,7 @@ export default function ErrorDashboard() {
   const fetchLogs = useCallback(() => {
     startTransition(async () => {
       const result = await getErrorLogs({
-        repoPath,
+        columnFilters,
         dateRange,
         page,
         pageSize,
@@ -41,8 +41,12 @@ export default function ErrorDashboard() {
       setTotal(result.total);
       setAnomalousLogIds(result.anomalousLogIds);
     });
-  }, [repoPath, dateRange, page, pageSize, sort]);
+  }, [columnFilters, dateRange, page, pageSize, sort]);
   
+  useEffect(() => {
+    setPage(1);
+  }, [columnFilters]);
+
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
@@ -118,22 +122,6 @@ export default function ErrorDashboard() {
         </CardHeader>
         <CardContent>
             <div className="flex flex-wrap items-end gap-4">
-                <div className="flex-grow min-w-[250px]">
-                    <label htmlFor="repo-path" className="text-sm font-medium">Repository Path</label>
-                    <div className="relative mt-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            id="repo-path"
-                            placeholder="e.g., /apps/main-service"
-                            value={repoPath}
-                            onChange={(e) => {
-                                setRepoPath(e.target.value);
-                                setPage(1);
-                            }}
-                            className="pl-10"
-                        />
-                    </div>
-                </div>
                 <div>
                     <label htmlFor="time-preset" className="text-sm font-medium">Time Range</label>
                     <Select onValueChange={handleTimePresetChange} defaultValue="7d">
@@ -187,6 +175,8 @@ export default function ErrorDashboard() {
         setPage={setPage}
         groupingEnabled={groupByUser}
         groupedLogs={groupedData}
+        columnFilters={columnFilters}
+        setColumnFilters={setColumnFilters}
       />
     </div>
   );

@@ -20,6 +20,8 @@ export type SortDescriptor = {
   direction: 'ascending' | 'descending' | null;
 };
 
+export type ColumnFilters = Partial<Record<keyof ErrorLog, string>>;
+
 export type GroupedLog = {
     logs: ErrorLog[];
     count: number;

@@ -1,9 +1,12 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronsUpDown, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { type ErrorLog, type SortDescriptor } from "@/types";
+import { type ErrorLog, type SortDescriptor, type ColumnFilters } from "@/types";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -11,6 +14,8 @@ interface DataTableColumnHeaderProps<TData, TValue>
   title: string;
   sortDescriptor: SortDescriptor;
   setSortDescriptor: (descriptor: SortDescriptor) => void;
+  columnFilters?: ColumnFilters;
+  setColumnFilters?: (filters: React.SetStateAction<ColumnFilters>) => void;
 }
 
 export function DataTableColumnHeader<TData, TValue>({
@@ -19,6 +24,8 @@ export function DataTableColumnHeader<TData, TValue>({
   className,
   sortDescriptor,
   setSortDescriptor,
+  columnFilters,
+  setColumnFilters,
 }: DataTableColumnHeaderProps<TData, TValue>) {
 
   const handleSort = () => {
@@ -43,17 +50,59 @@ export function DataTableColumnHeader<TData, TValue>({
       <ArrowUp className="ml-2 h-4 w-4" />
     );
   };
+  
+  const isFilterable = !!setColumnFilters;
+  const filterValue = columnFilters?.[column] || "";
+
+  const handleFilterChange = (value: string) => {
+    setColumnFilters?.(prev => ({
+      ...prev,
+      [column]: value,
+    }));
+  };
 
   return (
     <th className={cn("p-2", className)}>
-      <Button
-        variant="ghost"
-        onClick={handleSort}
-        className="h-8 data-[state=open]:bg-accent px-2"
-      >
-        <span>{title}</span>
-        {renderSortIcon()}
-      </Button>
+       <div className="flex items-center justify-start space-x-1">
+        <Button
+            variant="ghost"
+            onClick={handleSort}
+            className="h-8 data-[state=open]:bg-accent px-2"
+        >
+            <span>{title}</span>
+            {renderSortIcon()}
+        </Button>
+         {isFilterable && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className={cn("h-7 w-7", filterValue && "text-primary bg-accent/50")}>
+                <Filter className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-60" align="start" onClick={(e) => e.stopPropagation()}>
+              <div className="space-y-2">
+                <Label htmlFor={`filter-${column}`}>Filter by {title}</Label>
+                <Input
+                  id={`filter-${column}`}
+                  placeholder={`Filter...`}
+                  value={filterValue}
+                  onChange={(e) => handleFilterChange(e.target.value)}
+                  className="h-8"
+                />
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="w-full h-8"
+                  disabled={!filterValue}
+                  onClick={() => handleFilterChange('')}
+                >
+                  Clear filter
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
     </th>
   );
 }
