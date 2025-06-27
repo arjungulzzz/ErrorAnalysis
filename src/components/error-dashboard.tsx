@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
-import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint } from "@/types";
+import { type ErrorLog, type ApiErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
@@ -135,12 +135,12 @@ export default function ErrorDashboard() {
           return;
         }
 
-        const logsResult: ErrorLog[] = await response.json();
+        const logsResult: ApiErrorLog[] = await response.json();
         
-        // Dates in JSON are strings, convert them back to Date objects for sorting
-        const logsWithDates = logsResult.map((log, index) => ({
+        // Process logs: Convert date strings to Date objects and ensure a unique ID.
+        const logsWithDates: ErrorLog[] = logsResult.map((log, index) => ({
           ...log,
-          // Ensure a unique ID for each log for React's key prop.
+          // Guarantee a unique ID for each log for React's key prop.
           // Fallback to a generated key if the API response is missing an ID.
           id: log.id ? String(log.id) : `log-item-${index}-${new Date(log.log_date_time).getTime()}`,
           log_date_time: new Date(log.log_date_time),

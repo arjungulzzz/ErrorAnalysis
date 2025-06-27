@@ -1,8 +1,36 @@
 /**
- * Represents a single error log entry from the logging service.
+ * @fileoverview
+ * This file contains all the core TypeScript types used throughout the application.
+ * It defines the shape of data for error logs, API responses, table states, and chart data.
+ */
+
+/**
+ * Represents a single error log entry as received from the API.
+ * The ID is optional and dates are represented as strings.
+ */
+export type ApiErrorLog = {
+  id?: string;
+  log_date_time: string;
+  host_name: string;
+  repository_path: string;
+  port_number: number;
+  version_number: string;
+  as_server_mode: string;
+  as_start_date_time: string;
+  as_server_config: string;
+  user_id: string;
+  report_id_name: string;
+  error_number: number;
+  xql_query_id: string;
+  log_message: string;
+};
+
+/**
+ * Represents a single error log entry after being processed by the application.
+ * It has a guaranteed unique ID for React keys and Date objects for timestamps.
  */
 export type ErrorLog = {
-  id: string; // Add a unique ID for React keys
+  id: string;
   log_date_time: Date;
   host_name: string;
   repository_path: string;
