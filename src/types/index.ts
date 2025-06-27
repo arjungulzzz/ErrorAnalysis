@@ -1,21 +1,39 @@
 /**
- * Represents a single error log entry from the logging service.
+ * @fileoverview
+ * Type definitions for the Error Insights Dashboard. This file defines the shapes
+ * of the core data structures used throughout the application, such as the error
+ * log objects and filter descriptors. It also distinguishes between the raw data
+ * format from the API and the processed format used by the frontend.
  */
-export type ErrorLog = {
-  id: string; // Add a unique ID for React keys
-  log_date_time: Date;
+
+/**
+ * Represents the raw error log entry received from the API.
+ * Dates are strings and there is no client-side 'id'.
+ */
+export type ApiErrorLog = {
+  log_date_time: string;
   host_name: string;
   repository_path: string;
   port_number: number;
   version_number: string;
   as_server_mode: string;
-  as_start_date_time: Date;
+  as_start_date_time: string;
   as_server_config: string;
   user_id: string;
   report_id_name: string;
   error_number: number;
   xql_query_id: string;
   log_message: string;
+};
+
+/**
+ * Represents a single error log entry once processed by the frontend.
+ * It includes a unique 'id' for React keys and Date objects for dates.
+ */
+export type ErrorLog = Omit<ApiErrorLog, 'log_date_time' | 'as_start_date_time'> & {
+  id: string;
+  log_date_time: Date;
+  as_start_date_time: Date;
 };
 
 /**

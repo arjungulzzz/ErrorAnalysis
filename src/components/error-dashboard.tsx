@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
-import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint } from "@/types";
+import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
@@ -135,23 +135,23 @@ export default function ErrorDashboard() {
           return;
         }
 
-        const logsResult: ErrorLog[] = await response.json();
+        const logsResult: ApiErrorLog[] = await response.json();
         
-        // Dates in JSON are strings, convert them back to Date objects for sorting
-        const logsWithDates = logsResult.map(log => ({
+        // Convert raw API logs to frontend ErrorLog type, generating a unique ID
+        const logsWithIds = logsResult.map((log, index) => ({
           ...log,
-          id: String(log.id), // ensure id is a string
+          id: `${new Date(log.log_date_time).getTime()}-${index}`,
           log_date_time: new Date(log.log_date_time),
           as_start_date_time: new Date(log.as_start_date_time),
         }));
         
-        setAllLogs(logsWithDates);
+        setAllLogs(logsWithIds);
 
         // Calculate chart data from the fetched logs
         const countsByDate: Record<string, { count: number; breakdown: Record<string, number> }> = {};
         
-        if (logsWithDates.length > 0) {
-            const sortedLogs = [...logsWithDates].sort((a,b) => a.log_date_time.getTime() - b.log_date_time.getTime());
+        if (logsWithIds.length > 0) {
+            const sortedLogs = [...logsWithIds].sort((a,b) => a.log_date_time.getTime() - b.log_date_time.getTime());
             let current = new Date(sortedLogs[0].log_date_time);
             const to = new Date(sortedLogs[sortedLogs.length - 1].log_date_time);
 
@@ -165,7 +165,7 @@ export default function ErrorDashboard() {
             }
         }
 
-        logsWithDates.forEach(log => {
+        logsWithIds.forEach(log => {
           const dateStr = format(new Date(log.log_date_time), 'yyyy-MM-dd');
           if (countsByDate[dateStr] !== undefined) {
               countsByDate[dateStr].count++;
