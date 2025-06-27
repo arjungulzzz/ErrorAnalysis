@@ -137,9 +137,11 @@ export function ErrorTable({
   const renderSkeleton = () => (
     Array.from({ length: 10 }).map((_, i) => (
       <TableRow key={`skeleton-${i}`}>
-        <TableCell colSpan={visibleColumnCount || 1}>
-          <Skeleton className="h-8 w-full" />
-        </TableCell>
+        {visibleColumns.map(c => (
+           <TableCell key={c.id}>
+             <Skeleton className="h-6 w-full" />
+           </TableCell>
+        ))}
       </TableRow>
     ))
   );
@@ -173,7 +175,7 @@ export function ErrorTable({
                 </CardHeader>
                 <CardContent>
                     <div className="rounded-md border h-24 flex items-center justify-center">
-                        No results found.
+                        No groups found.
                     </div>
                 </CardContent>
             </Card>
@@ -198,7 +200,7 @@ export function ErrorTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoading && <TableRow><TableCell colSpan={2}><Skeleton className="h-8 w-full" /></TableCell></TableRow>}
+                  {isLoading && Array.from({length: 5}).map((_, i) => <TableRow key={i}><TableCell colSpan={2}><Skeleton className="h-8 w-full" /></TableCell></TableRow>)}
                   {!isLoading && groupData.map((item) => (
                     <TableRow 
                       key={item.key} 
@@ -223,7 +225,7 @@ export function ErrorTable({
       <CardHeader>
         <CardTitle>Error Logs</CardTitle>
         <CardDescription>
-          Showing {logs.length} of {totalLogs} errors.
+          Showing {logs.length} of {totalLogs.toLocaleString()} errors.
         </CardDescription>
       </CardHeader>
       <CardContent>

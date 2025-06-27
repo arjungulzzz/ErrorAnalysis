@@ -7,10 +7,11 @@
  */
 
 /**
- * Represents the raw error log entry received from the API.
- * Dates are strings and there is no client-side 'id'.
+ * Represents the raw error log entry as it comes from the API.
+ * Dates are strings. The backend should generate and return the ID.
  */
 export type ApiErrorLog = {
+  id: string;
   log_date_time: string;
   host_name: string;
   repository_path: string;
@@ -28,12 +29,21 @@ export type ApiErrorLog = {
 
 /**
  * Represents a single error log entry once processed by the frontend.
- * It includes a unique 'id' for React keys and Date objects for dates.
+ * It has Date objects for dates.
  */
 export type ErrorLog = Omit<ApiErrorLog, 'log_date_time' | 'as_start_date_time'> & {
-  id: string;
   log_date_time: Date;
   as_start_date_time: Date;
+};
+
+/**
+ * Defines the structure of the successful response from the logs API.
+ */
+export type LogsApiResponse = {
+  logs: ApiErrorLog[];
+  totalCount: number;
+  chartData: ErrorTrendDataPoint[];
+  groupData: GroupDataPoint[];
 };
 
 /**

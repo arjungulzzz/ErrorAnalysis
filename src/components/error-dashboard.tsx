@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
-import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint } from "@/types";
+import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
@@ -51,147 +51,9 @@ const TIME_PRESETS = [
     { value: '1 month', label: 'Last 1 month', interval: '1 month' },
 ];
 
-// This function simulates the server-side aggregation that would be needed for a paginated API.
-// In a real application, the backend would return this data directly.
-const performClientSideAggregation = (
-  allLogs: ErrorLog[],
-  timePreset: string,
-  dateRange: DateRange | undefined,
-  chartBreakdownBy: ChartBreakdownByOption,
-  groupBy: GroupByOption
-): { chartData: ErrorTrendDataPoint[], groupData: GroupDataPoint[] } => {
-  // Chart Data Calculation
-  let chartData: ErrorTrendDataPoint[] = [];
-  if (allLogs.length > 0) {
-    let getKey: (date: Date) => string;
-    let getLabel: (dateStr: string) => string;
-    let getIntervals: (start: Date, end: Date) => Date[];
-
-    let effectivePreset = timePreset;
-    if (timePreset === 'custom' && dateRange?.from && dateRange.to) {
-      const diffHours = (new Date(dateRange.to).getTime() - new Date(dateRange.from).getTime()) / 3600000;
-      if (diffHours <= 8) effectivePreset = '4 hours';
-      else if (diffHours <= 24) effectivePreset = '1 day';
-      else effectivePreset = '7 days';
-    }
-
-    switch (effectivePreset) {
-      case '4 hours':
-        getKey = (date) => {
-          const rounded = new Date(date);
-          rounded.setUTCMinutes(Math.floor(rounded.getUTCMinutes() / 30) * 30, 0, 0);
-          return rounded.toISOString();
-        };
-        getLabel = (dateStr) => {
-            const d = new Date(dateStr);
-            const hours = d.getUTCHours().toString().padStart(2, '0');
-            const minutes = d.getUTCMinutes().toString().padStart(2, '0');
-            return `${hours}:${minutes}`;
-        };
-        getIntervals = (start, end) => {
-          const intervals = [];
-          const roundedStart = new Date(start);
-          roundedStart.setUTCMinutes(Math.floor(roundedStart.getUTCMinutes() / 30) * 30, 0, 0);
-          let current = roundedStart;
-          while (current <= end) {
-            intervals.push(new Date(current));
-            current.setUTCMinutes(current.getUTCMinutes() + 30);
-          }
-          return intervals;
-        };
-        break;
-      case '8 hours':
-      case '1 day':
-        getKey = (date) => {
-          const rounded = new Date(date);
-          rounded.setUTCMinutes(0, 0, 0);
-          return rounded.toISOString();
-        };
-        getLabel = (dateStr) => {
-            const d = new Date(dateStr);
-            const hours = d.getUTCHours().toString().padStart(2, '0');
-            return `${hours}:00`;
-        };
-        getIntervals = (start, end) => {
-          const intervals = [];
-          const roundedStart = new Date(start);
-          roundedStart.setUTCMinutes(0, 0, 0);
-          let current = roundedStart;
-          while (current <= end) {
-            intervals.push(new Date(current));
-            current.setUTCHours(current.getUTCHours() + 1);
-          }
-          return intervals;
-        };
-        break;
-      default: // Daily for '7 days' and longer
-        getKey = (date) => date.toISOString().split('T')[0];
-        getLabel = (dateStr) => {
-          const d = new Date(`${dateStr}T00:00:00.000Z`);
-          const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
-          const day = d.getUTCDate();
-          return `${month} ${day}`;
-        };
-        getIntervals = (start, end) => {
-          const intervals = [];
-          const roundedStart = new Date(start);
-          roundedStart.setUTCHours(0, 0, 0, 0);
-          let current = roundedStart;
-          while (current <= end) {
-            intervals.push(new Date(current));
-            current.setUTCDate(current.getUTCDate() + 1);
-          }
-          return intervals;
-        };
-    }
-
-    const countsByInterval: Record<string, { count: number; breakdown: Record<string, number> }> = {};
-    const fromDate = dateRange?.from || allLogs.reduce((min, log) => log.log_date_time < min ? log.log_date_time : min, allLogs[0].log_date_time);
-    const toDate = dateRange?.to || allLogs.reduce((max, log) => log.log_date_time > max ? log.log_date_time : max, allLogs[0].log_date_time);
-
-    getIntervals(new Date(fromDate), new Date(toDate)).forEach(intervalDate => {
-      const key = getKey(intervalDate);
-      countsByInterval[key] = { count: 0, breakdown: {} };
-    });
-
-    allLogs.forEach(log => {
-      const key = getKey(log.log_date_time);
-      if (countsByInterval[key]) {
-        countsByInterval[key].count++;
-        const breakdownKey = String(log[chartBreakdownBy]);
-        countsByInterval[key].breakdown[breakdownKey] = (countsByInterval[key].breakdown[breakdownKey] || 0) + 1;
-      }
-    });
-
-    const newChartData = Object.entries(countsByInterval).map(([date, data]) => ({
-      date,
-      count: data.count,
-      formattedDate: getLabel(date),
-      breakdown: data.breakdown,
-    }));
-    newChartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    chartData = newChartData;
-  }
-
-  // Group Data Calculation
-  let groupData: GroupDataPoint[] = [];
-  if (groupBy !== 'none' && allLogs.length > 0) {
-    const counts: Record<string, number> = {};
-    allLogs.forEach(log => {
-      const key = String(log[groupBy]);
-      counts[key] = (counts[key] || 0) + 1;
-    });
-    groupData = Object.entries(counts)
-      .map(([key, count]) => ({ key, count }))
-      .sort((a, b) => b.count - a.count);
-  }
-
-  return { chartData, groupData };
-};
-
-
 export default function ErrorDashboard() {
-  const [allLogs, setAllLogs] = useState<ErrorLog[]>([]);
+  const [logs, setLogs] = useState<ErrorLog[]>([]);
+  const [totalLogs, setTotalLogs] = useState(0);
   const [chartData, setChartData] = useState<ErrorTrendDataPoint[]>([]);
   const [groupData, setGroupData] = useState<GroupDataPoint[]>([]);
   const [page, setPage] = useState(1);
@@ -205,15 +67,15 @@ export default function ErrorDashboard() {
     log_date_time: true,
     host_name: true,
     repository_path: true,
-    port_number: true,
-    version_number: true,
-    as_server_mode: true,
-    as_start_date_time: true,
-    as_server_config: true,
+    port_number: false,
+    version_number: false,
+    as_server_mode: false,
+    as_start_date_time: false,
+    as_server_config: false,
     user_id: true,
-    report_id_name: true,
+    report_id_name: false,
     error_number: true,
-    xql_query_id: true,
+    xql_query_id: false,
     log_message: true,
   });
   
@@ -230,18 +92,13 @@ export default function ErrorDashboard() {
       console.log(`UI render took: ${(renderEndTime - renderStartTime).toFixed(2)}ms`);
       setRenderStartTime(null);
     }
-  }, [allLogs, renderStartTime]);
+  }, [logs, renderStartTime]);
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
-      if (timePreset === 'none') {
-        setAllLogs([]);
-        setChartData([]);
-        setGroupData([]);
-        return;
-      }
-      if (timePreset === 'custom' && !dateRange?.from) {
-        setAllLogs([]);
+      if (timePreset === 'none' || (timePreset === 'custom' && !dateRange?.from)) {
+        setLogs([]);
+        setTotalLogs(0);
         setChartData([]);
         setGroupData([]);
         return;
@@ -261,10 +118,14 @@ export default function ErrorDashboard() {
       
       try {
         const preset = TIME_PRESETS.find(p => p.value === timePreset);
-        // In a real server-side pagination scenario, you would also pass pagination, sort, and filter info here.
-        const requestBody = timePreset === 'custom'
-            ? { dateRange }
-            : { interval: preset?.interval };
+        const requestBody = {
+          ...(timePreset === 'custom' ? { dateRange } : { interval: preset?.interval }),
+          pagination: { page, pageSize },
+          sort,
+          filters: columnFilters,
+          groupBy,
+          chartBreakdownBy,
+        };
 
         const fetchStartTime = performance.now();
         const response = await fetch(externalApiUrl, {
@@ -279,7 +140,6 @@ export default function ErrorDashboard() {
 
         if (!response.ok) {
           console.error("Failed to fetch logs:", response.statusText);
-          setAllLogs([]);
           toast({
             variant: "destructive",
             title: "Failed to fetch logs",
@@ -288,7 +148,7 @@ export default function ErrorDashboard() {
           return;
         }
 
-        let logsResult: ApiErrorLog[];
+        let apiResponse: LogsApiResponse;
         const isCompressed = response.headers.get('X-Compressed') === 'true';
 
         if (isCompressed) {
@@ -300,98 +160,52 @@ export default function ErrorDashboard() {
           const decompressionDoneTime = performance.now();
           console.log(`Decompression took: ${(decompressionDoneTime - bodyDownloadedTime).toFixed(2)}ms`);
 
-          logsResult = JSON.parse(decompressedData) as ApiErrorLog[];
+          apiResponse = JSON.parse(decompressedData) as LogsApiResponse;
           const jsonParsedTime = performance.now();
           console.log(`JSON parsing took: ${(jsonParsedTime - decompressionDoneTime).toFixed(2)}ms`);
         } else {
-          logsResult = await response.json();
+          apiResponse = await response.json();
           const bodyParsedTime = performance.now();
           console.log(`Body download & parsing took: ${(bodyParsedTime - responseReceivedTime).toFixed(2)}ms`);
         }
         
         const processingStartTime = performance.now();
-        const logsWithIds = logsResult.map((log, index) => ({
+        const { logs: apiLogs, totalCount, chartData: apiChartData, groupData: apiGroupData } = apiResponse;
+        
+        const processedLogs = apiLogs.map((log: ApiErrorLog) => ({
           ...log,
-          id: `${new Date(log.log_date_time).getTime()}-${index}`,
           log_date_time: new Date(log.log_date_time),
           as_start_date_time: new Date(log.as_start_date_time),
         }));
         
-        // This simulates the backend doing the aggregation. In a real scenario, the API
-        // would return `chartData` and `groupData` directly, and `logsWithIds` would already be paginated.
-        const { chartData: aggregatedChartData, groupData: aggregatedGroupData } = performClientSideAggregation(
-          logsWithIds,
-          timePreset,
-          dateRange,
-          chartBreakdownBy,
-          groupBy
-        );
-
-        setAllLogs(logsWithIds);
-        setChartData(aggregatedChartData);
-        setGroupData(aggregatedGroupData);
+        setLogs(processedLogs);
+        setTotalLogs(totalCount);
+        setChartData(apiChartData);
+        setGroupData(apiGroupData);
 
         const processingEndTime = performance.now();
         console.log(`Data processing took: ${(processingEndTime - processingStartTime).toFixed(2)}ms`);
         setRenderStartTime(performance.now());
       } catch (error) {
         console.error("Error fetching data:", error);
-        setAllLogs([]);
-        setChartData([]);
-        setGroupData([]);
         toast({
           variant: "destructive",
           title: "Failed to fetch logs",
-          description: "The API could not be reached. Please check your connection or try again later.",
+          description: "An error occurred while processing the data. Please try again.",
         });
       }
     });
-  }, [dateRange, timePreset, toast, chartBreakdownBy, groupBy]);
+  }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, timePreset, toast]);
   
   useEffect(() => {
+    // Reset page to 1 whenever filters, grouping, or date changes
     setPage(1);
-  }, [columnFilters, groupBy, dateRange, timePreset]);
+  }, [columnFilters, groupBy, dateRange, timePreset, sort]);
 
   useEffect(() => {
+    // Main fetch trigger
     fetchData();
   }, [fetchData]);
-
-  const { paginatedLogs, total } = useMemo(() => {
-    let logs = [...allLogs];
-
-    if (Object.values(columnFilters).some(v => v)) {
-      logs = logs.filter(log => {
-        return Object.entries(columnFilters).every(([key, value]) => {
-          if (!value) return true;
-          const logValue = log[key as keyof ErrorLog];
-          return String(logValue).toLowerCase().includes(value.toLowerCase());
-        });
-      });
-    }
-    
-    if (sort && sort.column && sort.direction) {
-      logs.sort((a, b) => {
-        const aValue = a[sort.column!];
-        const bValue = b[sort.column!];
-        if (aValue === null || aValue === undefined) return 1;
-        if (bValue === null || bValue === undefined) return -1;
-        let comparison = 0;
-        if (aValue instanceof Date && bValue instanceof Date) {
-          comparison = aValue.getTime() - bValue.getTime();
-        } else if (typeof aValue === 'string' && typeof bValue === 'string') {
-          comparison = aValue.localeCompare(bValue);
-        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
-          comparison = aValue - bValue;
-        }
-        return sort.direction === 'descending' ? comparison * -1 : comparison;
-      });
-    }
-    
-    const totalCount = logs.length;
-    const paginated = logs.slice((page - 1) * pageSize, page * pageSize);
-
-    return { paginatedLogs: paginated, total: totalCount };
-  }, [allLogs, columnFilters, sort, page, pageSize]);
 
   const handleGroupSelect = (groupKey: string) => {
     if (groupBy !== 'none') {
@@ -578,7 +392,7 @@ export default function ErrorDashboard() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-[180px] mt-1" disabled={isPending}>
-                          All Columns <ChevronDown className="ml-auto h-4 w-4" />
+                          Visible Columns <ChevronDown className="ml-auto h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56 max-h-72 overflow-y-auto">
@@ -619,13 +433,13 @@ export default function ErrorDashboard() {
       </Card>
       
       <ErrorTable 
-        logs={paginatedLogs} 
+        logs={logs} 
         isLoading={isPending}
         sortDescriptor={sort}
         setSortDescriptor={setSort}
         page={page}
         pageSize={pageSize}
-        totalLogs={total}
+        totalLogs={totalLogs}
         setPage={setPage}
         groupBy={groupBy}
         groupData={groupData}
