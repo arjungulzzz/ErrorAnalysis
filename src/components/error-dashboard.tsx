@@ -138,9 +138,11 @@ export default function ErrorDashboard() {
         const logsResult: ErrorLog[] = await response.json();
         
         // Dates in JSON are strings, convert them back to Date objects for sorting
-        const logsWithDates = logsResult.map(log => ({
+        const logsWithDates = logsResult.map((log, index) => ({
           ...log,
-          id: String(log.id), // ensure id is a string
+          // Ensure a unique ID for each log for React's key prop.
+          // Fallback to a generated key if the API response is missing an ID.
+          id: log.id ? String(log.id) : `log-item-${index}-${new Date(log.log_date_time).getTime()}`,
           log_date_time: new Date(log.log_date_time),
           as_start_date_time: new Date(log.as_start_date_time),
         }));
