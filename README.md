@@ -16,13 +16,18 @@ npm install
 
 ### 2. Configure Environment Variables
 
-The application requires the URL of your external logging service.
+The application uses environment variables for configuration. Create a file named `.env` in the root of the project to set them.
 
-1.  Create a file named `.env` in the root of the project.
-2.  Add the following line to the `.env` file, replacing the placeholder URL with the actual endpoint of your running service:
+1.  **API URL (Required)**: Add the URL for your external logging service.
 
     ```env
     NEXT_PUBLIC_API_URL=http://localhost:8000/v1/logs
+    ```
+
+2.  **Development Port (Optional)**: You can specify the port for the local development server. If you don't set this, it will default to port `3000`.
+
+    ```env
+    PORT=4000
     ```
 
 ### 3. Run the Development Server
@@ -33,7 +38,7 @@ With the dependencies installed and environment variables set, you can start the
 npm run dev
 ```
 
-This will launch the Next.js development server, typically available at `http://localhost:3000`. Open this URL in your web browser to view the dashboard.
+This will launch the Next.js development server. If you set the `PORT` variable, it will use that port; otherwise, it will default to `3000`. Open the corresponding URL in your web browser to view the dashboard.
 
 **Note:** This application is the frontend component. You must have your backend logging service running concurrently at the URL specified in your `.env` file for the dashboard to fetch and display data.
 
@@ -80,7 +85,6 @@ Each object in the response array should conform to the following structure:
 
 ```json
 {
-  "id": "log-123-unique-identifier",
   "log_date_time": "2023-11-21T10:30:00.000Z",
   "host_name": "server-alpha-01",
   "repository_path": "/apps/main-service",
