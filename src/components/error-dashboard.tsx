@@ -22,6 +22,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { ErrorTrendChart } from "./error-trend-chart";
+import * as pako from "pako";
 import { useToast } from "@/hooks/use-toast";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
@@ -135,7 +136,18 @@ export default function ErrorDashboard() {
           return;
         }
 
-        const logsResult: ApiErrorLog[] = await response.json();
+        let logsResult: ApiErrorLog[];
+
+        const isCompressed = response.headers.get('X-Compressed') === 'true';
+
+        if (isCompressed) {
+          const compressedData = await response.arrayBuffer();
+          // The 'pako' library expects a Uint8Array.
+          const decompressedData = pako.inflate(new Uint8Array(compressedData), { to: 'string' });
+          logsResult = JSON.parse(decompressedData) as ApiErrorLog[];
+        } else {
+          logsResult = await response.json();
+        }
         
         // Convert raw API logs to frontend ErrorLog type, generating a unique ID
         const logsWithIds = logsResult.map((log, index) => ({
