@@ -531,7 +531,7 @@ export default function ErrorDashboard() {
                           All Columns <ChevronDown className="ml-auto h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuContent align="end" className="w-56 max-h-72 overflow-y-auto">
                           <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                            <DropdownMenuItem onSelect={() => setColumnVisibility(
