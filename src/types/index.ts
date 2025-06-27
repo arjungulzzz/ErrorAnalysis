@@ -51,22 +51,17 @@ export type SortDescriptor = {
 export type ColumnFilters = Partial<Record<keyof ErrorLog, string>>;
 
 /**
- * Represents a group of logs, containing the log entries and their total count.
- */
-export type GroupedLog = {
-    logs: ErrorLog[];
-    count: number;
-};
-
-/**
- * A record of grouped logs, where each key is the group identifier (e.g., a hostname).
- */
-export type GroupedLogs = Record<string, GroupedLog>;
-
-/**
  * Defines the available options for grouping logs in the table.
  */
 export type GroupByOption = 'none' | 'host_name' | 'repository_path' | 'error_number' | 'user_id';
+
+/**
+ * Represents a single data point in a grouped data summary.
+ */
+export type GroupDataPoint = {
+  key: string;
+  count: number;
+};
 
 /**
  * Defines the available options for the chart's breakdown tooltip.

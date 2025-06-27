@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
-import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption } from "@/types";
+import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
@@ -51,151 +51,22 @@ const TIME_PRESETS = [
     { value: '1 month', label: 'Last 1 month', interval: '1 month' },
 ];
 
-export default function ErrorDashboard() {
-  const [allLogs, setAllLogs] = useState<ErrorLog[]>([]);
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(100);
-  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [timePreset, setTimePreset] = useState<string>('none');
-  const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
-  const [groupBy, setGroupBy] = useState<GroupByOption>('none');
-  const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
-    log_date_time: true,
-    host_name: true,
-    repository_path: true,
-    port_number: true,
-    version_number: true,
-    as_server_mode: true,
-    as_start_date_time: true,
-    as_server_config: true,
-    user_id: true,
-    report_id_name: true,
-    error_number: true,
-    xql_query_id: true,
-    log_message: true,
-  });
-  
-  const [isPending, startTransition] = useTransition();
-  const [chartBreakdownBy, setChartBreakdownBy] = useState<ChartBreakdownByOption>('host_name');
-  
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const { toast } = useToast();
-  const [renderStartTime, setRenderStartTime] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (renderStartTime) {
-      const renderEndTime = performance.now();
-      console.log(`UI render took: ${(renderEndTime - renderStartTime).toFixed(2)}ms`);
-      setRenderStartTime(null);
-    }
-  }, [allLogs, renderStartTime]);
-
-  const fetchData = useCallback(() => {
-    startTransition(async () => {
-      if (timePreset === 'none') {
-        setAllLogs([]);
-        return;
-      }
-      if (timePreset === 'custom' && !dateRange?.from) {
-        setAllLogs([]);
-        return;
-      }
-
-      const externalApiUrl = process.env.NEXT_PUBLIC_API_URL;
-      
-      if (!externalApiUrl) {
-        console.error("API URL not configured. Set NEXT_PUBLIC_API_URL in .env");
-        toast({
-          variant: "destructive",
-          title: "Configuration Error",
-          description: "The application's API endpoint is not set.",
-        });
-        return;
-      }
-      
-      try {
-        const preset = TIME_PRESETS.find(p => p.value === timePreset);
-        const requestBody = timePreset === 'custom'
-            ? { dateRange }
-            : { interval: preset?.interval };
-
-        const fetchStartTime = performance.now();
-        const response = await fetch(externalApiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
-        const responseReceivedTime = performance.now();
-        console.log(`API response received (TTFB): ${(responseReceivedTime - fetchStartTime).toFixed(2)}ms`);
-
-        if (!response.ok) {
-          console.error("Failed to fetch logs:", response.statusText);
-          setAllLogs([]);
-          toast({
-            variant: "destructive",
-            title: "Failed to fetch logs",
-            description: "The API could not be reached. Please check your connection or try again later.",
-          });
-          return;
-        }
-
-        let logsResult: ApiErrorLog[];
-        const isCompressed = response.headers.get('X-Compressed') === 'true';
-
-        if (isCompressed) {
-          const compressedData = await response.arrayBuffer();
-          const bodyDownloadedTime = performance.now();
-          console.log(`Body download took: ${(bodyDownloadedTime - responseReceivedTime).toFixed(2)}ms`);
-          
-          const decompressedData = pako.inflate(new Uint8Array(compressedData), { to: 'string' });
-          const decompressionDoneTime = performance.now();
-          console.log(`Decompression took: ${(decompressionDoneTime - bodyDownloadedTime).toFixed(2)}ms`);
-
-          logsResult = JSON.parse(decompressedData) as ApiErrorLog[];
-          const jsonParsedTime = performance.now();
-          console.log(`JSON parsing took: ${(jsonParsedTime - decompressionDoneTime).toFixed(2)}ms`);
-        } else {
-          logsResult = await response.json();
-          const bodyParsedTime = performance.now();
-          console.log(`Body download & parsing took: ${(bodyParsedTime - responseReceivedTime).toFixed(2)}ms`);
-        }
-        
-        const processingStartTime = performance.now();
-        const logsWithIds = logsResult.map((log, index) => ({
-          ...log,
-          id: `${new Date(log.log_date_time).getTime()}-${index}`,
-          log_date_time: new Date(log.log_date_time),
-          as_start_date_time: new Date(log.as_start_date_time),
-        }));
-        
-        setAllLogs(logsWithIds);
-        const processingEndTime = performance.now();
-        console.log(`Data processing took: ${(processingEndTime - processingStartTime).toFixed(2)}ms`);
-        setRenderStartTime(performance.now());
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setAllLogs([]);
-        toast({
-          variant: "destructive",
-          title: "Failed to fetch logs",
-          description: "The API could not be reached. Please check your connection or try again later.",
-        });
-      }
-    });
-  }, [dateRange, timePreset, toast]);
-
-  const chartData = useMemo(() => {
-    if (allLogs.length === 0) {
-      return [];
-    }
-  
+// This function simulates the server-side aggregation that would be needed for a paginated API.
+// In a real application, the backend would return this data directly.
+const performClientSideAggregation = (
+  allLogs: ErrorLog[],
+  timePreset: string,
+  dateRange: DateRange | undefined,
+  chartBreakdownBy: ChartBreakdownByOption,
+  groupBy: GroupByOption
+): { chartData: ErrorTrendDataPoint[], groupData: GroupDataPoint[] } => {
+  // Chart Data Calculation
+  let chartData: ErrorTrendDataPoint[] = [];
+  if (allLogs.length > 0) {
     let getKey: (date: Date) => string;
     let getLabel: (dateStr: string) => string;
     let getIntervals: (start: Date, end: Date) => Date[];
-  
+
     let effectivePreset = timePreset;
     if (timePreset === 'custom' && dateRange?.from && dateRange.to) {
       const diffHours = (new Date(dateRange.to).getTime() - new Date(dateRange.from).getTime()) / 3600000;
@@ -203,7 +74,7 @@ export default function ErrorDashboard() {
       else if (diffHours <= 24) effectivePreset = '1 day';
       else effectivePreset = '7 days';
     }
-  
+
     switch (effectivePreset) {
       case '4 hours':
         getKey = (date) => {
@@ -273,17 +144,16 @@ export default function ErrorDashboard() {
           return intervals;
         };
     }
-  
+
     const countsByInterval: Record<string, { count: number; breakdown: Record<string, number> }> = {};
-  
     const fromDate = dateRange?.from || allLogs.reduce((min, log) => log.log_date_time < min ? log.log_date_time : min, allLogs[0].log_date_time);
     const toDate = dateRange?.to || allLogs.reduce((max, log) => log.log_date_time > max ? log.log_date_time : max, allLogs[0].log_date_time);
-  
+
     getIntervals(new Date(fromDate), new Date(toDate)).forEach(intervalDate => {
       const key = getKey(intervalDate);
       countsByInterval[key] = { count: 0, breakdown: {} };
     });
-  
+
     allLogs.forEach(log => {
       const key = getKey(log.log_date_time);
       if (countsByInterval[key]) {
@@ -292,17 +162,191 @@ export default function ErrorDashboard() {
         countsByInterval[key].breakdown[breakdownKey] = (countsByInterval[key].breakdown[breakdownKey] || 0) + 1;
       }
     });
-  
+
     const newChartData = Object.entries(countsByInterval).map(([date, data]) => ({
       date,
       count: data.count,
       formattedDate: getLabel(date),
       breakdown: data.breakdown,
     }));
-  
     newChartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    return newChartData;
-  }, [allLogs, timePreset, dateRange, chartBreakdownBy]);
+    chartData = newChartData;
+  }
+
+  // Group Data Calculation
+  let groupData: GroupDataPoint[] = [];
+  if (groupBy !== 'none' && allLogs.length > 0) {
+    const counts: Record<string, number> = {};
+    allLogs.forEach(log => {
+      const key = String(log[groupBy]);
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    groupData = Object.entries(counts)
+      .map(([key, count]) => ({ key, count }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  return { chartData, groupData };
+};
+
+
+export default function ErrorDashboard() {
+  const [allLogs, setAllLogs] = useState<ErrorLog[]>([]);
+  const [chartData, setChartData] = useState<ErrorTrendDataPoint[]>([]);
+  const [groupData, setGroupData] = useState<GroupDataPoint[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(100);
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [timePreset, setTimePreset] = useState<string>('none');
+  const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
+  const [groupBy, setGroupBy] = useState<GroupByOption>('none');
+  const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
+    log_date_time: true,
+    host_name: true,
+    repository_path: true,
+    port_number: true,
+    version_number: true,
+    as_server_mode: true,
+    as_start_date_time: true,
+    as_server_config: true,
+    user_id: true,
+    report_id_name: true,
+    error_number: true,
+    xql_query_id: true,
+    log_message: true,
+  });
+  
+  const [isPending, startTransition] = useTransition();
+  const [chartBreakdownBy, setChartBreakdownBy] = useState<ChartBreakdownByOption>('host_name');
+  
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const { toast } = useToast();
+  const [renderStartTime, setRenderStartTime] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (renderStartTime) {
+      const renderEndTime = performance.now();
+      console.log(`UI render took: ${(renderEndTime - renderStartTime).toFixed(2)}ms`);
+      setRenderStartTime(null);
+    }
+  }, [allLogs, renderStartTime]);
+
+  const fetchData = useCallback(() => {
+    startTransition(async () => {
+      if (timePreset === 'none') {
+        setAllLogs([]);
+        setChartData([]);
+        setGroupData([]);
+        return;
+      }
+      if (timePreset === 'custom' && !dateRange?.from) {
+        setAllLogs([]);
+        setChartData([]);
+        setGroupData([]);
+        return;
+      }
+
+      const externalApiUrl = process.env.NEXT_PUBLIC_API_URL;
+      
+      if (!externalApiUrl) {
+        console.error("API URL not configured. Set NEXT_PUBLIC_API_URL in .env");
+        toast({
+          variant: "destructive",
+          title: "Configuration Error",
+          description: "The application's API endpoint is not set.",
+        });
+        return;
+      }
+      
+      try {
+        const preset = TIME_PRESETS.find(p => p.value === timePreset);
+        // In a real server-side pagination scenario, you would also pass pagination, sort, and filter info here.
+        const requestBody = timePreset === 'custom'
+            ? { dateRange }
+            : { interval: preset?.interval };
+
+        const fetchStartTime = performance.now();
+        const response = await fetch(externalApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+        const responseReceivedTime = performance.now();
+        console.log(`API response received (TTFB): ${(responseReceivedTime - fetchStartTime).toFixed(2)}ms`);
+
+        if (!response.ok) {
+          console.error("Failed to fetch logs:", response.statusText);
+          setAllLogs([]);
+          toast({
+            variant: "destructive",
+            title: "Failed to fetch logs",
+            description: "The API could not be reached. Please check your connection or try again later.",
+          });
+          return;
+        }
+
+        let logsResult: ApiErrorLog[];
+        const isCompressed = response.headers.get('X-Compressed') === 'true';
+
+        if (isCompressed) {
+          const compressedData = await response.arrayBuffer();
+          const bodyDownloadedTime = performance.now();
+          console.log(`Body download took: ${(bodyDownloadedTime - responseReceivedTime).toFixed(2)}ms`);
+          
+          const decompressedData = pako.inflate(new Uint8Array(compressedData), { to: 'string' });
+          const decompressionDoneTime = performance.now();
+          console.log(`Decompression took: ${(decompressionDoneTime - bodyDownloadedTime).toFixed(2)}ms`);
+
+          logsResult = JSON.parse(decompressedData) as ApiErrorLog[];
+          const jsonParsedTime = performance.now();
+          console.log(`JSON parsing took: ${(jsonParsedTime - decompressionDoneTime).toFixed(2)}ms`);
+        } else {
+          logsResult = await response.json();
+          const bodyParsedTime = performance.now();
+          console.log(`Body download & parsing took: ${(bodyParsedTime - responseReceivedTime).toFixed(2)}ms`);
+        }
+        
+        const processingStartTime = performance.now();
+        const logsWithIds = logsResult.map((log, index) => ({
+          ...log,
+          id: `${new Date(log.log_date_time).getTime()}-${index}`,
+          log_date_time: new Date(log.log_date_time),
+          as_start_date_time: new Date(log.as_start_date_time),
+        }));
+        
+        // This simulates the backend doing the aggregation. In a real scenario, the API
+        // would return `chartData` and `groupData` directly, and `logsWithIds` would already be paginated.
+        const { chartData: aggregatedChartData, groupData: aggregatedGroupData } = performClientSideAggregation(
+          logsWithIds,
+          timePreset,
+          dateRange,
+          chartBreakdownBy,
+          groupBy
+        );
+
+        setAllLogs(logsWithIds);
+        setChartData(aggregatedChartData);
+        setGroupData(aggregatedGroupData);
+
+        const processingEndTime = performance.now();
+        console.log(`Data processing took: ${(processingEndTime - processingStartTime).toFixed(2)}ms`);
+        setRenderStartTime(performance.now());
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setAllLogs([]);
+        setChartData([]);
+        setGroupData([]);
+        toast({
+          variant: "destructive",
+          title: "Failed to fetch logs",
+          description: "The API could not be reached. Please check your connection or try again later.",
+        });
+      }
+    });
+  }, [dateRange, timePreset, toast, chartBreakdownBy, groupBy]);
   
   useEffect(() => {
     setPage(1);
@@ -312,7 +356,7 @@ export default function ErrorDashboard() {
     fetchData();
   }, [fetchData]);
 
-  const { paginatedLogs, total, filteredAndSortedLogs } = useMemo(() => {
+  const { paginatedLogs, total } = useMemo(() => {
     let logs = [...allLogs];
 
     if (Object.values(columnFilters).some(v => v)) {
@@ -346,29 +390,15 @@ export default function ErrorDashboard() {
     const totalCount = logs.length;
     const paginated = logs.slice((page - 1) * pageSize, page * pageSize);
 
-    return { paginatedLogs: paginated, total: totalCount, filteredAndSortedLogs: logs };
+    return { paginatedLogs: paginated, total: totalCount };
   }, [allLogs, columnFilters, sort, page, pageSize]);
 
-  const groupedData = useMemo((): GroupedLogs | null => {
-    if (groupBy === 'none') return null;
-    
-    const groups: GroupedLogs = {};
-    
-    filteredAndSortedLogs.forEach(log => {
-        const groupKey = String(log[groupBy]);
-        if (!groups[groupKey]) {
-            groups[groupKey] = { logs: [], count: 0 };
-        }
-        groups[groupKey].logs.push(log);
-        groups[groupKey].count++;
-    });
-
-    for (const groupKey in groups) {
-        groups[groupKey].logs.sort((a, b) => new Date(b.log_date_time).getTime() - new Date(a.log_date_time).getTime());
+  const handleGroupSelect = (groupKey: string) => {
+    if (groupBy !== 'none') {
+        setColumnFilters(prev => ({ ...prev, [groupBy]: groupKey }));
+        setGroupBy('none');
     }
-
-    return groups;
-  }, [filteredAndSortedLogs, groupBy]);
+  };
   
   const handlePresetSelect = (value: string) => {
     setTimePreset(value);
@@ -598,7 +628,8 @@ export default function ErrorDashboard() {
         totalLogs={total}
         setPage={setPage}
         groupBy={groupBy}
-        groupedLogs={groupedData}
+        groupData={groupData}
+        onGroupSelect={handleGroupSelect}
         columnFilters={columnFilters}
         setColumnFilters={setColumnFilters}
         columnVisibility={columnVisibility}

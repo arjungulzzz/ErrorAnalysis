@@ -7,7 +7,7 @@
 "use client";
 
 import React from "react";
-import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption } from "@/types";
+import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type GroupDataPoint } from "@/types";
 import {
   Table,
   TableBody,
@@ -29,7 +29,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTablePagination } from "./data-table-pagination";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { cn } from "@/lib/utils";
 
 interface ErrorTableProps {
@@ -42,7 +41,8 @@ interface ErrorTableProps {
   totalLogs: number;
   setPage: (page: number) => void;
   groupBy: GroupByOption;
-  groupedLogs: GroupedLogs | null;
+  groupData: GroupDataPoint[] | null;
+  onGroupSelect: (groupKey: string) => void;
   columnFilters: ColumnFilters;
   setColumnFilters: (filters: React.SetStateAction<ColumnFilters>) => void;
   columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
@@ -90,7 +90,8 @@ export function ErrorTable({
   totalLogs,
   setPage,
   groupBy,
-  groupedLogs,
+  groupData,
+  onGroupSelect,
   columnFilters,
   setColumnFilters,
   columnVisibility
@@ -144,28 +145,31 @@ export function ErrorTable({
   );
 
   if (groupBy !== 'none') {
-    if (isLoading) {
-      return (
-          <Card>
-              <CardHeader>
-                  <CardTitle>Error Logs by {getFriendlyGroupName(groupBy)}</CardTitle>
-                  <CardDescription>
-                      Grouping errors...
-                  </CardDescription>
-              </CardHeader>
-              <CardContent>
-                  <div className="rounded-md border p-4 space-y-2">
-                      {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-                  </div>
-              </CardContent>
-          </Card>
-      )
+    const friendlyGroupName = getFriendlyGroupName(groupBy);
+    
+    if (isLoading && !groupData) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Error Groups by {friendlyGroupName}</CardTitle>
+                    <CardDescription>
+                        Loading groups...
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="rounded-md border p-4 space-y-2">
+                        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                    </div>
+                </CardContent>
+            </Card>
+        )
     }
-    if (!groupedLogs || Object.keys(groupedLogs).length === 0) {
+
+    if (!groupData || groupData.length === 0) {
         return (
              <Card>
                 <CardHeader>
-                    <CardTitle>Error Logs by {getFriendlyGroupName(groupBy)}</CardTitle>
+                    <CardTitle>Error Groups by {friendlyGroupName}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="rounded-md border h-24 flex items-center justify-center">
@@ -175,63 +179,39 @@ export function ErrorTable({
             </Card>
         )
     }
-    
-    const sortedGroupedLogs = Object.entries(groupedLogs).sort(([, a], [, b]) => b.count - a.count);
 
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Error Logs by {getFriendlyGroupName(groupBy)}</CardTitle>
+          <CardTitle>Error Groups by {friendlyGroupName}</CardTitle>
           <CardDescription>
-            Showing {sortedGroupedLogs.length} error groups.
+            Showing top {groupData.length} groups. Click a row to filter logs.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TooltipProvider>
-            <Accordion type="single" collapsible className="w-full">
-              {sortedGroupedLogs.map(([groupKey, groupData]) => (
-                <AccordionItem value={groupKey} key={groupKey} className="border-b">
-                  <AccordionTrigger className="hover:no-underline p-4">
-                    <div className="flex justify-between items-center w-full">
-                      <div className="flex items-center gap-4">
-                        <span className="font-semibold truncate max-w-xs">{groupKey}</span>
-                        <Badge variant="secondary">{groupData.count} {groupData.count > 1 ? 'errors' : 'error'}</Badge>
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="rounded-md border">
-                      <Table>
-                          <TableHeader>
-                            <TableRow>
-                              {visibleColumns.map((column) => (
-                                <TableHead key={column.id} className={cn('p-2', column.cellClassName)}>
-                                  {column.name}
-                                </TableHead>
-                              ))}
-                            </TableRow>
-                          </TableHeader>
-                        <TableBody>
-                          {groupData.logs.map(log => (
-                            <TableRow 
-                              key={log.id}
-                              className="transition-colors"
-                            >
-                              {visibleColumns.map((column) => (
-                                  <TableCell key={column.id} className={cn(column.cellClassName, column.truncate && 'truncate')}>
-                                    {renderCellContent(log, column.id)}
-                                  </TableCell>
-                              ))}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </TooltipProvider>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{friendlyGroupName}</TableHead>
+                    <TableHead className="text-right">Error Count</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading && <TableRow><TableCell colSpan={2}><Skeleton className="h-8 w-full" /></TableCell></TableRow>}
+                  {!isLoading && groupData.map((item) => (
+                    <TableRow 
+                      key={item.key} 
+                      className="cursor-pointer" 
+                      onClick={() => onGroupSelect(item.key)}
+                    >
+                      <TableCell className="font-medium">{item.key}</TableCell>
+                      <TableCell className="text-right">{item.count}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
         </CardContent>
       </Card>
     );
