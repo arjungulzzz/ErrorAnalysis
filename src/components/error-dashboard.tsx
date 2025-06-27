@@ -54,7 +54,7 @@ const TIME_PRESETS = [
 export default function ErrorDashboard() {
   const [allLogs, setAllLogs] = useState<ErrorLog[]>([]);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(15);
+  const [pageSize] = useState(100);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [timePreset, setTimePreset] = useState<string>('none');
