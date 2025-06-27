@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTablePagination } from "./data-table-pagination";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
@@ -107,7 +106,11 @@ export function ErrorTable({
     switch (columnId) {
         case 'log_date_time':
         case 'as_start_date_time':
-            return format(new Date(value as Date), "yyyy-MM-dd HH:mm:ss");
+            if (value instanceof Date) {
+              // Format Date object to 'YYYY-MM-DD HH:MM:SS' in UTC
+              return value.toISOString().slice(0, 19).replace('T', ' ');
+            }
+            return String(value);
         case 'error_number':
             return (
                 <Badge variant={(value as number) >= 500 ? "destructive" : "secondary"}>
