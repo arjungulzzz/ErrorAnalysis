@@ -59,7 +59,7 @@ const columnConfig: {
     { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "font-mono text-xs" },
     { id: 'repository_path', name: 'Repository', isFilterable: true },
     { id: 'port_number', name: 'Port', isFilterable: true },
-    { id: 'version_number', name: 'Version', isFilterable: true },
+    { id: 'version_number', name: 'AS Version', isFilterable: true },
     { id: 'as_server_mode', name: 'Server Mode', isFilterable: true },
     { id: 'as_start_date_time', name: 'Server Start Time', isFilterable: false, cellClassName: "font-mono text-xs" },
     { id: 'as_server_config', name: 'Server Config', isFilterable: true },
@@ -76,6 +76,7 @@ const getFriendlyGroupName = (groupByValue: GroupByOption) => {
       case 'repository_path': return 'Repository';
       case 'error_number': return 'Error Code';
       case 'user_id': return 'User';
+      case 'version_number': return 'AS Version';
       default: return 'Group';
     }
 };

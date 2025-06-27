@@ -62,7 +62,7 @@ export type ColumnFilters = Partial<Record<keyof ErrorLog, string>>;
 /**
  * Defines the available options for grouping logs in the table.
  */
-export type GroupByOption = 'none' | 'host_name' | 'repository_path' | 'error_number' | 'user_id';
+export type GroupByOption = 'none' | 'host_name' | 'repository_path' | 'error_number' | 'user_id' | 'version_number';
 
 /**
  * Represents a single data point in a grouped data summary.
