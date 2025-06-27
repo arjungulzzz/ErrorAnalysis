@@ -262,6 +262,7 @@ export function ErrorTable({
                           setSortDescriptor={setSortDescriptor} 
                           columnFilters={column.isFilterable ? columnFilters : undefined} 
                           setColumnFilters={column.isFilterable ? setColumnFilters : undefined}
+                          isPending={isLoading}
                         />
                       )
                   ))}

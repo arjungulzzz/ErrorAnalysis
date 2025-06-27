@@ -16,6 +16,7 @@ interface DataTableColumnHeaderProps<TData, TValue>
   setSortDescriptor: (descriptor: SortDescriptor) => void;
   columnFilters?: ColumnFilters;
   setColumnFilters?: (filters: React.SetStateAction<ColumnFilters>) => void;
+  isPending?: boolean;
 }
 
 export function DataTableColumnHeader<TData, TValue>({
@@ -26,6 +27,7 @@ export function DataTableColumnHeader<TData, TValue>({
   setSortDescriptor,
   columnFilters,
   setColumnFilters,
+  isPending,
 }: DataTableColumnHeaderProps<TData, TValue>) {
 
   const handleSort = () => {
@@ -68,6 +70,7 @@ export function DataTableColumnHeader<TData, TValue>({
             variant="ghost"
             onClick={handleSort}
             className="h-8 data-[state=open]:bg-accent px-2"
+            disabled={isPending}
         >
             <span>{title}</span>
             {renderSortIcon()}
@@ -75,7 +78,7 @@ export function DataTableColumnHeader<TData, TValue>({
          {isFilterable && (
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className={cn("h-7 w-7", filterValue && "text-primary bg-accent/50")}>
+              <Button variant="ghost" size="icon" className={cn("h-7 w-7", filterValue && "text-primary bg-accent/50")} disabled={isPending}>
                 <Filter className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
