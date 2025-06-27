@@ -66,7 +66,7 @@ export type GroupedLogs = Record<string, GroupedLog>;
 /**
  * Defines the available options for grouping logs in the table.
  */
-export type GroupByOption = 'none' | 'host_name' | 'repository_path' | 'error_number' | 'user_id';
+export type GroupByOption = 'none' | 'host_name' | 'repository_path' | 'error_number' | 'user_id' | 'version_number';
 
 /**
  * Defines the data structure for a single point in the error trend chart.

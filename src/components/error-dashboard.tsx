@@ -30,7 +30,7 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'host_name', name: 'Host' },
     { id: 'repository_path', name: 'Repository' },
     { id: 'port_number', name: 'Port' },
-    { id: 'version_number', name: 'Version' },
+    { id: 'version_number', name: 'AS Version' },
     { id: 'as_server_mode', name: 'Server Mode' },
     { id: 'as_start_date_time', name: 'Server Start Time' },
     { id: 'as_server_config', name: 'Server Config' },
@@ -449,6 +449,7 @@ export default function ErrorDashboard() {
                             <SelectItem value="repository_path">Repository</SelectItem>
                             <SelectItem value="error_number">Error Code</SelectItem>
                             <SelectItem value="user_id">User</SelectItem>
+                            <SelectItem value="version_number">AS Version</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
