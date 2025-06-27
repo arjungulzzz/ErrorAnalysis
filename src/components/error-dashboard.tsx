@@ -208,18 +208,23 @@ export default function ErrorDashboard() {
       case '4 hours':
         getKey = (date) => {
           const rounded = new Date(date);
-          rounded.setMinutes(Math.floor(rounded.getMinutes() / 30) * 30, 0, 0);
+          rounded.setUTCMinutes(Math.floor(rounded.getUTCMinutes() / 30) * 30, 0, 0);
           return rounded.toISOString();
         };
-        getLabel = (dateStr) => format(new Date(dateStr), "HH:mm");
+        getLabel = (dateStr) => {
+            const d = new Date(dateStr);
+            const hours = d.getUTCHours().toString().padStart(2, '0');
+            const minutes = d.getUTCMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        };
         getIntervals = (start, end) => {
           const intervals = [];
           const roundedStart = new Date(start);
-          roundedStart.setMinutes(Math.floor(roundedStart.getMinutes() / 30) * 30, 0, 0);
+          roundedStart.setUTCMinutes(Math.floor(roundedStart.getUTCMinutes() / 30) * 30, 0, 0);
           let current = roundedStart;
           while (current <= end) {
             intervals.push(new Date(current));
-            current.setMinutes(current.getMinutes() + 30);
+            current.setUTCMinutes(current.getUTCMinutes() + 30);
           }
           return intervals;
         };
@@ -228,33 +233,42 @@ export default function ErrorDashboard() {
       case '1 day':
         getKey = (date) => {
           const rounded = new Date(date);
-          rounded.setMinutes(0, 0, 0);
+          rounded.setUTCMinutes(0, 0, 0);
           return rounded.toISOString();
         };
-        getLabel = (dateStr) => format(new Date(dateStr), "HH:mm");
+        getLabel = (dateStr) => {
+            const d = new Date(dateStr);
+            const hours = d.getUTCHours().toString().padStart(2, '0');
+            return `${hours}:00`;
+        };
         getIntervals = (start, end) => {
           const intervals = [];
           const roundedStart = new Date(start);
-          roundedStart.setMinutes(0, 0, 0);
+          roundedStart.setUTCMinutes(0, 0, 0);
           let current = roundedStart;
           while (current <= end) {
             intervals.push(new Date(current));
-            current.setHours(current.getHours() + 1);
+            current.setUTCHours(current.getUTCHours() + 1);
           }
           return intervals;
         };
         break;
       default: // Daily for '7 days' and longer
-        getKey = (date) => format(date, "yyyy-MM-dd");
-        getLabel = (dateStr) => format(new Date(dateStr), "MMM d");
+        getKey = (date) => date.toISOString().split('T')[0];
+        getLabel = (dateStr) => {
+          const d = new Date(`${dateStr}T00:00:00.000Z`);
+          const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+          const day = d.getUTCDate();
+          return `${month} ${day}`;
+        };
         getIntervals = (start, end) => {
           const intervals = [];
           const roundedStart = new Date(start);
-          roundedStart.setHours(0, 0, 0, 0);
+          roundedStart.setUTCHours(0, 0, 0, 0);
           let current = roundedStart;
           while (current <= end) {
             intervals.push(new Date(current));
-            current.setDate(current.getDate() + 1);
+            current.setUTCDate(current.getUTCDate() + 1);
           }
           return intervals;
         };
