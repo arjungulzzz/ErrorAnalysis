@@ -46,7 +46,7 @@ const CustomTooltip = ({ active, payload }: any) => {
           <div className="pt-2 border-t">
             <p className="font-semibold mb-1">By Host</p>
             <div className="space-y-1">
-              {breakdownEntries.map(([host, count]) => (
+              {breakdownEntries.slice(0, 5).map(([host, count]) => (
                 <div key={host} className="flex justify-between items-center text-muted-foreground">
                   <span className="truncate" title={host}>{host}</span>
                   <span className="font-medium text-foreground ml-2">{count}</span>
