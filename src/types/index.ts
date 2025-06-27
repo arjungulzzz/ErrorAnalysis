@@ -69,11 +69,17 @@ export type GroupedLogs = Record<string, GroupedLog>;
 export type GroupByOption = 'none' | 'host_name' | 'repository_path' | 'error_number' | 'user_id';
 
 /**
+ * Defines the available options for the chart's breakdown tooltip.
+ */
+export type ChartBreakdownByOption = 'host_name' | 'error_number' | 'user_id' | 'version_number' | 'repository_path';
+
+/**
  * Defines the data structure for a single point in the error trend chart.
  */
 export type ErrorTrendDataPoint = {
-  date: string; // The specific date for the data point (e.g., "2023-11-21")
+  date: string; // The specific date for the data point (e.g., "2023-11-21T10:30:00.000Z")
   count: number; // Total number of errors on this date
-  formattedDate: string; // A user-friendly formatted date for the chart's x-axis (e.g., "Nov 21")
-  breakdown: Record<string, number>; // A breakdown of error counts by a secondary key, like hostname
+  formattedDate: string; // A user-friendly formatted date for the chart's x-axis (e.g., "Nov 21" or "10:30")
+  /** A breakdown of error counts by a secondary key (e.g., hostname, error code). The key is dynamic. */
+  breakdown: Record<string, number>; 
 };

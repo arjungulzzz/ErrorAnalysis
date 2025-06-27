@@ -10,11 +10,14 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
 import { Skeleton } from "./ui/skeleton";
-import { type ErrorTrendDataPoint } from "@/types";
+import { type ErrorTrendDataPoint, type ChartBreakdownByOption } from "@/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface ErrorTrendChartProps {
   data: ErrorTrendDataPoint[];
   isLoading: boolean;
+  breakdownBy: ChartBreakdownByOption;
+  setBreakdownBy: (value: ChartBreakdownByOption) => void;
 }
 
 const chartConfig = {
@@ -24,7 +27,15 @@ const chartConfig = {
   },
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+const breakdownOptions: { value: ChartBreakdownByOption; label: string }[] = [
+  { value: 'host_name', label: 'Host' },
+  { value: 'error_number', label: 'Error Code' },
+  { value: 'user_id', label: 'User' },
+  { value: 'version_number', label: 'Version' },
+  { value: 'repository_path', label: 'Repository' },
+];
+
+const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as ErrorTrendDataPoint;
 
@@ -46,7 +57,7 @@ const CustomTooltip = ({ active, payload }: any) => {
           day: 'numeric',
         });
 
-
+    const breakdownTitle = breakdownOptions.find(o => o.value === breakdownBy)?.label || 'Breakdown';
     const breakdownEntries = Object.entries(data.breakdown).sort(([, a], [, b]) => b - a);
 
     return (
@@ -57,11 +68,11 @@ const CustomTooltip = ({ active, payload }: any) => {
         </div>
         {breakdownEntries.length > 0 && (
           <div className="pt-2 border-t">
-            <p className="font-semibold mb-1">By Host</p>
+            <p className="font-semibold mb-1">By {breakdownTitle}</p>
             <div className="space-y-1">
-              {breakdownEntries.slice(0, 5).map(([host, count]) => (
-                <div key={host} className="flex justify-between items-center text-muted-foreground">
-                  <span className="truncate" title={host}>{host}</span>
+              {breakdownEntries.slice(0, 5).map(([key, count]) => (
+                <div key={key} className="flex justify-between items-center text-muted-foreground">
+                  <span className="truncate" title={key}>{key}</span>
                   <span className="font-medium text-foreground ml-2">{count}</span>
                 </div>
               ))}
@@ -76,7 +87,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 
-export function ErrorTrendChart({ data, isLoading }: ErrorTrendChartProps) {
+export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }: ErrorTrendChartProps) {
   if (isLoading) {
     return (
       <Card>
@@ -111,11 +122,28 @@ export function ErrorTrendChart({ data, isLoading }: ErrorTrendChartProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Error Trend</CardTitle>
-        <CardDescription>
-          The frequency of errors over the selected time period.
-        </CardDescription>
+      <CardHeader className="flex-row items-start justify-between">
+        <div>
+            <CardTitle>Error Trend</CardTitle>
+            <CardDescription>
+            The frequency of errors over the selected time period.
+            </CardDescription>
+        </div>
+        <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Breakdown By</span>
+            <Select value={breakdownBy} onValueChange={(value) => setBreakdownBy(value as ChartBreakdownByOption)} disabled={isLoading}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Breakdown by..." />
+                </SelectTrigger>
+                <SelectContent>
+                    {breakdownOptions.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -145,7 +173,7 @@ export function ErrorTrendChart({ data, isLoading }: ErrorTrendChartProps) {
             />
             <ChartTooltip
               cursor={false}
-              content={<CustomTooltip />}
+              content={<CustomTooltip breakdownBy={breakdownBy} />}
             />
             <defs>
               <linearGradient id="fillErrors" x1="0" y1="0" x2="0" y2="1">

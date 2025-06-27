@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
-import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog } from "@/types";
+import { type ErrorLog, type SortDescriptor, type GroupedLogs, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
@@ -53,7 +53,6 @@ const TIME_PRESETS = [
 
 export default function ErrorDashboard() {
   const [allLogs, setAllLogs] = useState<ErrorLog[]>([]);
-  const [chartData, setChartData] = useState<ErrorTrendDataPoint[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(15);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
@@ -78,23 +77,19 @@ export default function ErrorDashboard() {
   });
   
   const [isPending, startTransition] = useTransition();
+  const [chartBreakdownBy, setChartBreakdownBy] = useState<ChartBreakdownByOption>('host_name');
   
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
-      // If no time preset or custom range is selected, do nothing.
       if (timePreset === 'none') {
         setAllLogs([]);
-        setChartData([]);
         return;
       }
-      
-      // For custom ranges, ensure a range is actually selected.
       if (timePreset === 'custom' && !dateRange?.from) {
         setAllLogs([]);
-        setChartData([]);
         return;
       }
 
@@ -127,7 +122,6 @@ export default function ErrorDashboard() {
         if (!response.ok) {
           console.error("Failed to fetch logs:", response.statusText);
           setAllLogs([]);
-          setChartData([]);
           toast({
             variant: "destructive",
             title: "Failed to fetch logs",
@@ -142,14 +136,12 @@ export default function ErrorDashboard() {
 
         if (isCompressed) {
           const compressedData = await response.arrayBuffer();
-          // The 'pako' library expects a Uint8Array.
           const decompressedData = pako.inflate(new Uint8Array(compressedData), { to: 'string' });
           logsResult = JSON.parse(decompressedData) as ApiErrorLog[];
         } else {
           logsResult = await response.json();
         }
         
-        // Convert raw API logs to frontend ErrorLog type, generating a unique ID
         const logsWithIds = logsResult.map((log, index) => ({
           ...log,
           id: `${new Date(log.log_date_time).getTime()}-${index}`,
@@ -158,112 +150,9 @@ export default function ErrorDashboard() {
         }));
         
         setAllLogs(logsWithIds);
-
-        // Determine aggregation interval and format for the chart
-        let getKey: (date: Date) => string;
-        let getLabel: (dateStr: string) => string;
-        let getIntervals: (start: Date, end: Date) => Date[];
-
-        let effectivePreset = timePreset;
-        if (timePreset === 'custom' && dateRange?.from && dateRange.to) {
-          const diffHours = (new Date(dateRange.to).getTime() - new Date(dateRange.from).getTime()) / 3600000;
-          if (diffHours <= 8) effectivePreset = '4 hours';
-          else if (diffHours <= 24) effectivePreset = '1 day';
-          else effectivePreset = '7 days';
-        }
-
-        switch (effectivePreset) {
-          case '4 hours':
-            getKey = (date) => {
-              const rounded = new Date(date);
-              rounded.setMinutes(Math.floor(rounded.getMinutes() / 30) * 30, 0, 0);
-              return rounded.toISOString();
-            };
-            getLabel = (dateStr) => format(new Date(dateStr), "HH:mm");
-            getIntervals = (start, end) => {
-              const intervals = [];
-              const roundedStart = new Date(start);
-              roundedStart.setMinutes(Math.floor(roundedStart.getMinutes() / 30) * 30, 0, 0);
-              let current = roundedStart;
-              while (current <= end) {
-                intervals.push(new Date(current));
-                current.setMinutes(current.getMinutes() + 30);
-              }
-              return intervals;
-            };
-            break;
-          case '8 hours':
-          case '1 day':
-            getKey = (date) => {
-              const rounded = new Date(date);
-              rounded.setMinutes(0, 0, 0);
-              return rounded.toISOString();
-            };
-            getLabel = (dateStr) => format(new Date(dateStr), "HH:mm");
-            getIntervals = (start, end) => {
-              const intervals = [];
-              const roundedStart = new Date(start);
-              roundedStart.setMinutes(0, 0, 0);
-              let current = roundedStart;
-              while (current <= end) {
-                intervals.push(new Date(current));
-                current.setHours(current.getHours() + 1);
-              }
-              return intervals;
-            };
-            break;
-          default: // Daily for '7 days' and longer
-            getKey = (date) => format(date, "yyyy-MM-dd");
-            getLabel = (dateStr) => format(new Date(dateStr), "MMM d");
-            getIntervals = (start, end) => {
-              const intervals = [];
-              const roundedStart = new Date(start);
-              roundedStart.setHours(0, 0, 0, 0);
-              let current = roundedStart;
-              while (current <= end) {
-                intervals.push(new Date(current));
-                current.setDate(current.getDate() + 1);
-              }
-              return intervals;
-            };
-        }
-
-        const countsByInterval: Record<string, { count: number; breakdown: Record<string, number> }> = {};
-
-        if (logsWithIds.length > 0) {
-            const fromDate = dateRange?.from || logsWithIds.reduce((min, log) => log.log_date_time < min ? log.log_date_time : min, logsWithIds[0].log_date_time);
-            const toDate = dateRange?.to || logsWithIds.reduce((max, log) => log.log_date_time > max ? log.log_date_time : max, logsWithIds[0].log_date_time);
-
-            getIntervals(new Date(fromDate), new Date(toDate)).forEach(intervalDate => {
-                const key = getKey(intervalDate);
-                countsByInterval[key] = { count: 0, breakdown: {} };
-            });
-
-            logsWithIds.forEach(log => {
-                const key = getKey(log.log_date_time);
-                if (countsByInterval[key]) {
-                    countsByInterval[key].count++;
-                    const host = log.host_name;
-                    countsByInterval[key].breakdown[host] = (countsByInterval[key].breakdown[host] || 0) + 1;
-                }
-            });
-        }
-
-        const newChartData = Object.entries(countsByInterval).map(([date, data]) => ({
-            date,
-            count: data.count,
-            formattedDate: getLabel(date),
-            breakdown: data.breakdown,
-        }));
-
-        newChartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        
-        setChartData(newChartData);
-
       } catch (error) {
         console.error("Error fetching data:", error);
         setAllLogs([]);
-        setChartData([]);
         toast({
           variant: "destructive",
           title: "Failed to fetch logs",
@@ -272,6 +161,109 @@ export default function ErrorDashboard() {
       }
     });
   }, [dateRange, timePreset, toast]);
+
+  const chartData = useMemo(() => {
+    if (allLogs.length === 0) {
+      return [];
+    }
+  
+    let getKey: (date: Date) => string;
+    let getLabel: (dateStr: string) => string;
+    let getIntervals: (start: Date, end: Date) => Date[];
+  
+    let effectivePreset = timePreset;
+    if (timePreset === 'custom' && dateRange?.from && dateRange.to) {
+      const diffHours = (new Date(dateRange.to).getTime() - new Date(dateRange.from).getTime()) / 3600000;
+      if (diffHours <= 8) effectivePreset = '4 hours';
+      else if (diffHours <= 24) effectivePreset = '1 day';
+      else effectivePreset = '7 days';
+    }
+  
+    switch (effectivePreset) {
+      case '4 hours':
+        getKey = (date) => {
+          const rounded = new Date(date);
+          rounded.setMinutes(Math.floor(rounded.getMinutes() / 30) * 30, 0, 0);
+          return rounded.toISOString();
+        };
+        getLabel = (dateStr) => format(new Date(dateStr), "HH:mm");
+        getIntervals = (start, end) => {
+          const intervals = [];
+          const roundedStart = new Date(start);
+          roundedStart.setMinutes(Math.floor(roundedStart.getMinutes() / 30) * 30, 0, 0);
+          let current = roundedStart;
+          while (current <= end) {
+            intervals.push(new Date(current));
+            current.setMinutes(current.getMinutes() + 30);
+          }
+          return intervals;
+        };
+        break;
+      case '8 hours':
+      case '1 day':
+        getKey = (date) => {
+          const rounded = new Date(date);
+          rounded.setMinutes(0, 0, 0);
+          return rounded.toISOString();
+        };
+        getLabel = (dateStr) => format(new Date(dateStr), "HH:mm");
+        getIntervals = (start, end) => {
+          const intervals = [];
+          const roundedStart = new Date(start);
+          roundedStart.setMinutes(0, 0, 0);
+          let current = roundedStart;
+          while (current <= end) {
+            intervals.push(new Date(current));
+            current.setHours(current.getHours() + 1);
+          }
+          return intervals;
+        };
+        break;
+      default: // Daily for '7 days' and longer
+        getKey = (date) => format(date, "yyyy-MM-dd");
+        getLabel = (dateStr) => format(new Date(dateStr), "MMM d");
+        getIntervals = (start, end) => {
+          const intervals = [];
+          const roundedStart = new Date(start);
+          roundedStart.setHours(0, 0, 0, 0);
+          let current = roundedStart;
+          while (current <= end) {
+            intervals.push(new Date(current));
+            current.setDate(current.getDate() + 1);
+          }
+          return intervals;
+        };
+    }
+  
+    const countsByInterval: Record<string, { count: number; breakdown: Record<string, number> }> = {};
+  
+    const fromDate = dateRange?.from || allLogs.reduce((min, log) => log.log_date_time < min ? log.log_date_time : min, allLogs[0].log_date_time);
+    const toDate = dateRange?.to || allLogs.reduce((max, log) => log.log_date_time > max ? log.log_date_time : max, allLogs[0].log_date_time);
+  
+    getIntervals(new Date(fromDate), new Date(toDate)).forEach(intervalDate => {
+      const key = getKey(intervalDate);
+      countsByInterval[key] = { count: 0, breakdown: {} };
+    });
+  
+    allLogs.forEach(log => {
+      const key = getKey(log.log_date_time);
+      if (countsByInterval[key]) {
+        countsByInterval[key].count++;
+        const breakdownKey = String(log[chartBreakdownBy]);
+        countsByInterval[key].breakdown[breakdownKey] = (countsByInterval[key].breakdown[breakdownKey] || 0) + 1;
+      }
+    });
+  
+    const newChartData = Object.entries(countsByInterval).map(([date, data]) => ({
+      date,
+      count: data.count,
+      formattedDate: getLabel(date),
+      breakdown: data.breakdown,
+    }));
+  
+    newChartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return newChartData;
+  }, [allLogs, timePreset, dateRange, chartBreakdownBy]);
   
   useEffect(() => {
     setPage(1);
@@ -284,7 +276,6 @@ export default function ErrorDashboard() {
   const { paginatedLogs, total, filteredAndSortedLogs } = useMemo(() => {
     let logs = [...allLogs];
 
-    // Client-side filtering
     if (Object.values(columnFilters).some(v => v)) {
       logs = logs.filter(log => {
         return Object.entries(columnFilters).every(([key, value]) => {
@@ -295,7 +286,6 @@ export default function ErrorDashboard() {
       });
     }
     
-    // Client-side sorting
     if (sort && sort.column && sort.direction) {
       logs.sort((a, b) => {
         const aValue = a[sort.column!];
@@ -350,7 +340,6 @@ export default function ErrorDashboard() {
         return;
     }
     
-    // For UI display purposes, we still calculate a date range for presets
     const now = new Date();
     let fromDate: Date | undefined;
     switch (value) {
@@ -576,7 +565,12 @@ export default function ErrorDashboard() {
         columnVisibility={columnVisibility}
       />
       <div className="mt-6">
-        <ErrorTrendChart data={chartData} isLoading={isPending} />
+        <ErrorTrendChart 
+          data={chartData} 
+          isLoading={isPending}
+          breakdownBy={chartBreakdownBy}
+          setBreakdownBy={setChartBreakdownBy}
+        />
       </div>
     </div>
   );
