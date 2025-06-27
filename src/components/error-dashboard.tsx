@@ -352,6 +352,7 @@ export default function ErrorDashboard() {
                             <Button
                                 id="date"
                                 variant={"outline"}
+                                disabled={isPending}
                                 className={cn(
                                     "w-[260px] justify-start text-left font-normal",
                                     timePreset === 'none' && "text-muted-foreground"
@@ -385,6 +386,7 @@ export default function ErrorDashboard() {
                                         size="sm"
                                         className="justify-start"
                                         onClick={() => handlePresetSelect(p.value)}
+                                        disabled={isPending}
                                     >
                                         {p.label}
                                     </Button>
@@ -405,7 +407,7 @@ export default function ErrorDashboard() {
                                 numberOfMonths={2}
                                 fromDate={subMonths(new Date(), 1)}
                                 toDate={new Date()}
-                                disabled={(date: Date) => {
+                                disabled={isPending ? true : (date: Date) => {
                                     const today = new Date();
                                 
                                     if (date > today) return true;
@@ -425,7 +427,7 @@ export default function ErrorDashboard() {
                 </div>
                 <div>
                     <Label htmlFor="group-by" className="text-sm font-medium">Group By</Label>
-                    <Select onValueChange={(value) => setGroupBy(value as GroupByOption)} value={groupBy}>
+                    <Select onValueChange={(value) => setGroupBy(value as GroupByOption)} value={groupBy} disabled={isPending}>
                         <SelectTrigger className="w-[180px] mt-1" id="group-by">
                             <SelectValue placeholder="Select grouping" />
                         </SelectTrigger>
@@ -442,7 +444,7 @@ export default function ErrorDashboard() {
                     <Label className="block text-sm font-medium">View Options</Label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-[180px] mt-1">
+                        <Button variant="outline" className="w-[180px] mt-1" disabled={isPending}>
                           All Columns <ChevronDown className="ml-auto h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
