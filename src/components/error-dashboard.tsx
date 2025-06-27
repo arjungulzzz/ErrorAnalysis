@@ -159,38 +159,101 @@ export default function ErrorDashboard() {
         
         setAllLogs(logsWithIds);
 
-        // Calculate chart data from the fetched logs
-        const countsByDate: Record<string, { count: number; breakdown: Record<string, number> }> = {};
-        
-        if (logsWithIds.length > 0) {
-            const sortedLogs = [...logsWithIds].sort((a,b) => a.log_date_time.getTime() - b.log_date_time.getTime());
-            let current = new Date(sortedLogs[0].log_date_time);
-            const to = new Date(sortedLogs[sortedLogs.length - 1].log_date_time);
+        // Determine aggregation interval and format for the chart
+        let getKey: (date: Date) => string;
+        let getLabel: (dateStr: string) => string;
+        let getIntervals: (start: Date, end: Date) => Date[];
 
-            current.setUTCHours(0,0,0,0);
-            to.setUTCHours(23,59,59,999);
-
-            while (current <= to) {
-                const dateStr = format(current, 'yyyy-MM-dd');
-                countsByDate[dateStr] = { count: 0, breakdown: {} };
-                current.setDate(current.getDate() + 1);
-            }
+        let effectivePreset = timePreset;
+        if (timePreset === 'custom' && dateRange?.from && dateRange.to) {
+          const diffHours = (new Date(dateRange.to).getTime() - new Date(dateRange.from).getTime()) / 3600000;
+          if (diffHours <= 8) effectivePreset = '4 hours';
+          else if (diffHours <= 24) effectivePreset = '1 day';
+          else effectivePreset = '7 days';
         }
 
-        logsWithIds.forEach(log => {
-          const dateStr = format(new Date(log.log_date_time), 'yyyy-MM-dd');
-          if (countsByDate[dateStr] !== undefined) {
-              countsByDate[dateStr].count++;
-              const host = log.host_name;
-              countsByDate[dateStr].breakdown[host] = (countsByDate[dateStr].breakdown[host] || 0) + 1;
-          }
-        });
+        switch (effectivePreset) {
+          case '4 hours':
+            getKey = (date) => {
+              const rounded = new Date(date);
+              rounded.setMinutes(Math.floor(rounded.getMinutes() / 30) * 30, 0, 0);
+              return rounded.toISOString();
+            };
+            getLabel = (dateStr) => format(new Date(dateStr), "HH:mm");
+            getIntervals = (start, end) => {
+              const intervals = [];
+              const roundedStart = new Date(start);
+              roundedStart.setMinutes(Math.floor(roundedStart.getMinutes() / 30) * 30, 0, 0);
+              let current = roundedStart;
+              while (current <= end) {
+                intervals.push(new Date(current));
+                current.setMinutes(current.getMinutes() + 30);
+              }
+              return intervals;
+            };
+            break;
+          case '8 hours':
+          case '1 day':
+            getKey = (date) => {
+              const rounded = new Date(date);
+              rounded.setMinutes(0, 0, 0);
+              return rounded.toISOString();
+            };
+            getLabel = (dateStr) => format(new Date(dateStr), "HH:mm");
+            getIntervals = (start, end) => {
+              const intervals = [];
+              const roundedStart = new Date(start);
+              roundedStart.setMinutes(0, 0, 0);
+              let current = roundedStart;
+              while (current <= end) {
+                intervals.push(new Date(current));
+                current.setHours(current.getHours() + 1);
+              }
+              return intervals;
+            };
+            break;
+          default: // Daily for '7 days' and longer
+            getKey = (date) => format(date, "yyyy-MM-dd");
+            getLabel = (dateStr) => format(new Date(dateStr), "MMM d");
+            getIntervals = (start, end) => {
+              const intervals = [];
+              const roundedStart = new Date(start);
+              roundedStart.setHours(0, 0, 0, 0);
+              let current = roundedStart;
+              while (current <= end) {
+                intervals.push(new Date(current));
+                current.setDate(current.getDate() + 1);
+              }
+              return intervals;
+            };
+        }
 
-        const newChartData = Object.entries(countsByDate).map(([date, data]) => ({
-          date,
-          count: data.count,
-          formattedDate: format(new Date(date), "MMM d"),
-          breakdown: data.breakdown,
+        const countsByInterval: Record<string, { count: number; breakdown: Record<string, number> }> = {};
+
+        if (logsWithIds.length > 0) {
+            const fromDate = dateRange?.from || logsWithIds.reduce((min, log) => log.log_date_time < min ? log.log_date_time : min, logsWithIds[0].log_date_time);
+            const toDate = dateRange?.to || logsWithIds.reduce((max, log) => log.log_date_time > max ? log.log_date_time : max, logsWithIds[0].log_date_time);
+
+            getIntervals(new Date(fromDate), new Date(toDate)).forEach(intervalDate => {
+                const key = getKey(intervalDate);
+                countsByInterval[key] = { count: 0, breakdown: {} };
+            });
+
+            logsWithIds.forEach(log => {
+                const key = getKey(log.log_date_time);
+                if (countsByInterval[key]) {
+                    countsByInterval[key].count++;
+                    const host = log.host_name;
+                    countsByInterval[key].breakdown[host] = (countsByInterval[key].breakdown[host] || 0) + 1;
+                }
+            });
+        }
+
+        const newChartData = Object.entries(countsByInterval).map(([date, data]) => ({
+            date,
+            count: data.count,
+            formattedDate: getLabel(date),
+            breakdown: data.breakdown,
         }));
 
         newChartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());

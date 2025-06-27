@@ -27,12 +27,25 @@ const chartConfig = {
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as ErrorTrendDataPoint;
-    const fullDate = new Date(data.date).toLocaleDateString('en-US', {
-      timeZone: 'UTC',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+
+    const isTimeBased = data.formattedDate.includes(":");
+    const fullDate = isTimeBased
+      ? new Date(data.date).toLocaleString('en-US', {
+          timeZone: 'UTC',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        })
+      : new Date(data.date).toLocaleDateString('en-US', {
+          timeZone: 'UTC',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+
 
     const breakdownEntries = Object.entries(data.breakdown).sort(([, a], [, b]) => b - a);
 
