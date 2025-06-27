@@ -50,63 +50,149 @@ This will launch the Next.js development server. If you set the `PORT` variable,
 
 ## API Interaction
 
-The dashboard communicates with the backend service via a `POST` request to the URL specified in `NEXT_PUBLIC_API_URL`.
+The dashboard communicates with the backend service via a `POST` request to the URL specified in `NEXT_PUBLIC_API_URL`. The request body is a JSON object that can include parameters for time filtering, pagination, sorting, filtering, and data aggregation.
 
-### Request Body
+### Request Body Scenarios
 
-The body of the `POST` request will contain either an `interval` for preset time ranges or a `dateRange` for custom selections.
+The `dateRange` (or `interval`) and `pagination` properties are always sent. All others are optional or have defaults.
 
-#### Preset Time Ranges
-
-For predefined time ranges, the request sends a PostgreSQL-compatible interval string.
-
-*   **Last 4 hours:** `{ "interval": "4 hours" }`
-*   **Last 8 hours:** `{ "interval": "8 hours" }`
-*   **Last 1 day:** `{ "interval": "1 day" }`
-*   **Last 7 days:** `{ "interval": "7 days" }`
-*   **Last 15 days:** `{ "interval": "15 days" }`
-*   **Last 1 month:** `{ "interval": "1 month" }`
-
-#### Custom Date Range
-
-For custom ranges selected via the calendar, the request sends `from` and `to` dates as ISO 8601 strings.
-
-*   **Example:**
-    ```json
-    {
-      "dateRange": {
-        "from": "2023-10-26T00:00:00.000Z",
-        "to": "2023-11-25T23:59:59.999Z"
-      }
-    }
-    ```
-
-### Expected Response
-
-The API is expected to return a JSON array of error log objects. If no logs match the criteria, it should return an empty array `[]`.
-
-#### Error Log Object Structure
-
-Each object in the response array should conform to the following structure:
+#### 1. Basic Request (First Page, Default Sort)
+This is the simplest request, fetching the first page of logs for the last 7 days.
 
 ```json
 {
-  "log_date_time": "2023-11-21T10:30:00.000Z",
-  "host_name": "server-alpha-01",
-  "repository_path": "/apps/main-service",
-  "port_number": 8080,
-  "version_number": "1.2.3",
-  "as_server_mode": "production",
-  "as_start_date_time": "2023-11-21T04:30:00.000Z",
-  "as_server_config": "config_A.json",
-  "user_id": "user-101",
-  "report_id_name": "daily_summary",
-  "error_number": 500,
-  "xql_query_id": "q-abcdef12",
-  "log_message": "Failed to connect to database: timeout expired."
+  "interval": "7 days",
+  "pagination": { "page": 1, "pageSize": 100 },
+  "sort": { "column": "log_date_time", "direction": "descending" },
+  "filters": {},
+  "groupBy": "none",
+  "chartBreakdownBy": "host_name"
 }
 ```
 
+#### 2. Request with Custom Date Range
+Here, we're requesting a specific date range.
+
+```json
+{
+  "dateRange": {
+    "from": "2023-10-26T00:00:00.000Z",
+    "to": "2023-11-25T23:59:59.999Z"
+  },
+  "pagination": { "page": 1, "pageSize": 100 },
+  "sort": { "column": "log_date_time", "direction": "descending" },
+  "filters": {},
+  "groupBy": "none",
+  "chartBreakdownBy": "host_name"
+}
+```
+
+#### 3. Request with Pagination and Sorting
+This request fetches the third page of results, sorted by `host_name` in ascending order.
+
+```json
+{
+  "interval": "1 day",
+  "pagination": { "page": 3, "pageSize": 100 },
+  "sort": { "column": "host_name", "direction": "ascending" },
+  "filters": {},
+  "groupBy": "none",
+  "chartBreakdownBy": "host_name"
+}
+```
+
+#### 4. Request with Column Filters
+This request adds filters to find logs from a specific host and for a specific error code.
+
+```json
+{
+  "interval": "1 day",
+  "pagination": { "page": 1, "pageSize": 100 },
+  "sort": { "column": "log_date_time", "direction": "descending" },
+  "filters": {
+    "host_name": "server-alpha",
+    "error_number": "500"
+  },
+  "groupBy": "none",
+  "chartBreakdownBy": "host_name"
+}
+```
+
+#### 5. Request for Grouped Data
+When a user selects a "Group By" option (e.g., "User"), the frontend makes a request with the `groupBy` parameter.
+
+```json
+{
+  "interval": "1 day",
+  "pagination": { "page": 1, "pageSize": 100 },
+  "sort": { "column": "log_date_time", "direction": "descending" },
+  "filters": {},
+  "groupBy": "user_id",
+  "chartBreakdownBy": "host_name"
+}
+```
+
+#### 6. Request with a Different Chart Breakdown
+The `chartBreakdownBy` parameter can be changed by the user to get different insights in the chart's tooltip.
+
+```json
+{
+  "interval": "1 day",
+  "pagination": { "page": 1, "pageSize": 100 },
+  "sort": { "column": "log_date_time", "direction": "descending" },
+  "filters": {},
+  "groupBy": "none",
+  "chartBreakdownBy": "repository_path"
+}
+```
+
+### Expected Response Structure
+
+The API must always return a JSON object with the following structure. If a request is for grouped data (`groupBy` is not `'none'`), the `logs` array can be empty, but `groupData` must be populated.
+
+```json
+{
+  "logs": [
+    {
+      "log_date_time": "2023-11-21T10:30:00.000Z",
+      "host_name": "server-alpha-01",
+      "repository_path": "/apps/main-service",
+      "port_number": 8080,
+      "version_number": "1.2.3",
+      "as_server_mode": "production",
+      "as_start_date_time": "2023-11-21T04:30:00.000Z",
+      "as_server_config": "config_A.json",
+      "user_id": "user-101",
+      "report_id_name": "daily_summary",
+      "error_number": 500,
+      "xql_query_id": "q-abcdef12",
+      "log_message": "Failed to connect to database: timeout expired."
+    }
+  ],
+  "totalCount": 12345,
+  "chartData": [
+    {
+      "date": "2023-11-21T10:00:00.000Z",
+      "count": 50,
+      "formattedDate": "Nov 21",
+      "breakdown": {
+        "server-alpha-01": 25,
+        "server-beta-02": 25
+      }
+    }
+  ],
+  "groupData": [
+    {
+      "key": "server-alpha-01",
+      "count": 1500
+    },
+    {
+      "key": "server-beta-02",
+      "count": 980
+    }
+  ]
+}
+```
 The `log_date_time` and `as_start_date_time` fields should be in ISO 8601 format, which is the standard output for timestamp data types in most database libraries.
 
 ## Core Features
