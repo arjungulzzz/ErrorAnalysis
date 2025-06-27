@@ -120,7 +120,7 @@ export default function ErrorDashboard() {
             ? { dateRange }
             : { interval: preset?.interval };
 
-        const apiStartTime = performance.now();
+        const fetchStartTime = performance.now();
         const response = await fetch(externalApiUrl, {
           method: 'POST',
           headers: {
@@ -128,8 +128,8 @@ export default function ErrorDashboard() {
           },
           body: JSON.stringify(requestBody),
         });
-        const apiEndTime = performance.now();
-        console.log(`API fetch took: ${(apiEndTime - apiStartTime).toFixed(2)}ms`);
+        const responseReceivedTime = performance.now();
+        console.log(`API response received (TTFB): ${(responseReceivedTime - fetchStartTime).toFixed(2)}ms`);
 
         if (!response.ok) {
           console.error("Failed to fetch logs:", response.statusText);
@@ -143,18 +143,24 @@ export default function ErrorDashboard() {
         }
 
         let logsResult: ApiErrorLog[];
-
         const isCompressed = response.headers.get('X-Compressed') === 'true';
 
         if (isCompressed) {
-          const decompressStartTime = performance.now();
           const compressedData = await response.arrayBuffer();
+          const bodyDownloadedTime = performance.now();
+          console.log(`Body download took: ${(bodyDownloadedTime - responseReceivedTime).toFixed(2)}ms`);
+          
           const decompressedData = pako.inflate(new Uint8Array(compressedData), { to: 'string' });
+          const decompressionDoneTime = performance.now();
+          console.log(`Decompression took: ${(decompressionDoneTime - bodyDownloadedTime).toFixed(2)}ms`);
+
           logsResult = JSON.parse(decompressedData) as ApiErrorLog[];
-          const decompressEndTime = performance.now();
-          console.log(`Decompression took: ${(decompressEndTime - decompressStartTime).toFixed(2)}ms`);
+          const jsonParsedTime = performance.now();
+          console.log(`JSON parsing took: ${(jsonParsedTime - decompressionDoneTime).toFixed(2)}ms`);
         } else {
           logsResult = await response.json();
+          const bodyParsedTime = performance.now();
+          console.log(`Body download & parsing took: ${(bodyParsedTime - responseReceivedTime).toFixed(2)}ms`);
         }
         
         const processingStartTime = performance.now();
