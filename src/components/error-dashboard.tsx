@@ -81,6 +81,15 @@ export default function ErrorDashboard() {
   
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const { toast } = useToast();
+  const [renderStartTime, setRenderStartTime] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (renderStartTime) {
+      const renderEndTime = performance.now();
+      console.log(`UI render took: ${(renderEndTime - renderStartTime).toFixed(2)}ms`);
+      setRenderStartTime(null);
+    }
+  }, [allLogs, renderStartTime]);
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
@@ -111,6 +120,7 @@ export default function ErrorDashboard() {
             ? { dateRange }
             : { interval: preset?.interval };
 
+        const apiStartTime = performance.now();
         const response = await fetch(externalApiUrl, {
           method: 'POST',
           headers: {
@@ -118,6 +128,8 @@ export default function ErrorDashboard() {
           },
           body: JSON.stringify(requestBody),
         });
+        const apiEndTime = performance.now();
+        console.log(`API fetch took: ${(apiEndTime - apiStartTime).toFixed(2)}ms`);
 
         if (!response.ok) {
           console.error("Failed to fetch logs:", response.statusText);
@@ -135,13 +147,17 @@ export default function ErrorDashboard() {
         const isCompressed = response.headers.get('X-Compressed') === 'true';
 
         if (isCompressed) {
+          const decompressStartTime = performance.now();
           const compressedData = await response.arrayBuffer();
           const decompressedData = pako.inflate(new Uint8Array(compressedData), { to: 'string' });
           logsResult = JSON.parse(decompressedData) as ApiErrorLog[];
+          const decompressEndTime = performance.now();
+          console.log(`Decompression took: ${(decompressEndTime - decompressStartTime).toFixed(2)}ms`);
         } else {
           logsResult = await response.json();
         }
         
+        const processingStartTime = performance.now();
         const logsWithIds = logsResult.map((log, index) => ({
           ...log,
           id: `${new Date(log.log_date_time).getTime()}-${index}`,
@@ -150,6 +166,9 @@ export default function ErrorDashboard() {
         }));
         
         setAllLogs(logsWithIds);
+        const processingEndTime = performance.now();
+        console.log(`Data processing took: ${(processingEndTime - processingStartTime).toFixed(2)}ms`);
+        setRenderStartTime(performance.now());
       } catch (error) {
         console.error("Error fetching data:", error);
         setAllLogs([]);
