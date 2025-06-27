@@ -16,7 +16,13 @@ npm install
 
 ### 2. Configure Environment Variables
 
-The application uses environment variables for configuration. Create a file named `.env` in the root of the project to set them.
+The application uses environment variables for configuration. To get started, copy the example file:
+
+```bash
+cp .env.example .env
+```
+
+Then, open the newly created `.env` file and update the variables to match your local setup.
 
 1.  **API URL (Required)**: Add the URL for your external logging service.
 
