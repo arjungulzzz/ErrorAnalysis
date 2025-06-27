@@ -10,11 +10,6 @@ This document outlines the SQL patterns required for the backend service to supp
 
 All subsequent modifications will build upon this base `JOIN` query.
 
-**IMPORTANT**: The query below needs one modification to work with the frontend. You **must** add the unique primary key column from your `as_log_info` table to the `SELECT` list and alias it as `id`. The frontend requires this to uniquely identify each row.
-
-*For example, if your primary key column is named `log_pk`, the first line of the `SELECT` statement should be:*
-`SELECT ali.log_pk as id, ali.log_date_time, ...`
-
 ```sql
 SELECT
   ali.log_date_time,

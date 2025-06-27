@@ -252,9 +252,9 @@ export function ErrorTable({
               </TableHeader>
               <TableBody>
                 {isLoading ? renderSkeleton() : logs.length > 0 ? (
-                  logs.map((log) => (
+                  logs.map((log, index) => (
                     <TableRow 
-                      key={log.id}
+                      key={`${log.log_date_time.toISOString()}-${index}`}
                     >
                       {visibleColumns.map(column => (
                         <TableCell key={column.id} className={cn(column.cellClassName, column.truncate && 'truncate')}>

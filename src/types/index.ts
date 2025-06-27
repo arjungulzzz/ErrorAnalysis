@@ -8,10 +8,9 @@
 
 /**
  * Represents the raw error log entry as it comes from the API.
- * Dates are strings. The backend should generate and return the ID.
+ * Dates are strings.
  */
 export type ApiErrorLog = {
-  id: string;
   log_date_time: string;
   host_name: string;
   repository_path: string;
