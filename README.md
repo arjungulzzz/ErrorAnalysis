@@ -52,7 +52,7 @@ This will launch the Next.js development server. If you set the `PORT` variable,
 
 The dashboard communicates with the backend service via a `POST` request to the URL specified in `NEXT_PUBLIC_API_URL`. The request body is a JSON object that can include parameters for time filtering, pagination, sorting, filtering, and data aggregation.
 
-The `requestId` is a unique identifier generated for each request in the format `req_{epoch_timestamp}_{random_string}` to aid in server-side logging and tracking.
+The `requestId` is a unique identifier generated for each request in the format `req_{epoch_timestamp}_{random_string}` to aid in server-side logging and tracking. The timestamp is the Unix epoch time in milliseconds.
 
 ### Request Body Scenarios
 
