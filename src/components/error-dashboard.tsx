@@ -119,7 +119,7 @@ export default function ErrorDashboard() {
       try {
         const preset = TIME_PRESETS.find(p => p.value === timePreset);
         const requestBody: LogsApiRequest = {
-          requestId: crypto.randomUUID(),
+          requestId: `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`,
           ...(timePreset === 'custom' ? { dateRange } : { interval: preset?.interval }),
           pagination: { page, pageSize },
           sort,
