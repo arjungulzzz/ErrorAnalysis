@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node -e \"require('dotenv').config(); require('child_process').execSync('next dev --turbopack -p ' + (process.env.PORT || 3000), { stdio: 'inherit' })\"",
+    "dev": "node scripts/dev.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
