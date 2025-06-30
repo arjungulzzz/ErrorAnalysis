@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
-import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse } from "@/types";
+import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
@@ -118,7 +118,8 @@ export default function ErrorDashboard() {
       
       try {
         const preset = TIME_PRESETS.find(p => p.value === timePreset);
-        const requestBody = {
+        const requestBody: LogsApiRequest = {
+          requestId: crypto.randomUUID(),
           ...(timePreset === 'custom' ? { dateRange } : { interval: preset?.interval }),
           pagination: { page, pageSize },
           sort,

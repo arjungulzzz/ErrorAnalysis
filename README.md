@@ -54,13 +54,14 @@ The dashboard communicates with the backend service via a `POST` request to the 
 
 ### Request Body Scenarios
 
-The `dateRange` (or `interval`) and `pagination` properties are always sent. All others are optional or have defaults.
+The `requestId`, `dateRange` (or `interval`), and `pagination` properties are always sent. All others are optional or have defaults.
 
 #### 1. Basic Request (First Page, Default Sort)
-This is the simplest request, fetching the first page of logs for the last 7 days.
+This is the simplest request, fetching the first page of logs for the last 7 days. It includes a `requestId` for tracking purposes.
 
 ```json
 {
+  "requestId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
   "interval": "7 days",
   "pagination": { "page": 1, "pageSize": 100 },
   "sort": { "column": "log_date_time", "direction": "descending" },
@@ -75,6 +76,7 @@ Here, we're requesting a specific date range.
 
 ```json
 {
+  "requestId": "b2c3d4e5-f6a7-8901-2345-67890abcdef1",
   "dateRange": {
     "from": "2023-10-26T00:00:00.000Z",
     "to": "2023-11-25T23:59:59.999Z"
@@ -92,6 +94,7 @@ This request fetches the third page of results, sorted by `host_name` in ascendi
 
 ```json
 {
+  "requestId": "c3d4e5f6-a7b8-9012-3456-7890abcdef12",
   "interval": "1 day",
   "pagination": { "page": 3, "pageSize": 100 },
   "sort": { "column": "host_name", "direction": "ascending" },
@@ -106,6 +109,7 @@ This request adds filters to find logs from a specific host and for a specific e
 
 ```json
 {
+  "requestId": "d4e5f6a7-b8c9-0123-4567-890abcdef123",
   "interval": "1 day",
   "pagination": { "page": 1, "pageSize": 100 },
   "sort": { "column": "log_date_time", "direction": "descending" },
@@ -123,6 +127,7 @@ When a user selects a "Group By" option (e.g., "User"), the frontend makes a req
 
 ```json
 {
+  "requestId": "e5f6a7b8-c9d0-1234-5678-90abcdef1234",
   "interval": "1 day",
   "pagination": { "page": 1, "pageSize": 100 },
   "sort": { "column": "log_date_time", "direction": "descending" },
@@ -137,6 +142,7 @@ The `chartBreakdownBy` parameter can be changed by the user to get different ins
 
 ```json
 {
+  "requestId": "f6a7b8c9-d0e1-2345-6789-0abcdef12345",
   "interval": "1 day",
   "pagination": { "page": 1, "pageSize": 100 },
   "sort": { "column": "log_date_time", "direction": "descending" },

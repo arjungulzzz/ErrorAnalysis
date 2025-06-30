@@ -6,6 +6,8 @@
  * format from the API and the processed format used by the frontend.
  */
 
+import { type DateRange } from "react-day-picker";
+
 /**
  * Represents the raw error log entry as it comes from the API.
  * Dates are strings.
@@ -86,4 +88,18 @@ export type ErrorTrendDataPoint = {
   formattedDate: string; // A user-friendly formatted date for the chart's x-axis (e.g., "Nov 21" or "10:30")
   /** A breakdown of error counts by a secondary key (e.g., hostname, error code). The key is dynamic. */
   breakdown: Record<string, number>; 
+};
+
+/**
+ * Defines the structure of the request body sent to the logs API.
+ */
+export type LogsApiRequest = {
+  requestId: string;
+  interval?: string | null;
+  dateRange?: DateRange;
+  pagination: { page: number; pageSize: number };
+  sort: SortDescriptor;
+  filters: ColumnFilters;
+  groupBy: GroupByOption;
+  chartBreakdownBy: ChartBreakdownByOption;
 };
