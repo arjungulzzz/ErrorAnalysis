@@ -1,7 +1,7 @@
-import 'dotenv/config';
-import type {NextConfig} from 'next';
+require('dotenv/config');
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
@@ -23,6 +23,4 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ['https://*.cloudworkstations.dev'],
 };
 
-export default nextConfig;
-
-// Triggering a server restart
+module.exports = nextConfig;
