@@ -80,22 +80,11 @@ function generateGroupData(logs: ErrorLog[], groupBy: LogsApiRequest['groupBy'])
 }
 
 function generateChartData(logs: ErrorLog[], request: LogsApiRequest): ErrorTrendDataPoint[] {
-    if (logs.length === 0) {
+    if (!request.dateRange?.from) {
         return [];
     }
-
-    let startDate: Date;
-    let endDate: Date;
-
-    if (request.dateRange?.from) {
-        startDate = request.dateRange.from;
-        endDate = request.dateRange.to || new Date();
-    } else {
-        // Derive range from the data itself if no explicit range is provided
-        const logDates = logs.map(log => log.log_date_time);
-        startDate = new Date(Math.min(...logDates.map(d => d.getTime())));
-        endDate = new Date(Math.max(...logDates.map(d => d.getTime())));
-    }
+    let startDate: Date = request.dateRange.from;
+    let endDate: Date = request.dateRange.to || new Date();
     
     // Simplified bucketing logic: just group by day for this mock
     const daysInInterval = eachDayOfInterval({ start: startOfDay(startDate), end: endOfDay(endDate) });
@@ -124,7 +113,7 @@ function generateChartData(logs: ErrorLog[], request: LogsApiRequest): ErrorTren
 export function processMockRequest(request: LogsApiRequest): LogsApiResponse {
     let logs = [...allMockLogs];
     
-    // 1. Filter by date range (if provided). If not, use all logs.
+    // 1. Filter by date range.
     if (request.dateRange?.from) {
         const fromDate = request.dateRange.from;
         const toDate = request.dateRange.to || new Date();
