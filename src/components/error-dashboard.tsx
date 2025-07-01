@@ -21,15 +21,6 @@ import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import { processLogsRequest } from "@/lib/mock-api";
 
-interface DashboardViewState {
-  columnFilters: ColumnFilters;
-  sort: SortDescriptor;
-  groupBy: GroupByOption[];
-  columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
-  chartBreakdownBy: ChartBreakdownByOption;
-  columnWidths: Record<keyof ErrorLog, number>;
-}
-
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
     { id: 'host_name', name: 'Host' },
@@ -81,72 +72,16 @@ export default function ErrorDashboard() {
   
   const [isClient, setIsClient] = useState(false);
   
-  const [columnWidths, setColumnWidths] = useState<Record<keyof ErrorLog, number>>({} as Record<keyof ErrorLog, number>);
+  const [columnWidths, setColumnWidths] = useState<Record<keyof ErrorLog, number>>(
+    allColumns.reduce((acc, col) => {
+      acc[col.id] = col.id === 'log_message' ? 400 : col.id === 'log_date_time' ? 180 : 150;
+      return acc;
+    }, {} as Record<keyof ErrorLog, number>)
+  );
   
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  // Load dashboard state from local storage on initial client render
-  useEffect(() => {
-      if (!isClient) return;
-      try {
-          const savedStateRaw = localStorage.getItem('error-dashboard-view-state');
-          const defaultWidths = allColumns.reduce((acc, col) => {
-              acc[col.id] = col.id === 'log_message' ? 400 : col.id === 'log_date_time' ? 180 : 150;
-              return acc;
-          }, {} as Record<keyof ErrorLog, number>);
-
-          if (savedStateRaw) {
-              const savedState = JSON.parse(savedStateRaw) as Partial<DashboardViewState>;
-              
-              if (savedState.columnFilters) setColumnFilters(savedState.columnFilters);
-              if (savedState.sort) setSort(savedState.sort);
-              if (savedState.groupBy && Array.isArray(savedState.groupBy)) setGroupBy(savedState.groupBy);
-              if (savedState.columnVisibility) setColumnVisibility(savedState.columnVisibility);
-              if (savedState.chartBreakdownBy) setChartBreakdownBy(savedState.chartBreakdownBy);
-              
-              const validatedWidths = allColumns.reduce((acc, col) => {
-                  acc[col.id] = savedState.columnWidths?.[col.id] || defaultWidths[col.id];
-                  return acc;
-              }, {} as Record<keyof ErrorLog, number>);
-              setColumnWidths(validatedWidths);
-          } else {
-              setColumnWidths(defaultWidths);
-          }
-      } catch (error) {
-          console.error("Failed to parse dashboard state from localStorage", error);
-          const defaultWidths = allColumns.reduce((acc, col) => {
-            acc[col.id] = col.id === 'log_message' ? 400 : col.id === 'log_date_time' ? 180 : 150;
-            return acc;
-          }, {} as Record<keyof ErrorLog, number>);
-          setColumnWidths(defaultWidths);
-      }
-  }, [isClient]);
-
-  // Save dashboard state to local storage whenever it changes
-  useEffect(() => {
-      if (!isClient || Object.keys(columnWidths).length === 0) return;
-
-      const stateToSave: DashboardViewState = {
-        columnFilters,
-        sort,
-        groupBy,
-        columnVisibility,
-        chartBreakdownBy,
-        columnWidths
-      };
-      
-      localStorage.setItem('error-dashboard-view-state', JSON.stringify(stateToSave));
-  }, [
-      columnFilters, 
-      sort, 
-      groupBy, 
-      columnVisibility, 
-      chartBreakdownBy, 
-      columnWidths, 
-      isClient
-  ]);
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
@@ -266,45 +201,12 @@ export default function ErrorDashboard() {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
-            <svg
-              width="32"
-              height="32"
-              viewBox="0 0 190 200"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <defs>
-                <linearGradient
-                  id="logo-gradient"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="0%"
-                >
-                  <stop offset="0%" stopColor="#6750A4" />
-                  <stop offset="100%" stopColor="#EE6B6B" />
-                </linearGradient>
-                <mask id="logo-mask">
-                  <g stroke="white" strokeWidth="10" fill="none">
-                    <ellipse cx="45" cy="100" rx="40" ry="95" />
-                    <ellipse cx="60" cy="100" rx="40" ry="95" />
-                    <ellipse cx="75" cy="100" rx="40" ry="95" />
-                    <ellipse cx="90" cy="100" rx="40" ry="95" />
-                    <ellipse cx="105" cy="100" rx="40" ry="95" />
-                    <ellipse cx="120" cy="100" rx="40" ry="95" />
-                    <ellipse cx="135" cy="100" rx="40" ry="95" />
-                  </g>
-                </mask>
-              </defs>
-              <rect
-                x="0"
-                y="0"
-                width="190"
-                height="200"
-                fill="url(#logo-gradient)"
-                mask="url(#logo-mask)"
-              />
+            <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.5 75C22.5 41.5 35.5 25 35.5 25C35.5 25 48.5 41.5 48.5 75C48.5 108.5 35.5 125 35.5 125C35.5 125 22.5 108.5 22.5 75Z" fill="#7595B3"/>
+                <path d="M47.5 75C47.5 41.5 60.5 25 60.5 25C60.5 25 73.5 41.5 73.5 75C73.5 108.5 60.5 125 60.5 125C60.5 125 47.5 108.5 47.5 75Z" fill="#F47272"/>
+                <path d="M22.5 75C22.5 41.5 35.5 25 35.5 25C35.5 25 48.5 41.5 48.5 75C48.5 108.5 35.5 125 35.5 125C35.5 125 22.5 108.5 22.5 75Z" stroke="#49454F" strokeWidth="2.5"/>
+                <path d="M47.5 75C47.5 41.5 60.5 25 60.5 25C60.5 25 73.5 41.5 73.5 75C73.5 108.5 60.5 125 60.5 125C60.5 125 47.5 108.5 47.5 75Z" stroke="#49454F" strokeWidth="2.5"/>
+                <path d="M42.5 75C42.5 52 50.5 37.5 50.5 37.5C50.5 37.5 58.5 52 58.5 75C58.5 98 50.5 112.5 50.5 112.5C50.5 112.5 42.5 98 42.5 75Z" fill="#6750A4"/>
             </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
