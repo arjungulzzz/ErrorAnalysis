@@ -28,7 +28,21 @@ const MOCK_LOGS: ErrorLog[] = generateMockLogs(5000);
 export function processLogsRequest(request: LogsApiRequest): LogsApiResponse {
   let filteredLogs = [...MOCK_LOGS];
 
-  // 1. Apply column filters
+  // 1. Apply date range filter
+  if (request.dateRange && request.dateRange.from) {
+    const fromDate = new Date(request.dateRange.from);
+    fromDate.setHours(0, 0, 0, 0);
+
+    const toDate = request.dateRange.to ? new Date(request.dateRange.to) : new Date();
+    toDate.setHours(23, 59, 59, 999);
+    
+    filteredLogs = filteredLogs.filter(log => {
+      const logDate = new Date(log.log_date_time);
+      return logDate >= fromDate && logDate <= toDate;
+    });
+  }
+
+  // 2. Apply column filters
   if (request.filters) {
     Object.entries(request.filters).forEach(([key, value]) => {
       if (value) {
@@ -41,7 +55,7 @@ export function processLogsRequest(request: LogsApiRequest): LogsApiResponse {
     });
   }
 
-  // 2. Apply sorting
+  // 3. Apply sorting
   if (request.sort && request.sort.column && request.sort.direction) {
     const { column, direction } = request.sort;
     filteredLogs.sort((a, b) => {
@@ -63,10 +77,10 @@ export function processLogsRequest(request: LogsApiRequest): LogsApiResponse {
 
   const totalCount = filteredLogs.length;
 
-  // 3. Generate chart data (must be done *before* grouping and pagination)
+  // 4. Generate chart data (must be done *before* grouping and pagination)
   const chartData = generateChartData(filteredLogs, request.chartBreakdownBy);
 
-  // 4. Handle grouping
+  // 5. Handle grouping
   let groupData: GroupDataPoint[] = [];
   let paginatedLogs: ErrorLog[] = [];
 
@@ -75,7 +89,7 @@ export function processLogsRequest(request: LogsApiRequest): LogsApiResponse {
     // When grouping, the main log view is empty as the table will render groups instead.
     paginatedLogs = [];
   } else {
-    // 5. Apply pagination if not grouping
+    // 6. Apply pagination if not grouping
     const { page, pageSize } = request.pagination;
     const start = (page - 1) * pageSize;
     const end = start + pageSize;

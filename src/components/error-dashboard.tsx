@@ -8,12 +8,16 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition } from "react";
+import type { DateRange } from "react-day-picker";
+import { format, subDays } from "date-fns";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ErrorTable } from "@/components/error-table";
 import { Card, CardContent } from "@/components/ui/card";
-import { RotateCw, ChevronDown, X } from "lucide-react";
+import { RotateCw, ChevronDown, X, Calendar as CalendarIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { ErrorTrendChart } from "./error-trend-chart";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +50,10 @@ export default function ErrorDashboard() {
   const [groupData, setGroupData] = useState<GroupDataPoint[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(100);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 6),
+    to: new Date(),
+  });
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption[]>([]);
@@ -91,6 +99,7 @@ export default function ErrorDashboard() {
 
       const requestBody: LogsApiRequest = {
         requestId,
+        dateRange: dateRange,
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
@@ -154,12 +163,12 @@ export default function ErrorDashboard() {
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, toast, isClient]);
+  }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, toast, isClient]);
   
   useEffect(() => {
     // Reset page to 1 whenever filters, grouping, or date changes
     setPage(1);
-  }, [columnFilters, groupBy, sort]);
+  }, [columnFilters, groupBy, sort, dateRange]);
 
   useEffect(() => {
     // Main fetch trigger
@@ -176,7 +185,7 @@ export default function ErrorDashboard() {
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
   
   const availableGroupByOptions = allColumns.filter(
-    (col) => !nonGroupableColumns.includes(col.id) && columnVisibility[col.id]
+    (col) => !nonGroupableColumns.includes(col.id) && columnVisibility[col.id] && col.id !== 'log_message'
   );
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
@@ -201,12 +210,10 @@ export default function ErrorDashboard() {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
-            <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22.5 75C22.5 41.5 35.5 25 35.5 25C35.5 25 48.5 41.5 48.5 75C48.5 108.5 35.5 125 35.5 125C35.5 125 22.5 108.5 22.5 75Z" fill="#7595B3"/>
-                <path d="M47.5 75C47.5 41.5 60.5 25 60.5 25C60.5 25 73.5 41.5 73.5 75C73.5 108.5 60.5 125 60.5 125C60.5 125 47.5 108.5 47.5 75Z" fill="#F47272"/>
-                <path d="M22.5 75C22.5 41.5 35.5 25 35.5 25C35.5 25 48.5 41.5 48.5 75C48.5 108.5 35.5 125 35.5 125C35.5 125 22.5 108.5 22.5 75Z" stroke="#49454F" strokeWidth="2.5"/>
-                <path d="M47.5 75C47.5 41.5 60.5 25 60.5 25C60.5 25 73.5 41.5 73.5 75C73.5 108.5 60.5 125 60.5 125C60.5 125 47.5 108.5 47.5 75Z" stroke="#49454F" strokeWidth="2.5"/>
-                <path d="M42.5 75C42.5 52 50.5 37.5 50.5 37.5C50.5 37.5 58.5 52 58.5 75C58.5 98 50.5 112.5 50.5 112.5C50.5 112.5 42.5 98 42.5 75Z" fill="#6750A4"/>
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5.33331 24C5.33331 13.8333 9.33331 8.33333 9.33331 8.33333C9.33331 8.33333 13.3333 13.8333 13.3333 24C13.3333 34.1667 9.33331 39.6667 9.33331 39.6667C9.33331 39.6667 5.33331 34.1667 5.33331 24Z" fill="#7595B3" stroke="#49454F" strokeWidth="1.5"/>
+              <path d="M12 24C12 13.8333 16 8.33333 16 8.33333C16 8.33333 20 13.8333 20 24C20 34.1667 16 39.6667 16 39.6667C16 39.6667 12 34.1667 12 24Z" fill="#F47272" stroke="#49454F" strokeWidth="1.5"/>
+              <path d="M22.6667 24C22.6667 17.3333 25.3333 12.5 25.3333 12.5C25.3333 12.5 28 17.3333 28 24C28 30.6667 25.3333 35.5 25.3333 35.5C25.3333 35.5 22.6667 30.6667 22.6667 24Z" fill="#6750A4"/>
             </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
@@ -221,7 +228,56 @@ export default function ErrorDashboard() {
 
       <Card>
         <CardContent className="p-4 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 items-end">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                <div className="grid w-full items-center gap-1.5">
+                  <Label htmlFor="date-range-trigger">Time Range</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="date-range-trigger"
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dateRange && "text-muted-foreground"
+                        )}
+                        disabled={isPending}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (
+                          dateRange.to ? (
+                            <>
+                              {format(dateRange.from, "LLL dd, y")} -{" "}
+                              {format(dateRange.to, "LLL dd, y")}
+                            </>
+                          ) : (
+                            format(dateRange.from, "LLL dd, y")
+                          )
+                        ) : (
+                          <span>None</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 flex flex-col sm:flex-row" align="start">
+                      <div className="p-4 border-b sm:border-b-0 sm:border-r">
+                        <div className="grid gap-2">
+                          <Button variant="ghost" className="justify-start" onClick={() => setDateRange({ from: subDays(new Date(), 6), to: new Date() })}>Last 7 days</Button>
+                          <Button variant="ghost" className="justify-start" onClick={() => setDateRange({ from: subDays(new Date(), 29), to: new Date() })}>Last 30 days</Button>
+                          <Button variant="ghost" className="justify-start" onClick={() => setDateRange({ from: new Date(new Date().getFullYear(), 0, 1), to: new Date() })}>This Year</Button>
+                          <Button variant="ghost" className="justify-start" onClick={() => setDateRange(undefined)}>None</Button>
+                        </div>
+                      </div>
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        numberOfMonths={2}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
                 <div className="grid w-full items-center gap-1.5">
                     <Label htmlFor="group-by-trigger">Group By</Label>
                     <DropdownMenu>

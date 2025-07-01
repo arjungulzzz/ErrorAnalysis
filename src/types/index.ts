@@ -75,7 +75,8 @@ export type GroupByOption =
   | 'user_id'
   | 'report_id_name'
   | 'error_number'
-  | 'xql_query_id';
+  | 'xql_query_id'
+  | 'log_message';
 
 /**
  * Represents a single data point in a grouped data summary.
@@ -108,7 +109,6 @@ export type ErrorTrendDataPoint = {
  */
 export type LogsApiRequest = {
   requestId: string;
-  interval?: string | null;
   dateRange?: DateRange;
   pagination: { page: number; pageSize: number };
   sort: SortDescriptor;
