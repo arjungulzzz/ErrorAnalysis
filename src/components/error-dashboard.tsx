@@ -276,8 +276,7 @@ export default function ErrorDashboard() {
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline tracking-tight">Error Insights Dashboard</h1>
-          <p className="text-muted-foreground">Analyze and investigate application errors.</p>
+          <h1 className="text-3xl font-bold font-headline tracking-tight">AS Error Table</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={handleRefresh} disabled={isPending || timePreset === 'none'}>
