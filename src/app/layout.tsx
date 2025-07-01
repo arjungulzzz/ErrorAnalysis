@@ -2,8 +2,8 @@ import type {Metadata} from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Error Insights Dashboard',
-  description: 'An application for analyzing and investigating application errors.',
+  title: 'AS Error Viewer',
+  description: 'Errors from AS Logs DB',
 };
 
 export default function RootLayout({
