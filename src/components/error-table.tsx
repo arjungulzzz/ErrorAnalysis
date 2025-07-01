@@ -74,22 +74,42 @@ const columnConfig: {
     { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg" },
 ];
 
-const GroupedRow = ({ item, level }: { item: GroupDataPoint; level: number; }) => {
+const GroupedRow = ({
+    item, 
+    level,
+    visibleColumns,
+    renderCellContent,
+    expandedRowId,
+    onLogClick,
+    renderExpandedDetail,
+    handleCopy,
+}: { 
+    item: GroupDataPoint; 
+    level: number;
+    visibleColumns: { id: keyof ErrorLog; name: string }[];
+    renderCellContent: (log: ErrorLog, columnId: keyof ErrorLog) => React.ReactNode;
+    expandedRowId: string | null;
+    onLogClick: (logId: string) => void;
+    renderExpandedDetail: (log: ErrorLog, columnId: keyof ErrorLog) => string;
+    handleCopy: (textToCopy: string, fieldName: string) => Promise<void>;
+}) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
     const hasSubgroups = item.subgroups && item.subgroups.length > 0;
+    const hasLogs = !hasSubgroups && item.logs && item.logs.length > 0;
+    const isExpandable = hasSubgroups || hasLogs;
 
     const handleToggle = () => {
-        if (hasSubgroups) {
+        if (isExpandable) {
             setIsExpanded(!isExpanded);
         }
     };
 
     return (
         <React.Fragment>
-            <TableRow onClick={handleToggle} className={cn(hasSubgroups && "cursor-pointer hover:bg-muted/50")}>
+            <TableRow onClick={handleToggle} className={cn(isExpandable && "cursor-pointer hover:bg-muted/50")}>
                 <TableCell style={{ paddingLeft: `${1 + level * 1.5}rem` }}>
                     <div className="flex items-center gap-2">
-                       {hasSubgroups ? (
+                       {isExpandable ? (
                             <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
                        ) : (
                             <span className="w-4 h-4" /> // for alignment
@@ -101,9 +121,100 @@ const GroupedRow = ({ item, level }: { item: GroupDataPoint; level: number; }) =
             </TableRow>
             {isExpanded && hasSubgroups && (
                 item.subgroups.map(subItem => (
-                    <GroupedRow key={`${level}-${subItem.key}`} item={subItem} level={level + 1} />
+                    <GroupedRow 
+                      key={`${level}-${subItem.key}`} 
+                      item={subItem} 
+                      level={level + 1} 
+                      visibleColumns={visibleColumns}
+                      renderCellContent={renderCellContent}
+                      expandedRowId={expandedRowId}
+                      onLogClick={onLogClick}
+                      renderExpandedDetail={renderExpandedDetail}
+                      handleCopy={handleCopy}
+                    />
                 ))
             )}
+            {isExpanded && hasLogs && item.logs?.map(log => (
+              <React.Fragment key={log.id}>
+                <TableRow
+                  data-state={expandedRowId === log.id ? "selected" : undefined}
+                  className="cursor-pointer hover:bg-muted/30"
+                  onClick={() => onLogClick(log.id)}
+                  style={{backgroundColor: 'hsl(var(--muted) / 0.5)'}}
+                >
+                  <TableCell colSpan={2} style={{ paddingLeft: `${1 + (level + 1) * 1.5}rem` }}>
+                      <Tooltip delayDuration={300}>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-4 truncate">
+                            <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                              {renderCellContent(log, 'log_date_time')}
+                            </span>
+                            <span className="truncate">
+                              {renderCellContent(log, 'log_message')}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Click row to view all details.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                  </TableCell>
+                </TableRow>
+                  
+                {expandedRowId === log.id && (
+                    <TableRow style={{backgroundColor: 'hsl(var(--muted) / 0.5)'}}>
+                        <TableCell colSpan={2}>
+                            <div className="p-4 bg-background rounded-md space-y-3">
+                                <h4 className="text-sm font-semibold">Full Log Details</h4>
+                                <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
+                                    {visibleColumns.map(col => {
+                                        const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
+                                        const detailValue = renderExpandedDetail(log, col.id);
+                                        return (
+                                            <div 
+                                                key={col.id}
+                                                className={cn(
+                                                    "flex flex-col gap-1", 
+                                                    col.id === 'log_message' && 'md:col-span-2 lg:col-span-3'
+                                                )}
+                                            >
+                                                <dt className="font-medium text-muted-foreground">{col.name}</dt>
+                                                <dd className="flex items-start justify-between gap-2 font-mono">
+                                                    <span className="whitespace-pre-wrap break-all pt-1">
+                                                        {detailValue}
+                                                    </span>
+                                                    {isCopyable && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-7 w-7 shrink-0"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleCopy(String(detailValue), col.name);
+                                                                    }}
+                                                                >
+                                                                    <Copy className="h-4 w-4" />
+                                                                    <span className="sr-only">Copy {col.name}</span>
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Copy {col.name}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                </dd>
+                                            </div>
+                                        );
+                                    })}
+                                </dl>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                )}
+              </React.Fragment>
+            ))}
         </React.Fragment>
     );
 };
@@ -304,8 +415,14 @@ export function ErrorTable({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <TooltipProvider>
             <div className="rounded-md border">
               <Table>
+                <colgroup>
+                  {/* Two columns for grouped view: Group key and count */}
+                  <col style={{ width: '80%' }} />
+                  <col style={{ width: '20%' }} />
+                </colgroup>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Group</TableHead>
@@ -315,7 +432,17 @@ export function ErrorTable({
                 <TableBody>
                   {isLoading ? renderGroupedSkeleton() : groupData && groupData.length > 0 ? (
                     groupData.map((item) => (
-                      <GroupedRow key={`0-${item.key}`} item={item} level={0} />
+                      <GroupedRow 
+                        key={`0-${item.key}`} 
+                        item={item} 
+                        level={0}
+                        visibleColumns={visibleColumns}
+                        renderCellContent={renderCellContent}
+                        expandedRowId={expandedRowId}
+                        onLogClick={(id) => setExpandedRowId(prev => prev === id ? null : id)}
+                        renderExpandedDetail={renderExpandedDetail}
+                        handleCopy={handleCopy}
+                      />
                     ))
                   ) : (
                     <TableRow>
@@ -327,6 +454,7 @@ export function ErrorTable({
                 </TableBody>
               </Table>
             </div>
+          </TooltipProvider>
         </CardContent>
       </Card>
     );

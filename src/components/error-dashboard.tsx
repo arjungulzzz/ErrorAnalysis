@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useTransition } from "react";
 import type { DateRange } from "react-day-picker";
 import { format, subDays, subHours, subMonths } from "date-fns";
-import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest } from "@/types";
+import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ErrorTable } from "@/components/error-table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -160,10 +160,24 @@ export default function ErrorDashboard() {
           as_start_date_time: new Date(log.as_start_date_time),
         }));
 
+        const processGroupData = (groups: ApiGroupDataPoint[]): GroupDataPoint[] => {
+            return groups.map(group => ({
+                ...group,
+                subgroups: group.subgroups ? processGroupData(group.subgroups) : [],
+                logs: group.logs ? group.logs.map((log, index) => ({
+                    ...log,
+                    id: `log-group-${group.key}-${new Date(log.log_date_time).getTime()}-${index}`,
+                    log_date_time: new Date(log.log_date_time),
+                    as_start_date_time: new Date(log.as_start_date_time),
+                })) : []
+            }));
+        };
+        const processedGroupData = data.groupData ? processGroupData(data.groupData) : [];
+
         setLogs(processedLogs);
         setTotalLogs(data.totalCount);
         setChartData(data.chartData || []);
-        setGroupData(data.groupData || []);
+        setGroupData(processedGroupData);
 
       } catch (error) {
         console.error("Failed to fetch logs:", error);
@@ -509,7 +523,7 @@ export default function ErrorDashboard() {
           data={chartData} 
           isLoading={isPending}
           breakdownBy={chartBreakdownBy}
-          setBreakdownBy={setChartBreakdownBy}
+          setBreakdownBy={setBreakdownBy}
         />
       </div>
     </div>

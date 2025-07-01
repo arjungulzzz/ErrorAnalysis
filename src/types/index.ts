@@ -37,13 +37,24 @@ export type ErrorLog = Omit<ApiErrorLog, 'log_date_time' | 'as_start_date_time'>
 };
 
 /**
+ * Represents a single data point in a grouped data summary from the API.
+ * Can be nested to support multi-level grouping. Dates are strings.
+ */
+export type ApiGroupDataPoint = {
+  key: string;
+  count: number;
+  subgroups?: ApiGroupDataPoint[];
+  logs?: ApiErrorLog[];
+}
+
+/**
  * Defines the structure of the successful response from the logs API.
  */
 export type LogsApiResponse = {
   logs: ApiErrorLog[];
   totalCount: number;
   chartData: ErrorTrendDataPoint[];
-  groupData: GroupDataPoint[];
+  groupData: ApiGroupDataPoint[];
 };
 
 /**
@@ -77,13 +88,14 @@ export type GroupByOption =
   | 'log_message';
 
 /**
- * Represents a single data point in a grouped data summary.
- * Can be nested to support multi-level grouping.
+ * Represents a single data point in a grouped data summary for frontend use.
+ * Can be nested to support multi-level grouping. Dates are processed.
  */
 export type GroupDataPoint = {
   key: string;
   count: number;
   subgroups?: GroupDataPoint[];
+  logs?: ErrorLog[];
 };
 
 /**

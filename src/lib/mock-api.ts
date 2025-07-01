@@ -13,6 +13,8 @@ import {
   type GroupDataPoint,
   type ErrorTrendDataPoint,
   type ChartBreakdownByOption,
+  type ApiGroupDataPoint,
+  type ApiErrorLog,
 } from '@/types';
 import { generateMockLogs } from './mock-data';
 
@@ -81,11 +83,12 @@ export function processLogsRequest(request: LogsApiRequest): LogsApiResponse {
   const chartData = generateChartData(filteredLogs, request.chartBreakdownBy);
 
   // 5. Handle grouping
-  let groupData: GroupDataPoint[] = [];
+  let groupData: ApiGroupDataPoint[] = [];
   let paginatedLogs: ErrorLog[] = [];
 
   if (request.groupBy && request.groupBy.length > 0) {
-    groupData = generateGroupData(filteredLogs, request.groupBy);
+    const rawGroupData = generateGroupData(filteredLogs, request.groupBy);
+    groupData = convertGroupDataToApi(rawGroupData);
     // When grouping, the main log view is empty as the table will render groups instead.
     paginatedLogs = [];
   } else {
@@ -110,6 +113,24 @@ export function processLogsRequest(request: LogsApiRequest): LogsApiResponse {
     groupData,
   };
 }
+
+/**
+ * Converts frontend-processed group data into an API-safe format (converts dates to strings).
+ * @param groupData The group data with Date objects.
+ * @returns Group data with ISO date strings.
+ */
+function convertGroupDataToApi(groupData: GroupDataPoint[]): ApiGroupDataPoint[] {
+    return groupData.map(group => ({
+        ...group,
+        logs: group.logs ? group.logs.map(log => ({
+            ...log,
+            log_date_time: log.log_date_time.toISOString(),
+            as_start_date_time: log.as_start_date_time.toISOString(),
+        })) : undefined,
+        subgroups: group.subgroups ? convertGroupDataToApi(group.subgroups) : undefined
+    }));
+}
+
 
 /**
  * Helper to generate nested group data for the table.
@@ -145,6 +166,8 @@ function generateGroupData(logs: ErrorLog[], groupBy: GroupByOption[]): GroupDat
         key,
         count: groupLogs.length,
         subgroups: recursiveGroup(groupLogs, remainingLevels),
+        // Add the actual logs if this is the last grouping level
+        logs: remainingLevels.length === 0 ? groupLogs : undefined,
       });
     }
 
