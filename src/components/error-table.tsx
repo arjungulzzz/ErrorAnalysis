@@ -46,7 +46,6 @@ interface ErrorTableProps {
   columnFilters: ColumnFilters;
   setColumnFilters: (filters: React.SetStateAction<ColumnFilters>) => void;
   columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
-  messageDisplayMode: 'truncate' | 'expand';
 }
 
 const columnConfig: {
@@ -56,17 +55,17 @@ const columnConfig: {
   cellClassName?: string;
 }[] = [
     { id: 'log_date_time', name: 'Timestamp', isFilterable: false, cellClassName: "font-mono text-xs" },
-    { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "font-mono text-xs" },
-    { id: 'repository_path', name: 'Model Name', isFilterable: true },
+    { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "max-w-40" },
+    { id: 'repository_path', name: 'Model Name', isFilterable: true, cellClassName: "max-w-40" },
     { id: 'port_number', name: 'Port', isFilterable: true },
     { id: 'version_number', name: 'AS Version', isFilterable: true },
     { id: 'as_server_mode', name: 'Server Mode', isFilterable: true },
     { id: 'as_start_date_time', name: 'Server Start Time', isFilterable: false, cellClassName: "font-mono text-xs" },
-    { id: 'as_server_config', name: 'Server Config', isFilterable: true },
-    { id: 'user_id', name: 'User', isFilterable: true },
-    { id: 'report_id_name', name: 'Report Name', isFilterable: true },
+    { id: 'as_server_config', name: 'Server Config', isFilterable: true, cellClassName: "max-w-32" },
+    { id: 'user_id', name: 'User', isFilterable: true, cellClassName: "max-w-32" },
+    { id: 'report_id_name', name: 'Report Name', isFilterable: true, cellClassName: "max-w-48" },
     { id: 'error_number', name: 'Error Code', isFilterable: true },
-    { id: 'xql_query_id', name: 'Query ID', isFilterable: true, cellClassName: "font-mono text-xs" },
+    { id: 'xql_query_id', name: 'Query ID', isFilterable: true, cellClassName: "font-mono text-xs max-w-32" },
     { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg" },
 ];
 
@@ -96,23 +95,18 @@ export function ErrorTable({
   columnFilters,
   setColumnFilters,
   columnVisibility,
-  messageDisplayMode,
 }: ErrorTableProps) {
     
-  const [expandedRowKey, setExpandedRowKey] = React.useState<string | null>(null);
   const visibleColumns = React.useMemo(() => columnConfig.filter(c => columnVisibility[c.id]), [columnVisibility]);
   const visibleColumnCount = visibleColumns.length;
 
   const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog) => {
     const value = log[columnId];
     
-    // For these specific columns, if the value is empty, show a dash.
-    if ((columnId === 'report_id_name' || columnId === 'log_message') && !value) {
+    // Handle null, undefined, or empty string values consistently
+    if (value === null || value === undefined || value === '') {
         return <span className="text-muted-foreground">—</span>;
     }
-    
-    // For all other columns, if null/undefined, return an empty string for a clean table.
-    if (value === null || value === undefined) return "";
     
     switch (columnId) {
         case 'log_date_time':
@@ -121,47 +115,35 @@ export function ErrorTable({
               // Format Date object to 'YYYY-MM-DD HH:MM:SS' in UTC
               return value.toISOString().slice(0, 19).replace('T', ' ');
             }
-            return String(value);
+            return String(value); // Fallback for string dates
         case 'repository_path':
             const path = String(value);
             const lastSlashIndex = path.lastIndexOf('/');
-            if (lastSlashIndex !== -1) {
-                return path.substring(lastSlashIndex + 1);
-            }
-            return path;
+            const modelName = lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
+            return (
+              <Tooltip>
+                <TooltipTrigger asChild><span>{modelName}</span></TooltipTrigger>
+                <TooltipContent><p>{modelName}</p></TooltipContent>
+              </Tooltip>
+            );
         case 'error_number':
             return (
                 <Badge variant={(value as number) >= 500 ? "destructive" : "secondary"}>
                     {value as number}
                 </Badge>
             );
-        case 'report_id_name':
+        default:
+            const stringValue = String(value);
             return (
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <span>{String(value)}</span>
+                        <span>{stringValue}</span>
                     </TooltipTrigger>
                     <TooltipContent>
-                        <p className="max-w-md">{String(value)}</p>
+                        <p className="max-w-md">{stringValue}</p>
                     </TooltipContent>
                 </Tooltip>
             );
-        case 'log_message':
-             if (messageDisplayMode === 'truncate') {
-                return (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span>{String(value)}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p className="max-w-md">{String(value)}</p>
-                        </TooltipContent>
-                    </Tooltip>
-                );
-            }
-            return String(value);
-        default:
-            return String(value);
     }
   }
 
@@ -256,7 +238,7 @@ export function ErrorTable({
       <CardHeader>
         <CardTitle>Error Logs</CardTitle>
         <CardDescription>
-          Showing {logs.length} of {totalLogs.toLocaleString()} errors.
+          Showing {logs.length > 0 ? `1-${logs.length}` : 0} of {totalLogs.toLocaleString()} errors.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -283,40 +265,15 @@ export function ErrorTable({
               </TableHeader>
               <TableBody>
                 {isLoading ? renderSkeleton() : logs.length > 0 ? (
-                  logs.map((log, index) => {
-                    const rowKey = `${log.log_date_time?.toISOString()}-${index}`;
-                    const isExpanded = expandedRowKey === rowKey;
-                    
-                    return (
-                        <React.Fragment key={rowKey}>
-                          <TableRow
-                            onClick={() => {
-                                if (messageDisplayMode === 'expand') {
-                                    setExpandedRowKey(isExpanded ? null : rowKey);
-                                }
-                            }}
-                            className={cn(messageDisplayMode === 'expand' && "cursor-pointer")}
-                            data-state={isExpanded && messageDisplayMode === 'expand' ? 'selected' : ''}
-                          >
-                            {visibleColumns.map(column => (
-                              <TableCell key={column.id} className={cn(column.cellClassName, column.id === 'log_message' && messageDisplayMode === 'truncate' && 'truncate')}>
-                                {renderCellContent(log, column.id)}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                          {isExpanded && messageDisplayMode === 'expand' && (
-                            <TableRow>
-                                <TableCell colSpan={visibleColumnCount} className="p-2 bg-muted/50">
-                                    <div className="p-4 bg-background rounded-md">
-                                        <h4 className="font-bold mb-2">Full Log Message:</h4>
-                                        <pre className="text-sm whitespace-pre-wrap font-mono">{log.log_message}</pre>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                          )}
-                        </React.Fragment>
-                    )
-                  })
+                  logs.map((log) => (
+                    <TableRow key={log.id}>
+                      {visibleColumns.map(column => (
+                        <TableCell key={column.id} className={cn(column.cellClassName, "truncate")}>
+                          {renderCellContent(log, column.id)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
                 ) : (
                   <TableRow>
                     <TableCell colSpan={visibleColumnCount || 1} className="h-24 text-center">

@@ -24,8 +24,7 @@ import { cn } from "@/lib/utils";
 import { ErrorTrendChart } from "./error-trend-chart";
 import * as pako from "pako";
 import { useToast } from "@/hooks/use-toast";
-import { MOCK_LOGS } from "@/lib/mock-data";
-import { Switch } from "@/components/ui/switch";
+import { generateMockLogs } from "@/lib/mock-data";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -55,6 +54,7 @@ const TIME_PRESETS = [
 
 export default function ErrorDashboard() {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
+  const [mockData, setMockData] = useState<ErrorLog[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
   const [chartData, setChartData] = useState<ErrorTrendDataPoint[]>([]);
   const [groupData, setGroupData] = useState<GroupDataPoint[]>([]);
@@ -87,16 +87,23 @@ export default function ErrorDashboard() {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const { toast } = useToast();
   
-  const [messageDisplayMode, setMessageDisplayMode] = useState<'truncate' | 'expand'>('expand');
-
   const [isClient, setIsClient] = useState(false);
+  
   useEffect(() => {
+    // This effect runs only once on the client after the component mounts.
+    // We set all client-specific initial state here to avoid hydration errors.
     setIsClient(true);
+    setMockData(generateMockLogs());
+    
+    // Set the initial date range based on the default time preset.
+    const now = new Date();
+    const fromDate = subDays(now, 7);
+    setDateRange({ from: fromDate, to: now });
   }, []);
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
-      if (timePreset === 'none' || (timePreset === 'custom' && !dateRange?.from)) {
+      if (timePreset === 'none' || (timePreset === 'custom' && !dateRange?.from) || mockData.length === 0) {
         setLogs([]);
         setTotalLogs(0);
         setChartData([]);
@@ -107,7 +114,7 @@ export default function ErrorDashboard() {
       // --- START TEMPORARY MOCK DATA IMPLEMENTATION ---
       await new Promise(resolve => setTimeout(resolve, 200)); // Simulate network delay
 
-      let processedLogs: ErrorLog[] = MOCK_LOGS.map(log => ({ ...log }));
+      let processedLogs: ErrorLog[] = mockData.map(log => ({ ...log }));
 
       // Date filtering
       if (dateRange?.from) {
@@ -155,15 +162,16 @@ export default function ErrorDashboard() {
       // Pagination
       const paginatedLogs = processedLogs.slice((page - 1) * pageSize, page * pageSize);
 
-      // Mock chart data
+      // Mock chart data (deterministic)
       const chartPoints = 15;
       const apiChartData = Array.from({ length: chartPoints }).map((_, i) => {
-        const date = subDays(new Date(), chartPoints - 1 - i);
+        const referenceDate = dateRange?.to || new Date();
+        const date = subDays(referenceDate, chartPoints - 1 - i);
         return {
           date: date.toISOString(),
-          count: Math.floor(Math.random() * (50 + i * 5)),
+          count: (15 - i) * 7 % 50,
           formattedDate: format(date, 'MMM dd'),
-          breakdown: { 'server-alpha-01': Math.floor(Math.random() * 20), 'server-beta-02': Math.floor(Math.random() * 30) }
+          breakdown: { 'server-alpha-01': (15 - i) * 3, 'server-beta-02': (15 - i) * 4 }
         }
       });
       
@@ -173,7 +181,7 @@ export default function ErrorDashboard() {
       setGroupData(apiGroupData);
       // --- END TEMPORARY MOCK DATA IMPLEMENTATION ---
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, timePreset]);
+  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, timePreset, mockData]);
   
   useEffect(() => {
     // Reset page to 1 whenever filters, grouping, or date changes
@@ -182,8 +190,10 @@ export default function ErrorDashboard() {
 
   useEffect(() => {
     // Main fetch trigger
-    fetchData();
-  }, [fetchData]);
+    if (isClient) { // Only fetch data on the client
+      fetchData();
+    }
+  }, [fetchData, isClient]);
 
   const handleGroupSelect = (groupKey: string) => {
     if (groupBy !== 'none') {
@@ -192,12 +202,6 @@ export default function ErrorDashboard() {
     }
   };
   
-  useEffect(() => {
-    if (timePreset !== 'custom') {
-      handlePresetSelect(timePreset);
-    }
-  }, []);
-
   const handlePresetSelect = (value: string) => {
     setTimePreset(value);
     
@@ -367,15 +371,6 @@ export default function ErrorDashboard() {
                     </Select>
                 </div>
                  <div className="ml-auto flex items-end gap-4">
-                    <div className="flex items-center space-x-2 pb-1">
-                        <Switch
-                            id="expand-rows-switch"
-                            checked={messageDisplayMode === 'expand'}
-                            onCheckedChange={(checked) => setMessageDisplayMode(checked ? 'expand' : 'truncate')}
-                            disabled={isPending}
-                        />
-                        <Label htmlFor="expand-rows-switch">Expandable Rows</Label>
-                    </div>
                     <div>
                         <Label className="block text-sm font-medium">View Options</Label>
                         <DropdownMenu>
@@ -437,14 +432,13 @@ export default function ErrorDashboard() {
         columnFilters={columnFilters}
         setColumnFilters={setColumnFilters}
         columnVisibility={columnVisibility}
-        messageDisplayMode={messageDisplayMode}
       />
       <div className="mt-6">
         <ErrorTrendChart 
           data={chartData} 
           isLoading={isPending}
           breakdownBy={chartBreakdownBy}
-          setBreakdownBy={setChartBreakdownBy}
+          setBreakdownBy={setBreakdownBy}
         />
       </div>
     </div>
