@@ -105,6 +105,13 @@ export function ErrorTable({
 
   const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog) => {
     const value = log[columnId];
+    
+    // For these specific columns, if the value is empty, show a dash.
+    if ((columnId === 'report_id_name' || columnId === 'log_message') && !value) {
+        return <span className="text-muted-foreground">—</span>;
+    }
+    
+    // For all other columns, if null/undefined, return an empty string for a clean table.
     if (value === null || value === undefined) return "";
     
     switch (columnId) {
@@ -127,6 +134,17 @@ export function ErrorTable({
                 <Badge variant={(value as number) >= 500 ? "destructive" : "secondary"}>
                     {value as number}
                 </Badge>
+            );
+        case 'report_id_name':
+            return (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span>{String(value)}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p className="max-w-md">{String(value)}</p>
+                    </TooltipContent>
+                </Tooltip>
             );
         case 'log_message':
              if (messageDisplayMode === 'truncate') {
@@ -266,7 +284,7 @@ export function ErrorTable({
               <TableBody>
                 {isLoading ? renderSkeleton() : logs.length > 0 ? (
                   logs.map((log, index) => {
-                    const rowKey = `${log.log_date_time.toISOString()}-${index}`;
+                    const rowKey = `${log.log_date_time?.toISOString()}-${index}`;
                     const isExpanded = expandedRowKey === rowKey;
                     
                     return (
