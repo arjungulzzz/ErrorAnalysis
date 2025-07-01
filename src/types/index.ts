@@ -84,7 +84,7 @@ export type GroupByOption =
 export type GroupDataPoint = {
   key: string;
   count: number;
-  subgroups: GroupDataPoint[];
+  subgroups?: GroupDataPoint[];
 };
 
 /**
@@ -108,6 +108,7 @@ export type ErrorTrendDataPoint = {
  */
 export type LogsApiRequest = {
   requestId: string;
+  interval?: string | null;
   dateRange?: DateRange;
   pagination: { page: number; pageSize: number };
   sort: SortDescriptor;

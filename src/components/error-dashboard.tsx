@@ -65,7 +65,7 @@ const TIME_PRESETS = [
 
 const nonGroupableColumns: Array<keyof ErrorLog> = ['log_date_time', 'as_start_date_time', 'log_message'];
 
-const allGroupableColumns: { id: GroupByOption; name: string }[] = allColumns
+const groupableColumns: { id: GroupByOption; name: string }[] = allColumns
   .filter(c => !nonGroupableColumns.includes(c.id))
   .map(c => ({ id: c.id as GroupByOption, name: c.name }));
 
@@ -131,7 +131,7 @@ export default function ErrorDashboard() {
               if (savedState.columnFilters) setColumnFilters(savedState.columnFilters);
               
               // Only restore dateRange if it's not the default "None"
-              if (savedState.timePreset && savedState.dateRange) {
+              if (savedState.timePreset && savedState.timePreset !== 'none' && savedState.dateRange) {
                   const restoredDateRange = {
                       from: savedState.dateRange.from ? new Date(savedState.dateRange.from) : undefined,
                       to: savedState.dateRange.to ? new Date(savedState.dateRange.to) : undefined,
@@ -203,6 +203,7 @@ export default function ErrorDashboard() {
 
       const requestBody: LogsApiRequest = {
         requestId,
+        interval: timePreset !== 'custom' ? timePreset : null,
         dateRange: dateRange, // Always send the current dateRange state
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
@@ -212,6 +213,14 @@ export default function ErrorDashboard() {
       };
 
       if (!apiUrl) {
+        if (timePreset === 'none') {
+            setLogs([]);
+            setTotalLogs(0);
+            setChartData([]);
+            setGroupData([]);
+            return;
+        }
+        
         try {
             // Simulate network delay
             await new Promise(resolve => setTimeout(resolve, 300));
@@ -249,6 +258,14 @@ export default function ErrorDashboard() {
             setChartData([]);
             setGroupData([]);
         }
+        return;
+      }
+
+      if (timePreset === 'none') {
+        setLogs([]);
+        setTotalLogs(0);
+        setChartData([]);
+        setGroupData([]);
         return;
       }
 
@@ -356,7 +373,7 @@ export default function ErrorDashboard() {
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
   
   const availableGroupByOptions = allColumns
-    .filter(c => !nonGroupableColumns.includes(c.id) && columnVisibility[c.id]);
+    .filter(col => !nonGroupableColumns.includes(col.id) && columnVisibility[col.id]);
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
     if (!value && groupBy.includes(columnId as GroupByOption)) {
@@ -380,16 +397,30 @@ export default function ErrorDashboard() {
        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M18 36C27.9411 36 36 27.9411 36 18C36 8.05887 27.9411 0 18 0C8.05887 0 0 8.05887 0 18C0 27.9411 8.05887 36 18 36Z" fill="url(#paint0_linear_header_logo)"/>
-                <path d="M12.6416 11.6621L11.5303 17.5186L19.497 12.6371L12.6416 11.6621Z" fill="white"/>
-                <path d="M11.5303 17.5186L12.5029 23.3389L15.3409 18.068L11.5303 17.5186Z" fill="white"/>
-                <path d="M19.4971 12.6371L15.341 18.068L23.3642 17.3824L19.4971 12.6371Z" fill="white"/>
-                <path d="M15.3409 18.068L12.5029 23.3389L20.8038 22.9515L15.3409 18.068Z" fill="white"/>
+             <svg width="35" height="32" viewBox="0 0 35 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M10.6691 1.7208L0.666992 18.2736C-0.0886745 19.5392 -0.219508 21.036 0.354658 22.4299C0.928825 23.8238 2.16416 24.9749 3.66806 25.6456L15.3421 30.7391C16.846 31.4098 18.5445 31.4098 20.0484 30.7391L31.7224 25.6456C33.2263 24.9749 34.4616 23.8238 35.0358 22.4299C35.61 21.036 35.4791 19.5392 34.7235 18.2736L24.7214 1.7208C23.9657 0.455201 22.6109 -0.252066 21.1448 -0.252066H14.2497C12.7836 -0.252066 11.4288 0.455201 10.6732 1.7208H10.6691Z" fill="url(#paint0_linear_header)" />
+                <path d="M17.7021 17.5137L8.91699 15.2505L10.6698 12.0003L17.7021 13.9189V17.5137Z" fill="#A2E5E6" />
+                <path d="M17.7019 17.5137V13.9189L24.7205 12.0003L26.4733 15.2505L17.7019 17.5137Z" fill="url(#paint1_linear_header)" />
+                <path d="M17.7019 19.2319V29.8052L31.7231 24.1852L26.4727 15.2505L17.7019 19.2319Z" fill="url(#paint2_linear_header)" />
+                <path d="M8.91699 15.2505L3.6666 24.1852L17.7019 29.8052V19.2319L8.91699 15.2505Z" fill="#008284" />
+                <path d="M10.6698 12.0003L8.91699 15.2505L3.6666 5.81525L10.6698 1.7208L17.7021 13.9189L10.6698 12.0003Z" fill="#A2E5E6" />
+                <path d="M24.7205 12.0003L17.7021 13.9189L24.7205 1.7208L31.7238 5.81525L26.4733 15.2505L24.7205 12.0003Z" fill="url(#paint3_linear_header)" />
                 <defs>
-                    <linearGradient id="paint0_linear_header_logo" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-                        <stop stopColor="#6750A4"/>
-                        <stop offset="1" stopColor="#D0BCFF"/>
+                    <linearGradient id="paint0_linear_header" x1="17.7022" y1="-0.252066" x2="17.7022" y2="31.1448" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#00A0A2" />
+                        <stop offset="1" stopColor="#005B5C" />
+                    </linearGradient>
+                    <linearGradient id="paint1_linear_header" x1="22.0977" y1="12.0003" x2="22.0977" y2="17.5137" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#A2E5E6" />
+                        <stop offset="1" stopColor="#00A0A2" />
+                    </linearGradient>
+                    <linearGradient id="paint2_linear_header" x1="24.7123" y1="15.2505" x2="24.7123" y2="29.8052" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#A2E5E6" />
+                        <stop offset="1" stopColor="#00A0A2" />
+                    </linearGradient>
+                    <linearGradient id="paint3_linear_header" x1="24.712" y1="1.7208" x2="24.712" y2="15.2505" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#A2E5E6" />
+                        <stop offset="1" stopColor="#00A0A2" />
                     </linearGradient>
                 </defs>
             </svg>
@@ -397,7 +428,7 @@ export default function ErrorDashboard() {
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={handleRefresh} disabled={isPending} variant="outline" className="bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground">
+          <Button onClick={handleRefresh} disabled={isPending || timePreset === 'none'} variant="outline" className="bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground">
             <RotateCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
@@ -417,12 +448,12 @@ export default function ErrorDashboard() {
                                 disabled={isPending || !isClient}
                                 className={cn(
                                     "w-full justify-start text-left font-normal",
-                                    !dateRange && "text-muted-foreground"
+                                    timePreset === 'none' && "text-muted-foreground"
                                 )}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {timePreset === 'custom' && dateRange ? (
-                                    dateRange.from ? (
+                                {timePreset === 'custom' ? (
+                                    dateRange?.from ? (
                                         dateRange.to ? (
                                             <>
                                                 {format(dateRange.from, "LLL dd, y")} -{" "}
@@ -678,7 +709,7 @@ export default function ErrorDashboard() {
           isLoading={isPending}
           breakdownBy={chartBreakdownBy}
           setBreakdownBy={setChartBreakdownBy}
-          allGroupableColumns={allGroupableColumns}
+          allGroupableColumns={groupableColumns}
         />
       </div>
     </div>
