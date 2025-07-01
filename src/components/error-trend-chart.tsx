@@ -10,7 +10,7 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
 import { Skeleton } from "./ui/skeleton";
-import { type ErrorTrendDataPoint, type ChartBreakdownByOption, type GroupByOption } from "@/types";
+import { type ErrorTrendDataPoint, type ChartBreakdownByOption } from "@/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface ErrorTrendChartProps {
@@ -18,7 +18,6 @@ interface ErrorTrendChartProps {
   isLoading: boolean;
   breakdownBy: ChartBreakdownByOption;
   setBreakdownBy: (value: ChartBreakdownByOption) => void;
-  allGroupableColumns: { id: GroupByOption; name: string }[];
 }
 
 const chartConfig = {
@@ -28,7 +27,20 @@ const chartConfig = {
   },
 }
 
-const CustomTooltip = ({ active, payload, breakdownBy, allGroupableColumns }: any) => {
+const breakdownOptions: { value: ChartBreakdownByOption; label: string }[] = [
+  { value: 'host_name', label: 'Host' },
+  { value: 'repository_path', label: 'Model Name' },
+  { value: 'port_number', label: 'Port' },
+  { value: 'version_number', label: 'AS Version' },
+  { value: 'as_server_mode', label: 'Server Mode' },
+  { value: 'as_server_config', label: 'Server Config' },
+  { value: 'user_id', label: 'User' },
+  { value: 'report_id_name', label: 'Report Name' },
+  { value: 'error_number', label: 'Error Code' },
+  { value: 'xql_query_id', label: 'Query ID' },
+];
+
+const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as ErrorTrendDataPoint;
 
@@ -50,7 +62,7 @@ const CustomTooltip = ({ active, payload, breakdownBy, allGroupableColumns }: an
           day: 'numeric',
         });
 
-    const breakdownTitle = allGroupableColumns.find((o: any) => o.id === breakdownBy)?.name || 'Breakdown';
+    const breakdownTitle = breakdownOptions.find(o => o.value === breakdownBy)?.label || 'Breakdown';
     const breakdownEntries = Object.entries(data.breakdown).sort(([, a], [, b]) => b - a);
 
     return (
@@ -80,7 +92,7 @@ const CustomTooltip = ({ active, payload, breakdownBy, allGroupableColumns }: an
 };
 
 
-export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, allGroupableColumns }: ErrorTrendChartProps) {
+export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }: ErrorTrendChartProps) {
   if (isLoading) {
     return (
       <Card>
@@ -129,9 +141,9 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, 
                     <SelectValue placeholder="Breakdown by..." />
                 </SelectTrigger>
                 <SelectContent>
-                    {allGroupableColumns.map(option => (
-                        <SelectItem key={option.id} value={option.id}>
-                            {option.name}
+                    {breakdownOptions.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                            {option.label}
                         </SelectItem>
                     ))}
                 </SelectContent>
@@ -166,7 +178,7 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, 
             />
             <ChartTooltip
               cursor={false}
-              content={<CustomTooltip breakdownBy={breakdownBy} allGroupableColumns={allGroupableColumns} />}
+              content={<CustomTooltip breakdownBy={breakdownBy} />}
             />
             <defs>
               <linearGradient id="fillErrors" x1="0" y1="0" x2="0" y2="1">
