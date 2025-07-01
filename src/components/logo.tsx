@@ -7,13 +7,14 @@ const Logo = (props: React.SVGProps<SVGSVGElement>) => (
     {...props}
   >
     <g fill="none" strokeWidth="4">
-      <ellipse cx="35" cy="50" rx="30" ry="48" stroke="#582D83" />
-      <ellipse cx="40" cy="50" rx="30" ry="48" stroke="#75308A" />
-      <ellipse cx="45" cy="50" rx="30" ry="48" stroke="#933491" />
-      <ellipse cx="50" cy="50" rx="30" ry="48" stroke="#B03898" />
-      <ellipse cx="55" cy="50" rx="30" ry="48" stroke="#D34494" />
-      <ellipse cx="60" cy="50" rx="30" ry="48" stroke="#E96684" />
-      <ellipse cx="65" cy="50" rx="30" ry="48" stroke="#F58575" />
+      {/* The paths below are arcs of ellipses to create the 'C' shape of the logo */}
+      <path d="M 56.21 83.94 A 30 48 0 1 1 56.21 16.06" stroke="#582D83" />
+      <path d="M 61.21 83.94 A 30 48 0 1 1 61.21 16.06" stroke="#75308A" />
+      <path d="M 66.21 83.94 A 30 48 0 1 1 66.21 16.06" stroke="#933491" />
+      <path d="M 71.21 83.94 A 30 48 0 1 1 71.21 16.06" stroke="#B03898" />
+      <path d="M 76.21 83.94 A 30 48 0 1 1 76.21 16.06" stroke="#D34494" />
+      <path d="M 81.21 83.94 A 30 48 0 1 1 81.21 16.06" stroke="#E96684" />
+      <path d="M 86.21 83.94 A 30 48 0 1 1 86.21 16.06" stroke="#F58575" />
     </g>
   </svg>
 );
