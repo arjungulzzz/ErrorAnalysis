@@ -276,7 +276,7 @@ export default function ErrorDashboard() {
         <div className="flex items-center gap-4">
           <div className="flex h-10 w-10 items-center justify-center">
             <Image
-              src="/logo.png"
+              src="/favicon-32x32.png"
               alt="Dashboard Logo"
               width={40}
               height={40}
