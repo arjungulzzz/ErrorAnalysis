@@ -19,8 +19,6 @@ const nextConfig = {
       },
     ],
   },
-  // Allow cross-origin requests from Firebase Studio preview URLs
-  allowedDevOrigins: ['https://*.cloudworkstations.dev'],
 };
 
 module.exports = nextConfig;
