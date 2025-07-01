@@ -330,8 +330,27 @@ export default function ErrorDashboard() {
     <div className="space-y-6">
        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-foreground">
-            <span className="text-xl font-bold text-primary">C</span>
+          <div className="flex h-8 w-8 items-center justify-center">
+            <svg viewBox="0 0 190 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="logo-gradient-header" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#6750A4" />
+                  <stop offset="100%" stopColor="#EE6B6B" />
+                </linearGradient>
+                <mask id="logo-mask-header">
+                  <g stroke="white" strokeWidth="10" fill="none">
+                    <ellipse cx="45" cy="100" rx="40" ry="95" />
+                    <ellipse cx="60" cy="100" rx="40" ry="95" />
+                    <ellipse cx="75" cy="100" rx="40" ry="95" />
+                    <ellipse cx="90" cy="100" rx="40" ry="95" />
+                    <ellipse cx="105" cy="100" rx="40" ry="95" />
+                    <ellipse cx="120" cy="100" rx="40" ry="95" />
+                    <ellipse cx="135" cy="100" rx="40" ry="95" />
+                  </g>
+                </mask>
+              </defs>
+              <rect x="0" y="0" width="190" height="200" fill="url(#logo-gradient-header)" mask="url(#logo-mask-header)" />
+            </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
         </div>
