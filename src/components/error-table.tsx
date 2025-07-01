@@ -152,16 +152,7 @@ export function ErrorTable({
       };
   }, [resizingColumn, handleResize, handleResizeEnd]);
 
-  const handleCopy = (textToCopy: string, fieldName: string) => {
-    if (!navigator.clipboard) {
-      toast({
-        variant: "destructive",
-        title: "Copy Not Supported",
-        description: "Your browser does not support the Clipboard API.",
-      });
-      return;
-    }
-    
+  const handleCopy = async (textToCopy: string, fieldName: string) => {
     if (!textToCopy || textToCopy === '—') {
       toast({
         title: "Nothing to copy",
@@ -170,19 +161,58 @@ export function ErrorTable({
       return;
     }
 
-    navigator.clipboard.writeText(textToCopy).then(() => {
+    let success = false;
+
+    // Try modern Clipboard API first
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        success = true;
+      } catch (err) {
+        console.error('Modern clipboard copy failed, falling back.', err);
+      }
+    }
+
+    // Fallback to deprecated execCommand if modern API failed or is not available
+    if (!success) {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        
+        // Make it invisible and not take up space
+        textArea.style.position = "fixed";
+        textArea.style.top = "-9999px";
+        textArea.style.left = "-9999px";
+
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        success = document.execCommand('copy');
+        
+        document.body.removeChild(textArea);
+
+        if (!success) {
+            throw new Error('execCommand returned false');
+        }
+      } catch (err) {
+        console.error('Fallback clipboard copy failed:', err);
+      }
+    }
+    
+    // Final feedback to user
+    if (success) {
       toast({
         title: "Copied to clipboard",
         description: `The ${fieldName} has been copied.`,
       });
-    }).catch(err => {
-      console.error('Failed to copy text: ', err);
+    } else {
       toast({
         variant: "destructive",
         title: "Copy Failed",
-        description: "Could not copy the message to your clipboard.",
+        description: "Your browser does not support copying to the clipboard.",
       });
-    });
+    }
   };
 
   const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog) => {
