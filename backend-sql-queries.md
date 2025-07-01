@@ -125,63 +125,77 @@ WHERE ... -- (Same WHERE clauses from Scenarios 1 & 2)
 
 **2. `groupData` Query (Multi-Column Grouping):**
 
-When `groupBy` is an array (e.g., `["host_name", "error_number"]`), the query becomes more complex. It needs to generate a hierarchical JSON structure. The following is a conceptual example using a recursive CTE in PostgreSQL. The exact implementation will depend on the number of group levels and database dialect.
+When the `groupBy` array in the request contains one or more column names (e.g., `["host_name", "error_number"]`), the backend must generate a nested JSON structure. The order of columns in the array determines the hierarchy.
+
+A common approach is to fetch the aggregated data and then build the hierarchy in your application code, as this is often more straightforward than building complex JSON directly in SQL.
+
+**Step 1: Fetch Flattened Aggregated Data**
+
+First, run a query that groups by all requested columns and gets the count for each unique combination.
 
 ```sql
 -- Example for: { "groupBy": ["host_name", "error_number"] }
+-- IMPORTANT: All `groupBy` column names MUST be validated against a whitelist.
+SELECT
+  asli.host_name,
+  ali.error_number,
+  COUNT(*) as count
+FROM as_log_info ali
+JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
+WHERE ... -- (Apply same time and column filters)
+GROUP BY
+  asli.host_name,
+  ali.error_number
+ORDER BY
+  asli.host_name,
+  count DESC;
+```
 
--- NOTE: This is a conceptual query. A production implementation would need to
--- dynamically generate the CTEs based on the length and contents of the 'groupBy' array.
--- All 'groupBy' column names MUST be validated against a whitelist to prevent SQL injection.
+**Step 2: (Optional) Fetch Individual Logs for Deepest Group**
 
-WITH RECURSIVE
-  -- Define the hierarchy of grouping columns
-  grouping_levels (level, col_name) AS (
-    VALUES (1, 'host_name'), (2, 'error_number')
-  ),
-  -- Aggregate data at each level
-  grouped_data AS (
-    SELECT
-      g.level,
-      -- Create an array of group keys for the current path, e.g., [server-alpha, 500]
-      ARRAY_AGG(
-        CASE
-          WHEN g2.col_name = 'host_name' THEN asli.host_name
-          WHEN g2.col_name = 'error_number' THEN ali.error_number::text
-          -- Add other whitelisted columns here
-        END
-      ) OVER (PARTITION BY g.level ORDER BY
-        CASE WHEN g2.col_name = 'host_name' THEN asli.host_name END,
-        CASE WHEN g2.col_name = 'error_number' THEN ali.error_number::text END
-      ) as group_path,
-      COUNT(*) AS count
-    FROM as_log_info ali
-    JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
-    CROSS JOIN grouping_levels g
-    JOIN grouping_levels g2 ON g2.level <= g.level
-    WHERE ... -- (Apply same time and column filters)
-    GROUP BY g.level, group_path
-  ),
-  -- Build the JSON hierarchy
-  json_hierarchy AS (
-    SELECT
-      level,
-      group_path[level] as key,
-      (SELECT array_to_json(group_path[1:level-1])) as parent_path,
-      count,
-      (
-        SELECT jsonb_agg(sub)
-        FROM (
-          SELECT s.group_path[s.level] as key, s.count, s.subgroups
-          FROM json_hierarchy s
-          WHERE s.level = h.level + 1 AND s.group_path[1:h.level] = h.group_path
-        ) sub
-      ) as subgroups
-    FROM grouped_data h
-  )
-SELECT key, count, subgroups
-FROM json_hierarchy
-WHERE level = 1; -- Select only the top-level groups
+To populate the `logs` array for the deepest group level, you can run a separate query or fetch them alongside the main data. This is optional but enables the UI's final drill-down feature.
+
+**Step 3: Build the Nested Structure in Application Code**
+
+In your backend service (e.g., in Node.js, Python, Go), process the flattened results from Step 1 into the required nested JSON format.
+
+**Expected `groupData` structure:**
+
+The final structure must be an array of objects, where each object has a `key`, `count`, `subgroups`, and a `logs` array.
+
+- For **parent groups**, the `logs` array can be omitted or empty.
+- For the **deepest group level**, `subgroups` must be `[]` and the `logs` array can be populated.
+- **Data Consistency**: For the UI to work correctly, every group object must have a `subgroups` property (an array) and a `logs` property (an array), even if they are empty.
+
+```json
+// Example response for groupBy: ["host_name", "error_number"]
+[
+  {
+    "key": "server-alpha-01",
+    "count": 1500,
+    "logs": [],
+    "subgroups": [
+      {
+        "key": "500",
+        "count": 800,
+        "logs": [ /* Array of log objects for server-alpha-01 and error 500 */ ],
+        "subgroups": []
+      },
+      {
+        "key": "404",
+        "count": 700,
+        "logs": [ /* ... */ ],
+        "subgroups": []
+      }
+    ]
+  },
+  {
+    "key": "server-beta-02",
+    "count": 980,
+    "logs": [],
+    "subgroups": [ /* ... */ ]
+  }
+]
 ```
 
 **3. `chartData` Query:**

@@ -92,7 +92,7 @@ Here, we're requesting a specific date range.
 ```
 
 #### 3. Request for Multi-Column Grouped Data
-When a user selects "Group By" options, the frontend sends a request with an array of column names in the `groupBy` parameter.
+When a user selects "Group By" options, the frontend sends a request with an ordered array of column names in the `groupBy` parameter.
 
 ```json
 {
@@ -108,26 +108,17 @@ When a user selects "Group By" options, the frontend sends a request with an arr
 
 ### Expected Response Structure
 
-The API must always return a JSON object with the following structure. If a request is for grouped data (`groupBy` is not an empty array), the `logs` array can be empty, but `groupData` must be populated with a nested structure.
+The API must always return a JSON object with the following structure. When a request is for grouped data (`groupBy` is not an empty array), the top-level `logs` array can be empty, as the UI will be populated from `groupData`.
+
+#### `groupData` Structure
+The `groupData` array contains a nested structure when `groupBy` is used. Each object contains a `key`, `count`, a `subgroups` array for the next level of grouping, and a `logs` array.
+- The `logs` property is optional and should contain the individual log entries for the *deepest* level of a group hierarchy.
+- For data consistency, `subgroups` and `logs` should always be returned as arrays, even if they are empty.
 
 ```json
 {
   "logs": [
-    {
-      "log_date_time": "2023-11-21T10:30:00.000Z",
-      "host_name": "server-alpha-01",
-      "repository_path": "/apps/main-service",
-      "port_number": 8080,
-      "version_number": "1.2.3",
-      "as_server_mode": "production",
-      "as_start_date_time": "2023-11-21T04:30:00.000Z",
-      "as_server_config": "config_A.json",
-      "user_id": "user-101",
-      "report_id_name": "daily_summary",
-      "error_number": 500,
-      "xql_query_id": "q-abcdef12",
-      "log_message": "Failed to connect to database: timeout expired."
-    }
+    /* This can be empty when groupData is populated */
   ],
   "totalCount": 12345,
   "chartData": [
@@ -149,19 +140,26 @@ The API must always return a JSON object with the following structure. If a requ
         {
           "key": "500",
           "count": 800,
-          "subgroups": []
+          "subgroups": [],
+          "logs": [
+            { "log_date_time": "...", "host_name": "server-alpha-01", "error_number": 500, "..." }
+          ]
         },
         {
           "key": "404",
           "count": 700,
-          "subgroups": []
+          "subgroups": [],
+          "logs": []
         }
       ]
     },
     {
       "key": "server-beta-02",
       "count": 980,
-      "subgroups": []
+      "subgroups": [],
+      "logs": [
+        { "log_date_time": "...", "host_name": "server-beta-02", "..." }
+      ]
     }
   ]
 }
