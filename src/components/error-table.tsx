@@ -157,7 +157,7 @@ export function ErrorTable({
       toast({
         variant: "destructive",
         title: "Copy Not Supported",
-        description: "Could not copy text in your current browser.",
+        description: "Your browser does not support the Clipboard API.",
       });
       return;
     }
@@ -290,7 +290,7 @@ export function ErrorTable({
           <CardDescription>
             Showing top {groupData.length} groups. Click a row to filter logs.
           </CardDescription>
-        </Header>
+        </CardHeader>
         <CardContent>
             <div className="rounded-md border">
               <Table>
