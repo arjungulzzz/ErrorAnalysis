@@ -334,8 +334,9 @@ export default function ErrorDashboard() {
   
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
 
-  const availableGroupByOptions = groupableColumns.filter(
-    (col) => columnVisibility[col.id]
+  const groupableColumnIds = new Set(groupableColumns.map(col => col.id));
+  const availableGroupByOptions = allColumns.filter(
+    (col) => groupableColumnIds.has(col.id as GroupByOption) && columnVisibility[col.id]
   );
 
   return (
@@ -343,25 +344,10 @@ export default function ErrorDashboard() {
        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
-            <svg viewBox="0 0 190 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <defs>
-                <linearGradient id="logo-gradient-header" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#6750A4" />
-                  <stop offset="100%" stopColor="#EE6B6B" />
-                </linearGradient>
-                <mask id="logo-mask-header">
-                  <g stroke="white" strokeWidth="10" fill="none">
-                    <ellipse cx="45" cy="100" rx="40" ry="95" />
-                    <ellipse cx="60" cy="100" rx="40" ry="95" />
-                    <ellipse cx="75" cy="100" rx="40" ry="95" />
-                    <ellipse cx="90" cy="100" rx="40" ry="95" />
-                    <ellipse cx="105" cy="100" rx="40" ry="95" />
-                    <ellipse cx="120" cy="100" rx="40" ry="95" />
-                    <ellipse cx="135" cy="100" rx="40" ry="95" />
-                  </g>
-                </mask>
-              </defs>
-              <rect x="0" y="0" width="190" height="200" fill="url(#logo-gradient-header)" mask="url(#logo-mask-header)" />
+            <svg viewBox="0 0 190 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" fill="currentColor">
+              <path d="M95 0C42.533 0 0 42.533 0 95s42.533 95 95 95 95-42.533 95-95S147.467 0 95 0Zm0 180c-46.869 0-85-38.131-85-85S48.131 10 95 10s85 38.131 85 85-38.131 85-85 85Z" />
+              <path d="M95 47.5c-26.196 0-47.5 21.304-47.5 47.5s21.304 47.5 47.5 47.5 47.5-21.304 47.5-47.5-21.304-47.5-47.5-47.5Zm0 85c-20.691 0-37.5-16.809-37.5-37.5s16.809-37.5 37.5-37.5 37.5 16.809 37.5 37.5-16.809 37.5-37.5 37.5Z" />
+              <path d="M123.5 95a28.5 28.5 0 0 1-28.5 28.5A28.5 28.5 0 0 1 66.5 95a28.5 28.5 0 0 1 28.5-28.5A28.5 28.5 0 0 1 123.5 95Z" />
             </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
