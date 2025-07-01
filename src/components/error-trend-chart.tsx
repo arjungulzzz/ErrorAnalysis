@@ -29,6 +29,8 @@ const chartConfig = {
 
 const breakdownOptions: { value: ChartBreakdownByOption; label: string }[] = [
   { value: 'host_name', label: 'Host' },
+  { value: 'repository_path', label: 'Model Name' },
+  { value: 'version_number', label: 'AS Version' },
   { value: 'error_number', label: 'Error Code' },
   { value: 'user_id', label: 'User' },
 ];
