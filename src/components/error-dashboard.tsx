@@ -43,6 +43,7 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
 
 const timePresets = [
     { key: 'none', label: 'None', interval: null },
+    { key: '1h', label: 'Last 1 hour', interval: '1 hour' },
     { key: '4h', label: 'Last 4 hours', interval: '4 hours' },
     { key: '8h', label: 'Last 8 hours', interval: '8 hours' },
     { key: '1d', label: 'Last 1 day', interval: '1 day' },
@@ -60,7 +61,7 @@ export default function ErrorDashboard() {
   const [pageSize] = useState(100);
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [selectedPreset, setSelectedPreset] = useState<string | null>('7d');
+  const [selectedPreset, setSelectedPreset] = useState<string | null>('none');
   
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
@@ -235,13 +236,6 @@ export default function ErrorDashboard() {
       };
       return { logs: processLogs(data.logs), totalCount: data.totalCount };
   }, [columnFilters, dateRange, pageSize, selectedPreset, sort, toast]);
-  
-  useEffect(() => {
-    // Auto-select a default date range on initial load if none is set
-    if (selectedPreset === 'none' && !dateRange) {
-        handlePresetClick('7d');
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setPage(1);
@@ -280,6 +274,9 @@ export default function ErrorDashboard() {
     switch (key) {
         case 'none':
             setDateRange(undefined);
+            break;
+        case '1h':
+            setDateRange({ from: subHours(now, 1), to: now });
             break;
         case '4h':
             setDateRange({ from: subHours(now, 4), to: now });
