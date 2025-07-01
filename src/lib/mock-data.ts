@@ -13,18 +13,27 @@ const hosts = ['server-alpha-01', 'server-beta-02', 'server-gamma-03', 'web-prod
 const repos = ['/apps/main-service', '/apps/auth-service', '/apps/payment-gateway', '/apps/user-profiles'];
 const versions = ['1.2.3', '1.2.4', '2.0.0-beta', '2.0.1'];
 const users = ['user-101', 'user-203', 'system-internal', 'api-key-xyz', 'guest'];
-const reportNames = ['daily_summary', 'user_activity_report', 'payment_failures', 'system_health_check', ''];
+const reportNames = [
+  'daily_summary_report_for_all_active_users', 
+  'user_activity_detailed_breakdown_report_q3_final',
+  'monthly_payment_failure_analysis_and_trends_report',
+  'system_health_and_performance_overview_report',
+  'daily_summary', 
+  'user_activity_report', 
+  'payment_failures', 
+  'system_health_check', 
+  ''
+];
 const errorNumbers = [500, 404, 401, 503, 1201, 1337, 429];
 const logMessages = [
-  'Failed to connect to database: timeout expired.',
-  'Null pointer exception at user processing module.',
-  'API rate limit exceeded for user.',
-  'Authentication token is invalid or has expired.',
-  'Disk space is critically low.',
-  'Could not resolve external service DNS.',
-  'Request failed with status code 503',
-  'Unable to acquire lock for resource: payment-processing',
-  'A very long log message that is definitely going to be truncated by the default table cell styling to demonstrate how the tooltip functionality works for users who need to see the full context of an error without expanding every single row in the table.',
+  'Failed to connect to database: timeout expired while waiting for connection pool.',
+  'Null pointer exception at user processing module during the final stage of the user data aggregation pipeline.',
+  'API rate limit exceeded for user. The user has made too many requests in a short period of time. Please advise them to back off.',
+  'Authentication token is invalid or has expired. User needs to re-authenticate to get a new session token.',
+  'Disk space is critically low on the primary data partition. Automated cleanup failed to run. Manual intervention is required immediately.',
+  'Could not resolve external service DNS. The DNS server may be down or there is a network configuration issue preventing resolution.',
+  'Request failed with status code 503: Service Unavailable. The upstream service is currently not responding to requests.',
+  'Unable to acquire lock for resource: payment-processing. The resource is currently locked by another process and the timeout was exceeded.',
   '',
 ];
 

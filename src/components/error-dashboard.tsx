@@ -432,6 +432,7 @@ export default function ErrorDashboard() {
         columnFilters={columnFilters}
         setColumnFilters={setColumnFilters}
         columnVisibility={columnVisibility}
+        allColumns={allColumns}
       />
       <div className="mt-6">
         <ErrorTrendChart 

@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTablePagination } from "./data-table-pagination";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 interface ErrorTableProps {
   logs: ErrorLog[];
@@ -45,6 +46,7 @@ interface ErrorTableProps {
   columnFilters: ColumnFilters;
   setColumnFilters: (filters: React.SetStateAction<ColumnFilters>) => void;
   columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
+  allColumns: { id: keyof ErrorLog; name: string }[];
 }
 
 const columnConfig: {
@@ -94,6 +96,7 @@ export function ErrorTable({
   columnFilters,
   setColumnFilters,
   columnVisibility,
+  allColumns,
 }: ErrorTableProps) {
   const [expandedRowId, setExpandedRowId] = React.useState<string | null>(null);
   const visibleColumns = React.useMemo(() => columnConfig.filter(c => columnVisibility[c.id]), [columnVisibility]);
@@ -126,7 +129,18 @@ export function ErrorTable({
         default:
             return String(value);
     }
-  }
+  };
+
+  const renderExpandedDetail = (log: ErrorLog, columnId: keyof ErrorLog) => {
+    const value = log[columnId];
+    if (value === null || value === undefined || value === '') {
+      return '—';
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    return String(value);
+  };
 
   const renderSkeleton = () => (
     Array.from({ length: 10 }).map((_, i) => (
@@ -215,83 +229,99 @@ export function ErrorTable({
 
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Error Logs</CardTitle>
-        <CardDescription>
-          Showing {logs.length > 0 ? `1-${logs.length}` : 0} of {totalLogs.toLocaleString()} errors.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {columnConfig.map(column => (
-                    columnVisibility[column.id] && (
-                      <DataTableColumnHeader 
-                        key={column.id}
-                        column={column.id} 
-                        title={column.name} 
-                        sortDescriptor={sortDescriptor} 
-                        setSortDescriptor={setSortDescriptor} 
-                        columnFilters={column.isFilterable ? columnFilters : undefined} 
-                        setColumnFilters={column.isFilterable ? setColumnFilters : undefined}
-                        isPending={isLoading}
-                      />
-                    )
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? renderSkeleton() : logs.length > 0 ? (
-                logs.map((log) => (
-                  <React.Fragment key={log.id}>
-                    <TableRow
-                      data-state={expandedRowId === log.id && "selected"}
-                      className="cursor-pointer"
-                      onClick={() => setExpandedRowId(prev => (prev === log.id ? null : log.id))}
-                    >
-                      {visibleColumns.map(column => (
-                        <TableCell key={column.id} className={cn(column.cellClassName, "truncate")}>
-                          {renderCellContent(log, column.id)}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                    {expandedRowId === log.id && (
-                      <TableRow>
-                        <TableCell colSpan={visibleColumnCount}>
-                          <div className="p-2 bg-muted/50 rounded-md">
-                            <p className="text-sm font-semibold">Full Message:</p>
-                            <p className="text-xs font-mono whitespace-pre-wrap break-words">
-                              {log.log_message || <span className="text-muted-foreground">—</span>}
-                            </p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </React.Fragment>
-                ))
-              ) : (
+    <TooltipProvider>
+      <Card>
+        <CardHeader>
+          <CardTitle>Error Logs</CardTitle>
+          <CardDescription>
+            Showing {logs.length > 0 ? `1-${logs.length}` : 0} of {totalLogs.toLocaleString()} errors.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={visibleColumnCount || 1} className="h-24 text-center">
-                    No results found.
-                  </TableCell>
+                  {columnConfig.map(column => (
+                      columnVisibility[column.id] && (
+                        <DataTableColumnHeader 
+                          key={column.id}
+                          column={column.id} 
+                          title={column.name} 
+                          sortDescriptor={sortDescriptor} 
+                          setSortDescriptor={setSortDescriptor} 
+                          columnFilters={column.isFilterable ? columnFilters : undefined} 
+                          setColumnFilters={column.isFilterable ? setColumnFilters : undefined}
+                          isPending={isLoading}
+                        />
+                      )
+                  ))}
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-      <CardFooter>
-        <DataTablePagination
-            page={page}
-            pageSize={pageSize}
-            total={totalLogs}
-            setPage={setPage}
-            isPending={isLoading}
-        />
-      </CardFooter>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? renderSkeleton() : logs.length > 0 ? (
+                  logs.map((log) => (
+                    <React.Fragment key={log.id}>
+                      <Tooltip delayDuration={300}>
+                        <TooltipTrigger asChild>
+                          <TableRow
+                            data-state={expandedRowId === log.id && "selected"}
+                            className="cursor-pointer"
+                            onClick={() => setExpandedRowId(prev => (prev === log.id ? null : log.id))}
+                          >
+                            {visibleColumns.map(column => (
+                              <TableCell key={column.id} className={cn(column.cellClassName, "truncate")}>
+                                {renderCellContent(log, column.id)}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Click row to view all details.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      {expandedRowId === log.id && (
+                        <TableRow>
+                          <TableCell colSpan={visibleColumnCount}>
+                            <div className="p-4 bg-muted/50 rounded-md space-y-3">
+                              <h4 className="text-sm font-semibold">Full Log Details</h4>
+                              <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
+                                {allColumns.map(col => (
+                                  <div key={col.id} className="flex flex-col gap-1">
+                                    <dt className="font-medium text-muted-foreground">{col.name}</dt>
+                                    <dd className="font-mono whitespace-pre-wrap break-words">
+                                      {renderExpandedDetail(log, col.id)}
+                                    </dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={visibleColumnCount || 1} className="h-24 text-center">
+                      No results found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <DataTablePagination
+              page={page}
+              pageSize={pageSize}
+              total={totalLogs}
+              setPage={setPage}
+              isPending={isLoading}
+          />
+        </CardFooter>
+      </Card>
+    </TooltipProvider>
   );
 }
