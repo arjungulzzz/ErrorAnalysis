@@ -65,6 +65,11 @@ const TIME_PRESETS = [
 
 const nonGroupableColumns: Array<keyof ErrorLog> = ['log_date_time', 'as_start_date_time', 'log_message'];
 
+const groupableColumns: { id: GroupByOption; name: string }[] = allColumns
+  .filter(c => !nonGroupableColumns.includes(c.id))
+  .map(c => ({ id: c.id as GroupByOption, name: c.name }));
+
+
 export default function ErrorDashboard() {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
@@ -124,14 +129,21 @@ export default function ErrorDashboard() {
               const savedState = JSON.parse(savedStateRaw) as Partial<DashboardViewState>;
               
               if (savedState.columnFilters) setColumnFilters(savedState.columnFilters);
-              if (savedState.dateRange) {
+              
+              // Only restore dateRange if it's not the default "None"
+              if (savedState.timePreset && savedState.timePreset !== 'none' && savedState.dateRange) {
                   const restoredDateRange = {
                       from: savedState.dateRange.from ? new Date(savedState.dateRange.from) : undefined,
                       to: savedState.dateRange.to ? new Date(savedState.dateRange.to) : undefined,
                   };
                   setDateRange(restoredDateRange);
+                  setTimePreset(savedState.timePreset);
+              } else {
+                 // Set default if nothing usable in storage
+                 setDateRange({ from: subDays(new Date(), 7), to: new Date() });
+                 setTimePreset('7 days');
               }
-              if (savedState.timePreset) setTimePreset(savedState.timePreset);
+              
               if (savedState.sort) setSort(savedState.sort);
               if (savedState.groupBy && Array.isArray(savedState.groupBy)) setGroupBy(savedState.groupBy);
               if (savedState.columnVisibility) setColumnVisibility(savedState.columnVisibility);
@@ -192,7 +204,7 @@ export default function ErrorDashboard() {
       const requestBody: LogsApiRequest = {
         requestId,
         interval: timePreset !== 'custom' ? timePreset : null,
-        dateRange: timePreset === 'custom' ? dateRange : undefined,
+        dateRange: dateRange, // Always send the current dateRange state
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
@@ -227,7 +239,7 @@ export default function ErrorDashboard() {
             setGroupData(data.groupData || []);
             
             // Only show toast on first mock load
-            if (page === 1 && !Object.values(columnFilters).some(v => v)) {
+            if (page === 1 && Object.keys(columnFilters).length === 0 && groupBy.length === 0) {
                  toast({
                     title: "Using Mock Data",
                     description: "NEXT_PUBLIC_API_URL is not set. Displaying mock data.",
@@ -360,9 +372,8 @@ export default function ErrorDashboard() {
   
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
   
-  const availableGroupByOptions = allColumns.filter(
-    (col) => !nonGroupableColumns.includes(col.id) && columnVisibility[col.id]
-  );
+  const availableGroupByOptions = allColumns
+    .filter(col => !nonGroupableColumns.includes(col.id) && columnVisibility[col.id]);
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
     if (!value && groupBy.includes(columnId as GroupByOption)) {
@@ -387,31 +398,31 @@ export default function ErrorDashboard() {
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
              <svg width="35" height="32" viewBox="0 0 35 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M10.6691 1.7208L0.666992 18.2736C-0.0886745 19.5392 -0.219508 21.036 0.354658 22.4299C0.928825 23.8238 2.16416 24.9749 3.66806 25.6456L15.3421 30.7391C16.846 31.4098 18.5445 31.4098 20.0484 30.7391L31.7224 25.6456C33.2263 24.9749 34.4616 23.8238 35.0358 22.4299C35.61 21.036 35.4791 19.5392 34.7235 18.2736L24.7214 1.7208C23.9657 0.455201 22.6109 -0.252066 21.1448 -0.252066H14.2497C12.7836 -0.252066 11.4288 0.455201 10.6732 1.7208H10.6691Z" fill="url(#paint0_linear_103_2)"/>
-              <path d="M17.7021 17.5137L8.91699 15.2505L10.6698 12.0003L17.7021 13.9189V17.5137Z" fill="#A2E5E6"/>
-              <path d="M17.7019 17.5137V13.9189L24.7205 12.0003L26.4733 15.2505L17.7019 17.5137Z" fill="url(#paint1_linear_103_2)"/>
-              <path d="M17.7019 19.2319V29.8052L31.7231 24.1852L26.4727 15.2505L17.7019 19.2319Z" fill="url(#paint2_linear_103_2)"/>
-              <path d="M8.91699 15.2505L3.6666 24.1852L17.7019 29.8052V19.2319L8.91699 15.2505Z" fill="#008284"/>
-              <path d="M10.6698 12.0003L8.91699 15.2505L3.6666 5.81525L10.6698 1.7208L17.7021 13.9189L10.6698 12.0003Z" fill="#A2E5E6"/>
-              <path d="M24.7205 12.0003L17.7021 13.9189L24.7205 1.7208L31.7238 5.81525L26.4733 15.2505L24.7205 12.0003Z" fill="url(#paint3_linear_103_2)"/>
-              <defs>
-              <linearGradient id="paint0_linear_103_2" x1="17.7022" y1="-0.252066" x2="17.7022" y2="31.1448" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#00A0A2"/>
-              <stop offset="1" stopColor="#005B5C"/>
-              </linearGradient>
-              <linearGradient id="paint1_linear_103_2" x1="22.0977" y1="12.0003" x2="22.0977" y2="17.5137" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#A2E5E6"/>
-              <stop offset="1" stopColor="#00A0A2"/>
-              </linearGradient>
-              <linearGradient id="paint2_linear_103_2" x1="24.7123" y1="15.2505" x2="24.7123" y2="29.8052" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#A2E5E6"/>
-              <stop offset="1" stopColor="#00A0A2"/>
-              </linearGradient>
-              <linearGradient id="paint3_linear_103_2" x1="24.712" y1="1.7208" x2="24.712" y2="15.2505" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#A2E5E6"/>
-              <stop offset="1" stopColor="#00A0A2"/>
-              </linearGradient>
-              </defs>
+                <path d="M10.6691 1.7208L0.666992 18.2736C-0.0886745 19.5392 -0.219508 21.036 0.354658 22.4299C0.928825 23.8238 2.16416 24.9749 3.66806 25.6456L15.3421 30.7391C16.846 31.4098 18.5445 31.4098 20.0484 30.7391L31.7224 25.6456C33.2263 24.9749 34.4616 23.8238 35.0358 22.4299C35.61 21.036 35.4791 19.5392 34.7235 18.2736L24.7214 1.7208C23.9657 0.455201 22.6109 -0.252066 21.1448 -0.252066H14.2497C12.7836 -0.252066 11.4288 0.455201 10.6732 1.7208H10.6691Z" fill="url(#paint0_linear_header)" />
+                <path d="M17.7021 17.5137L8.91699 15.2505L10.6698 12.0003L17.7021 13.9189V17.5137Z" fill="#A2E5E6" />
+                <path d="M17.7019 17.5137V13.9189L24.7205 12.0003L26.4733 15.2505L17.7019 17.5137Z" fill="url(#paint1_linear_header)" />
+                <path d="M17.7019 19.2319V29.8052L31.7231 24.1852L26.4727 15.2505L17.7019 19.2319Z" fill="url(#paint2_linear_header)" />
+                <path d="M8.91699 15.2505L3.6666 24.1852L17.7019 29.8052V19.2319L8.91699 15.2505Z" fill="#008284" />
+                <path d="M10.6698 12.0003L8.91699 15.2505L3.6666 5.81525L10.6698 1.7208L17.7021 13.9189L10.6698 12.0003Z" fill="#A2E5E6" />
+                <path d="M24.7205 12.0003L17.7021 13.9189L24.7205 1.7208L31.7238 5.81525L26.4733 15.2505L24.7205 12.0003Z" fill="url(#paint3_linear_header)" />
+                <defs>
+                    <linearGradient id="paint0_linear_header" x1="17.7022" y1="-0.252066" x2="17.7022" y2="31.1448" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#00A0A2" />
+                        <stop offset="1" stopColor="#005B5C" />
+                    </linearGradient>
+                    <linearGradient id="paint1_linear_header" x1="22.0977" y1="12.0003" x2="22.0977" y2="17.5137" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#A2E5E6" />
+                        <stop offset="1" stopColor="#00A0A2" />
+                    </linearGradient>
+                    <linearGradient id="paint2_linear_header" x1="24.7123" y1="15.2505" x2="24.7123" y2="29.8052" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#A2E5E6" />
+                        <stop offset="1" stopColor="#00A0A2" />
+                    </linearGradient>
+                    <linearGradient id="paint3_linear_header" x1="24.712" y1="1.7208" x2="24.712" y2="15.2505" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#A2E5E6" />
+                        <stop offset="1" stopColor="#00A0A2" />
+                    </linearGradient>
+                </defs>
             </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
@@ -698,6 +709,7 @@ export default function ErrorDashboard() {
           isLoading={isPending}
           breakdownBy={chartBreakdownBy}
           setBreakdownBy={setChartBreakdownBy}
+          allGroupableColumns={groupableColumns}
         />
       </div>
     </div>

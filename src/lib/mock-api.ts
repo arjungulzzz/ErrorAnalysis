@@ -1,6 +1,6 @@
 import { type LogsApiRequest, type LogsApiResponse, type ErrorLog, type ApiErrorLog, type GroupDataPoint, type ErrorTrendDataPoint, GroupByOption } from '@/types';
 import { generateMockLogs } from './mock-data';
-import { format, subDays, subHours, startOfDay, endOfDay, eachDayOfInterval, parseISO, subMonths } from 'date-fns';
+import { format, startOfDay, endOfDay, eachDayOfInterval, parseISO } from 'date-fns';
 
 // Generate a large set of logs once to be used by all mock requests
 const allMockLogs = generateMockLogs(5000);
@@ -80,24 +80,11 @@ function generateGroupData(logs: ErrorLog[], groupBy: LogsApiRequest['groupBy'])
 }
 
 function generateChartData(logs: ErrorLog[], request: LogsApiRequest): ErrorTrendDataPoint[] {
-    let startDate: Date;
-    let endDate = new Date();
-
-    if (request.dateRange?.from) {
-        startDate = request.dateRange.from instanceof Date ? request.dateRange.from : parseISO(request.dateRange.from as string);
-        if(request.dateRange.to) endDate = request.dateRange.to instanceof Date ? request.dateRange.to : parseISO(request.dateRange.to as string);
-    } else {
-        const interval = request.interval || '7 days';
-        const [numStr, unit] = interval.split(' ');
-        const num = parseInt(numStr);
-        if (unit.startsWith('hour')) {
-            startDate = subHours(endDate, num);
-        } else if (unit.startsWith('day')) {
-            startDate = subDays(endDate, num);
-        } else { // month
-            startDate = subMonths(endDate, num);
-        }
+    if (!request.dateRange?.from) {
+        return [];
     }
+    let startDate: Date = request.dateRange.from;
+    let endDate: Date = request.dateRange.to || new Date();
     
     // Simplified bucketing logic: just group by day for this mock
     const daysInInterval = eachDayOfInterval({ start: startOfDay(startDate), end: endOfDay(endDate) });
@@ -126,31 +113,16 @@ function generateChartData(logs: ErrorLog[], request: LogsApiRequest): ErrorTren
 export function processMockRequest(request: LogsApiRequest): LogsApiResponse {
     let logs = [...allMockLogs];
     
-    // 1. Filter by date/interval
-    if (request.dateRange?.from) { // This handles 'custom' date ranges from the calendar
-        const fromDate = request.dateRange.from instanceof Date ? request.dateRange.from : new Date(request.dateRange.from);
-        const toDate = request.dateRange.to ? (request.dateRange.to instanceof Date ? request.dateRange.to : new Date(request.dateRange.to)) : new Date();
-        
+    // 1. Filter by date range. This is the single source of truth for time filtering.
+    if (request.dateRange?.from) {
+        const fromDate = request.dateRange.from;
+        const toDate = request.dateRange.to || new Date();
+
         logs = logs.filter(log => {
             const logTime = log.log_date_time.getTime();
-            return logTime >= startOfDay(fromDate).getTime() && logTime <= endOfDay(toDate).getTime();
+            // Use endOfDay for `toDate` to include all logs on the last day, which is crucial for calendar selections.
+            return logTime >= fromDate.getTime() && logTime <= endOfDay(toDate).getTime();
         });
-
-    } else if (request.interval && request.interval !== 'none') { // This handles presets like "Last 7 days"
-        const [numStr, unit] = request.interval.split(' ');
-        const num = parseInt(numStr);
-        let fromDate: Date;
-        const now = new Date();
-
-        if (unit.startsWith('hour')) {
-            fromDate = subHours(now, num);
-        } else if (unit.startsWith('day')) {
-            fromDate = subDays(now, num);
-        } else { // month
-            fromDate = subMonths(now, num);
-        }
-        
-        logs = logs.filter(l => l.log_date_time >= fromDate);
     }
     
     // 2. Apply column filters
