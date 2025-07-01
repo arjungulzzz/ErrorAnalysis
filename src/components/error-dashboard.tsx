@@ -187,7 +187,7 @@ export default function ErrorDashboard() {
         }
 
         let data: LogsApiResponse;
-        if (response.headers.get("Content-Encoding") === "gzip") {
+        if (response.headers.get("X-Compressed") === "true") {
             const blob = await response.blob();
             const compressedData = await new Response(blob).arrayBuffer();
             const decompressedData = pako.inflate(new Uint8Array(compressedData), { to: 'string' });
