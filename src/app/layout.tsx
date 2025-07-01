@@ -5,7 +5,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Error Insights Dashboard',
+  title: 'AS Errors Dashboard',
   description: 'Errors from AS Logs DB',
 };
 
