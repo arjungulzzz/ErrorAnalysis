@@ -40,7 +40,7 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_message', name: 'Message' },
 ];
 
-const nonGroupableColumns: Array<keyof ErrorLog> = ['log_date_time', 'as_start_date_time'];
+const nonGroupableColumns: Array<keyof ErrorLog> = ['log_date_time', 'as_start_date_time', 'log_message'];
 
 export default function ErrorDashboard() {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
@@ -197,10 +197,10 @@ export default function ErrorDashboard() {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5.33331 24C5.33331 13.8333 9.33331 8.33333 9.33331 8.33333C9.33331 8.33333 13.3333 13.8333 13.3333 24C13.3333 34.1667 9.33331 39.6667 9.33331 39.6667C9.33331 39.6667 5.33331 34.1667 5.33331 24Z" fill="#7595B3" stroke="#49454F" strokeWidth="1.5"/>
-              <path d="M12 24C12 13.8333 16 8.33333 16 8.33333C16 8.33333 20 13.8333 20 24C20 34.1667 16 39.6667 16 39.6667C16 39.6667 12 34.1667 12 24Z" fill="#F47272" stroke="#49454F" strokeWidth="1.5"/>
-              <path d="M22.6667 24C22.6667 17.3333 25.3333 12.5 25.3333 12.5C25.3333 12.5 28 17.3333 28 24C28 30.6667 25.3333 35.5 25.3333 35.5C25.3333 35.5 22.6667 30.6667 22.6667 24Z" fill="#6750A4"/>
+            <svg width="38" height="40" viewBox="0 0 38 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 0L37.0526 10V30L19 40L0.947441 30V10L19 0Z" fill="#7595B3"/>
+                <path d="M19 6.15385L32.2368 14.0769V25.9231L19 33.8462L5.76316 25.9231V14.0769L19 6.15385Z" fill="#F47272"/>
+                <path d="M19 13.8462L27.6842 18.9231V23.0769L19 28.1538L10.3158 23.0769V18.9231L19 13.8462Z" fill="#6750A4"/>
             </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
