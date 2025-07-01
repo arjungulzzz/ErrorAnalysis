@@ -7,13 +7,13 @@ const Logo = (props: React.SVGProps<SVGSVGElement>) => (
     {...props}
   >
     <g fill="none" strokeWidth="4">
-      <ellipse cx="35" cy="50" rx="25" ry="45" stroke="#582D83" />
-      <ellipse cx="40" cy="50" rx="25" ry="45" stroke="#75308A" />
-      <ellipse cx="45" cy="50" rx="25" ry="45" stroke="#933491" />
-      <ellipse cx="50" cy="50" rx="25" ry="45" stroke="#B03898" />
-      <ellipse cx="55" cy="50" rx="25" ry="45" stroke="#D34494" />
-      <ellipse cx="60" cy="50" rx="25" ry="45" stroke="#E96684" />
-      <ellipse cx="65" cy="50" rx="25" ry="45" stroke="#F58575" />
+      <path d="M 53.6 20 A 25 45 0 1 0 53.6 80" stroke="#582D83" />
+      <path d="M 58.6 20 A 25 45 0 1 0 58.6 80" stroke="#75308A" />
+      <path d="M 63.6 20 A 25 45 0 1 0 63.6 80" stroke="#933491" />
+      <path d="M 68.6 20 A 25 45 0 1 0 68.6 80" stroke="#B03898" />
+      <path d="M 73.6 20 A 25 45 0 1 0 73.6 80" stroke="#D34494" />
+      <path d="M 78.6 20 A 25 45 0 1 0 78.6 80" stroke="#E96684" />
+      <path d="M 83.6 20 A 25 45 0 1 0 83.6 80" stroke="#F58575" />
     </g>
   </svg>
 );
