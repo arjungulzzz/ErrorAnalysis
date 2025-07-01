@@ -95,7 +95,7 @@ const GroupedRow = ({
 }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
     const hasSubgroups = item.subgroups && item.subgroups.length > 0;
-    const hasLogs = !hasSubgroups && item.logs && item.logs.length > 0;
+    const hasLogs = item.logs && item.logs.length > 0;
     const isExpandable = hasSubgroups || hasLogs;
 
     const handleToggle = () => {
@@ -134,7 +134,7 @@ const GroupedRow = ({
                     />
                 ))
             )}
-            {isExpanded && hasLogs && item.logs?.map(log => (
+            {isExpanded && !hasSubgroups && hasLogs && item.logs?.map(log => (
               <React.Fragment key={log.id}>
                 <TableRow
                   data-state={expandedRowId === log.id ? "selected" : undefined}
