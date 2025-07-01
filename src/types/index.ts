@@ -38,13 +38,13 @@ export type ErrorLog = Omit<ApiErrorLog, 'log_date_time' | 'as_start_date_time'>
 
 /**
  * Represents a single data point in a grouped data summary from the API.
- * Can be nested to support multi-level grouping. Dates are strings.
+ * The `logs` property is not included, as they should be fetched on-demand.
+ * For data consistency, `subgroups` must always be an array, even if empty.
  */
 export type ApiGroupDataPoint = {
   key: string;
   count: number;
-  subgroups?: ApiGroupDataPoint[];
-  logs?: ApiErrorLog[];
+  subgroups: ApiGroupDataPoint[];
 }
 
 /**
@@ -89,13 +89,12 @@ export type GroupByOption =
 
 /**
  * Represents a single data point in a grouped data summary for frontend use.
- * Can be nested to support multi-level grouping. Dates are processed.
+ * Can be nested. `subgroups` is always an array. `logs` are not included.
  */
 export type GroupDataPoint = {
   key: string;
   count: number;
-  subgroups?: GroupDataPoint[];
-  logs?: ErrorLog[];
+  subgroups: GroupDataPoint[];
 };
 
 /**

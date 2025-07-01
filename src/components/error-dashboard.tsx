@@ -61,7 +61,7 @@ export default function ErrorDashboard() {
   const [pageSize] = useState(100);
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [selectedPreset, setSelectedPreset] = useState<string | null>('none');
+  const [selectedPreset, setSelectedPreset] = useState<string | null>('7d');
   
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
@@ -96,7 +96,6 @@ export default function ErrorDashboard() {
   
   const fetchData = useCallback(() => {
     startTransition(async () => {
-      // If no time range is selected, do not fetch data. Clear existing data.
       if (selectedPreset === 'none' && !dateRange?.from) {
         setLogs([]);
         setTotalLogs(0);
@@ -106,22 +105,16 @@ export default function ErrorDashboard() {
       }
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
       if (!apiUrl) {
         toast({
           variant: "destructive",
           title: "API URL Not Configured",
-          description: "Please set NEXT_PUBLIC_API_URL in your environment to fetch data.",
+          description: "Please set NEXT_PUBLIC_API_URL in your environment.",
         });
-        setLogs([]);
-        setTotalLogs(0);
-        setChartData([]);
-        setGroupData([]);
         return;
       }
 
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-
       const requestBody: LogsApiRequest = {
         requestId,
         pagination: { page, pageSize },
@@ -154,31 +147,26 @@ export default function ErrorDashboard() {
         }
         const data: LogsApiResponse = await response.json();
 
-        const processedLogs: ErrorLog[] = data.logs.map((log: ApiErrorLog, index: number) => ({
-          ...log,
-          id: `log-${new Date(log.log_date_time).getTime()}-${index}`,
-          log_date_time: new Date(log.log_date_time),
-          as_start_date_time: new Date(log.as_start_date_time),
-        }));
+        const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
+            return logs.map((log: ApiErrorLog, index: number) => ({
+                ...log,
+                id: `log-${new Date(log.log_date_time).getTime()}-${index}`,
+                log_date_time: new Date(log.log_date_time),
+                as_start_date_time: new Date(log.as_start_date_time),
+            }));
+        };
 
         const processGroupData = (groups: ApiGroupDataPoint[]): GroupDataPoint[] => {
             return groups.map(group => ({
                 ...group,
                 subgroups: group.subgroups ? processGroupData(group.subgroups) : [],
-                logs: group.logs ? group.logs.map((log, index) => ({
-                    ...log,
-                    id: `log-group-${group.key}-${new Date(log.log_date_time).getTime()}-${index}`,
-                    log_date_time: new Date(log.log_date_time),
-                    as_start_date_time: new Date(log.as_start_date_time),
-                })) : []
             }));
         };
-        const processedGroupData = data.groupData ? processGroupData(data.groupData) : [];
-
-        setLogs(processedLogs);
+        
+        setLogs(processLogs(data.logs));
         setTotalLogs(data.totalCount);
         setChartData(data.chartData || []);
-        setGroupData(processedGroupData);
+        setGroupData(data.groupData ? processGroupData(data.groupData) : []);
 
       } catch (error) {
         console.error("Failed to fetch logs:", error);
@@ -195,6 +183,67 @@ export default function ErrorDashboard() {
     });
   }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, selectedPreset, toast]);
   
+  const fetchLogsForDrilldown = useCallback(async (drilldownFilters: ColumnFilters, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) {
+          toast({
+              variant: "destructive",
+              title: "API URL Not Configured",
+              description: "Please set NEXT_PUBLIC_API_URL in your environment.",
+          });
+          return { logs: [], totalCount: 0 };
+      }
+      const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
+
+      const requestBody: Omit<LogsApiRequest, 'groupBy'> & { groupBy: [] } = {
+          requestId,
+          pagination: { page, pageSize },
+          sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
+          filters: { ...columnFilters, ...drilldownFilters },
+          groupBy: [],
+          chartBreakdownBy: 'host_name', // Not used for this query, but required
+      };
+
+      const preset = timePresets.find(p => p.key === selectedPreset);
+      if (preset?.interval) {
+          requestBody.interval = preset.interval;
+      } else if (dateRange?.from) {
+          requestBody.dateRange = {
+              from: dateRange.from?.toISOString(),
+              to: dateRange.to?.toISOString()
+          };
+      }
+      
+      const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: response.statusText }));
+          throw new Error(errorData.message || `API request failed with status ${response.status}`);
+      }
+      const data: LogsApiResponse = await response.json();
+
+      const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
+          return logs.map((log: ApiErrorLog, index: number) => ({
+              ...log,
+              id: `log-drilldown-${new Date(log.log_date_time).getTime()}-${index}`,
+              log_date_time: new Date(log.log_date_time),
+              as_start_date_time: new Date(log.as_start_date_time),
+          }));
+      };
+      return { logs: processLogs(data.logs), totalCount: data.totalCount };
+  }, [columnFilters, dateRange, pageSize, selectedPreset, sort, toast]);
+  
+  useEffect(() => {
+    // Auto-select a default date range on initial load if none is set
+    if (selectedPreset === 'none' && !dateRange) {
+        handlePresetClick('7d');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     setPage(1);
   }, [columnFilters, groupBy, sort, dateRange, selectedPreset]);
@@ -203,23 +252,11 @@ export default function ErrorDashboard() {
     fetchData();
   }, [fetchData]);
 
-  
   const handleRefresh = () => {
     fetchData();
   };
   
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
-  
-  const availableGroupByOptions = allColumns.filter(
-    (col) => {
-      // Exclude columns that are not practical for grouping
-      if (col.id === 'log_date_time' || col.id === 'as_start_date_time') {
-        return false;
-      }
-      // Only include visible columns
-      return columnVisibility[col.id];
-    }
-  );
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
     if (!value && groupBy.includes(columnId as GroupByOption)) {
@@ -367,7 +404,8 @@ export default function ErrorDashboard() {
                             Clear grouping
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {availableGroupByOptions.map((option) => (
+                          {allColumns.map((option) => (
+                             !['log_date_time', 'as_start_date_time'].includes(option.id) &&
                               <DropdownMenuCheckboxItem
                                   key={option.id}
                                   checked={groupBy.includes(option.id as GroupByOption)}
@@ -521,6 +559,7 @@ export default function ErrorDashboard() {
         allColumns={allColumns}
         columnWidths={columnWidths}
         setColumnWidths={setColumnWidths}
+        fetchLogsForDrilldown={fetchLogsForDrilldown}
       />
       <div className="mt-6">
         <ErrorTrendChart 
