@@ -38,6 +38,7 @@ const breakdownOptions: { value: ChartBreakdownByOption; label: string }[] = [
   { value: 'report_id_name', label: 'Report Name' },
   { value: 'error_number', label: 'Error Code' },
   { value: 'xql_query_id', label: 'Query ID' },
+  { value: 'log_message', label: 'Message' },
 ];
 
 const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
@@ -118,7 +119,7 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }
         </CardHeader>
         <CardContent>
             <div className="h-[300px] w-full flex items-center justify-center text-muted-foreground">
-                No data available for the selected period.
+                No data available to display.
             </div>
         </CardContent>
       </Card>
@@ -131,7 +132,7 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }
         <div>
             <CardTitle>Error Trend</CardTitle>
             <CardDescription>
-            The frequency of errors over the selected time period.
+            The frequency of errors over the entire dataset.
             </CardDescription>
         </div>
         <div className="flex items-center gap-2">

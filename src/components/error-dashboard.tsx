@@ -11,24 +11,18 @@ import { useState, useEffect, useCallback, useTransition } from "react";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ErrorTable } from "@/components/error-table";
-import { type DateRange } from "react-day-picker";
-import { format, subDays, subMonths, addMonths, subHours } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
-import { RotateCw, ChevronDown, Calendar as CalendarIcon, X } from "lucide-react";
+import { RotateCw, ChevronDown, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { ErrorTrendChart } from "./error-trend-chart";
 import { useToast } from "@/hooks/use-toast";
-import pako from "pako";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
+import { processLogsRequest } from "@/lib/mock-api";
 
 interface DashboardViewState {
   columnFilters: ColumnFilters;
-  dateRange?: DateRange;
-  timePreset: string;
   sort: SortDescriptor;
   groupBy: GroupByOption[];
   columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
@@ -52,17 +46,7 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_message', name: 'Message' },
 ];
 
-const TIME_PRESETS = [
-    { value: 'none', label: 'None', interval: null },
-    { value: '4 hours', label: 'Last 4 hours', interval: '4 hours' },
-    { value: '8 hours', label: 'Last 8 hours', interval: '8 hours' },
-    { value: '1 day', label: 'Last 1 day', interval: '1 day' },
-    { value: '7 days', label: 'Last 7 days', interval: '7 days' },
-    { value: '15 days', label: 'Last 15 days', interval: '15 days' },
-    { value: '1 month', label: 'Last 1 month', interval: '1 month' },
-];
-
-const nonGroupableColumns: Array<keyof ErrorLog> = ['log_date_time', 'as_start_date_time', 'log_message'];
+const nonGroupableColumns: Array<keyof ErrorLog> = ['log_date_time', 'as_start_date_time'];
 
 export default function ErrorDashboard() {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
@@ -72,8 +56,6 @@ export default function ErrorDashboard() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(100);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [timePreset, setTimePreset] = useState<string>('none');
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption[]>([]);
   const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
@@ -95,7 +77,6 @@ export default function ErrorDashboard() {
   const [isPending, startTransition] = useTransition();
   const [chartBreakdownBy, setChartBreakdownBy] = useState<ChartBreakdownByOption>('host_name');
   
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const { toast } = useToast();
   
   const [isClient, setIsClient] = useState(false);
@@ -120,14 +101,6 @@ export default function ErrorDashboard() {
               const savedState = JSON.parse(savedStateRaw) as Partial<DashboardViewState>;
               
               if (savedState.columnFilters) setColumnFilters(savedState.columnFilters);
-              if (savedState.dateRange) {
-                  const restoredDateRange = {
-                      from: savedState.dateRange.from ? new Date(savedState.dateRange.from) : undefined,
-                      to: savedState.dateRange.to ? new Date(savedState.dateRange.to) : undefined,
-                  };
-                  setDateRange(restoredDateRange);
-              }
-              if (savedState.timePreset) setTimePreset(savedState.timePreset);
               if (savedState.sort) setSort(savedState.sort);
               if (savedState.groupBy && Array.isArray(savedState.groupBy)) setGroupBy(savedState.groupBy);
               if (savedState.columnVisibility) setColumnVisibility(savedState.columnVisibility);
@@ -157,8 +130,6 @@ export default function ErrorDashboard() {
 
       const stateToSave: DashboardViewState = {
         columnFilters,
-        dateRange,
-        timePreset,
         sort,
         groupBy,
         columnVisibility,
@@ -169,8 +140,6 @@ export default function ErrorDashboard() {
       localStorage.setItem('error-dashboard-view-state', JSON.stringify(stateToSave));
   }, [
       columnFilters, 
-      dateRange, 
-      timePreset, 
       sort, 
       groupBy, 
       columnVisibility, 
@@ -183,33 +152,10 @@ export default function ErrorDashboard() {
     startTransition(async () => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
-      if (!apiUrl) {
-        toast({
-          variant: "destructive",
-          title: "Configuration Error",
-          description: "The API URL is not configured. Please set NEXT_PUBLIC_API_URL in your environment.",
-        });
-        setLogs([]);
-        setTotalLogs(0);
-        setChartData([]);
-        setGroupData([]);
-        return;
-      }
-
-      if (timePreset === 'none') {
-        setLogs([]);
-        setTotalLogs(0);
-        setChartData([]);
-        setGroupData([]);
-        return;
-      }
-
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
 
       const requestBody: LogsApiRequest = {
         requestId,
-        interval: timePreset !== 'custom' ? timePreset : null,
-        dateRange: timePreset === 'custom' ? dateRange : undefined,
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
@@ -218,26 +164,34 @@ export default function ErrorDashboard() {
       };
 
       try {
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: response.statusText }));
-          throw new Error(errorData.message || `API request failed with status ${response.status}`);
-        }
-
         let data: LogsApiResponse;
-        if (response.headers.get("X-Compressed") === "true") {
-            const blob = await response.blob();
-            const compressedData = await new Response(blob).arrayBuffer();
-            const decompressedData = pako.inflate(new Uint8Array(compressedData), { to: 'string' });
-            data = JSON.parse(decompressedData);
-        } else {
+
+        if (apiUrl) {
+            const response = await fetch(apiUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({ message: response.statusText }));
+              throw new Error(errorData.message || `API request failed with status ${response.status}`);
+            }
             data = await response.json();
+        } else {
+            // Use mock service if no API URL is provided
+            if (isClient) {
+              data = processLogsRequest(requestBody);
+            } else {
+              // Return empty state for server-side render
+              setLogs([]);
+              setTotalLogs(0);
+              setChartData([]);
+              setGroupData([]);
+              return;
+            }
         }
+        
 
         // Process API response: convert date strings to Date objects and ensure a unique ID
         const processedLogs: ErrorLog[] = data.logs.map((log: ApiErrorLog, index: number) => ({
@@ -265,12 +219,12 @@ export default function ErrorDashboard() {
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, timePreset, chartBreakdownBy, toast]);
+  }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, toast, isClient]);
   
   useEffect(() => {
     // Reset page to 1 whenever filters, grouping, or date changes
     setPage(1);
-  }, [columnFilters, groupBy, dateRange, timePreset, sort]);
+  }, [columnFilters, groupBy, sort]);
 
   useEffect(() => {
     // Main fetch trigger
@@ -279,40 +233,6 @@ export default function ErrorDashboard() {
     }
   }, [fetchData, isClient]);
 
-  const handlePresetSelect = (value: string) => {
-    setTimePreset(value);
-    
-    if (value === 'none') {
-        setDateRange(undefined);
-        setDatePickerOpen(false);
-        return;
-    }
-    
-    const now = new Date();
-    let fromDate: Date | undefined;
-    switch (value) {
-      case "4 hours":
-        fromDate = subHours(now, 4);
-        break;
-      case "8 hours":
-        fromDate = subHours(now, 8);
-        break;
-      case "1 day":
-        fromDate = subDays(now, 1);
-        break;
-      case "7 days":
-        fromDate = subDays(now, 7);
-        break;
-      case "15 days":
-        fromDate = subDays(now, 15);
-        break;
-      case "1 month":
-        fromDate = subMonths(now, 1);
-        break;
-    }
-    setDateRange({ from: fromDate, to: now });
-    setDatePickerOpen(false);
-  };
   
   const handleRefresh = () => {
     fetchData();
@@ -346,17 +266,51 @@ export default function ErrorDashboard() {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
-            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" fill="currentColor">
-              <circle cx="50" cy="50" r="48" stroke="currentColor" strokeWidth="4" fill="none" />
-              <path d="M25,35 C40,20 60,20 75,35" stroke="currentColor" strokeWidth="6" fill="none" />
-              <path d="M25,50 C40,35 60,35 75,50" stroke="currentColor" strokeWidth="6" fill="none" />
-              <path d="M25,65 C40,50 60,50 75,65" stroke="currentColor" strokeWidth="6" fill="none" />
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 190 200"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <defs>
+                <linearGradient
+                  id="logo-gradient"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="0%"
+                >
+                  <stop offset="0%" stopColor="#6750A4" />
+                  <stop offset="100%" stopColor="#EE6B6B" />
+                </linearGradient>
+                <mask id="logo-mask">
+                  <g stroke="white" strokeWidth="10" fill="none">
+                    <ellipse cx="45" cy="100" rx="40" ry="95" />
+                    <ellipse cx="60" cy="100" rx="40" ry="95" />
+                    <ellipse cx="75" cy="100" rx="40" ry="95" />
+                    <ellipse cx="90" cy="100" rx="40" ry="95" />
+                    <ellipse cx="105" cy="100" rx="40" ry="95" />
+                    <ellipse cx="120" cy="100" rx="40" ry="95" />
+                    <ellipse cx="135" cy="100" rx="40" ry="95" />
+                  </g>
+                </mask>
+              </defs>
+              <rect
+                x="0"
+                y="0"
+                width="190"
+                height="200"
+                fill="url(#logo-gradient)"
+                mask="url(#logo-mask)"
+              />
             </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={handleRefresh} disabled={isPending || timePreset === 'none'} variant="outline" className="bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground">
+          <Button onClick={handleRefresh} disabled={isPending} variant="outline" className="bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground">
             <RotateCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
@@ -365,101 +319,7 @@ export default function ErrorDashboard() {
 
       <Card>
         <CardContent className="p-4 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-                <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="date-picker-trigger">Time Range</Label>
-                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                        <PopoverTrigger asChild>
-                            <Button
-                                id="date-picker-trigger"
-                                variant={"outline"}
-                                disabled={isPending || !isClient}
-                                className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    timePreset === 'none' && "text-muted-foreground"
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {timePreset === 'custom' ? (
-                                    dateRange?.from ? (
-                                        dateRange.to ? (
-                                            <>
-                                                {format(dateRange.from, "LLL dd, y")} -{" "}
-                                                {format(dateRange.to, "LLL dd, y")}
-                                            </>
-                                        ) : (
-                                            format(dateRange.from, "LLL dd, y")
-                                        )
-                                    ) : (
-                                        <span>Pick a date</span>
-                                    )
-                                ) : (
-                                    TIME_PRESETS.find(p => p.value === timePreset)?.label || 'Select time range...'
-                                )}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 flex" align="start">
-                            <div className="flex flex-col gap-1 p-2 border-r">
-                                {TIME_PRESETS.map(p => (
-                                    <Button 
-                                        key={p.value}
-                                        variant={timePreset === p.value ? "secondary" : "ghost"}
-                                        size="sm"
-                                        className="justify-start"
-                                        onClick={() => handlePresetSelect(p.value)}
-                                        disabled={isPending || !isClient}
-                                    >
-                                        {p.label}
-                                    </Button>
-                                ))}
-                            </div>
-                            {isClient ? (() => {
-                                const today = new Date();
-                                const defaultMonth = (() => {
-                                    if (!dateRange?.from) return subMonths(today, 1);
-                                    const isFromInCurrentMonth = dateRange.from.getMonth() === today.getMonth() && dateRange.from.getFullYear() === today.getFullYear();
-                                    if (isFromInCurrentMonth) {
-                                        const isToInCurrentMonth = !dateRange.to || (dateRange.to.getMonth() === today.getMonth() && dateRange.to.getFullYear() === today.getFullYear());
-                                        if (isToInCurrentMonth) return subMonths(today, 1);
-                                    }
-                                    return dateRange.from;
-                                })();
-
-                                return (
-                                    <Calendar
-                                        initialFocus
-                                        mode="range"
-                                        defaultMonth={defaultMonth}
-                                        selected={dateRange}
-                                        onSelect={(range) => {
-                                            setDateRange(range);
-                                            setTimePreset('custom');
-                                            if (range?.from && range.to) {
-                                              setDatePickerOpen(false);
-                                            }
-                                        }}
-                                        numberOfMonths={2}
-                                        fromDate={subMonths(today, 1)}
-                                        toDate={today}
-                                        disabled={isPending ? true : (date: Date) => {
-                                            if (date > today) return true;
-                                            if (dateRange?.from && !dateRange.to) {
-                                                const oneMonthFromStart = addMonths(dateRange.from, 1);
-                                                if (date > oneMonthFromStart) return true;
-                                            }
-                                            return false;
-                                        }}
-                                    />
-                                );
-                            })() : (
-                                <div className="p-3 w-[574px] h-[352px] flex items-center justify-center">
-                                    <RotateCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                                </div>
-                            )}
-                        </PopoverContent>
-                    </Popover>
-                </div>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 items-end">
                 <div className="grid w-full items-center gap-1.5">
                     <Label htmlFor="group-by-trigger">Group By</Label>
                     <DropdownMenu>
