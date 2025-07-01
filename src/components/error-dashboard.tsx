@@ -26,6 +26,17 @@ import pako from "pako";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 
+interface DashboardViewState {
+  columnFilters: ColumnFilters;
+  dateRange?: DateRange;
+  timePreset: string;
+  sort: SortDescriptor;
+  groupBy: GroupByOption;
+  columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
+  chartBreakdownBy: ChartBreakdownByOption;
+  columnWidths: Record<keyof ErrorLog, number>;
+}
+
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
     { id: 'host_name', name: 'Host' },
@@ -91,26 +102,38 @@ export default function ErrorDashboard() {
   const [columnWidths, setColumnWidths] = useState<Record<keyof ErrorLog, number>>({} as Record<keyof ErrorLog, number>);
   
   useEffect(() => {
-    // Set isClient to true after mount to handle client-side-only rendering
-    // and avoid hydration mismatches.
     setIsClient(true);
   }, []);
 
-  // Initialize column widths from local storage or set defaults
+  // Load dashboard state from local storage on initial client render
   useEffect(() => {
       if (!isClient) return;
       try {
-          const savedWidthsRaw = localStorage.getItem('error-table-column-widths');
+          const savedStateRaw = localStorage.getItem('error-dashboard-view-state');
           const defaultWidths = allColumns.reduce((acc, col) => {
               acc[col.id] = col.id === 'log_message' ? 400 : col.id === 'log_date_time' ? 180 : 150;
               return acc;
           }, {} as Record<keyof ErrorLog, number>);
 
-          if (savedWidthsRaw) {
-              const savedWidths = JSON.parse(savedWidthsRaw);
-              // Validate saved widths against allColumns to avoid issues if columns change
+          if (savedStateRaw) {
+              const savedState = JSON.parse(savedStateRaw) as Partial<DashboardViewState>;
+              
+              if (savedState.columnFilters) setColumnFilters(savedState.columnFilters);
+              if (savedState.dateRange) {
+                  const restoredDateRange = {
+                      from: savedState.dateRange.from ? new Date(savedState.dateRange.from) : undefined,
+                      to: savedState.dateRange.to ? new Date(savedState.dateRange.to) : undefined,
+                  };
+                  setDateRange(restoredDateRange);
+              }
+              if (savedState.timePreset) setTimePreset(savedState.timePreset);
+              if (savedState.sort) setSort(savedState.sort);
+              if (savedState.groupBy) setGroupBy(savedState.groupBy);
+              if (savedState.columnVisibility) setColumnVisibility(savedState.columnVisibility);
+              if (savedState.chartBreakdownBy) setChartBreakdownBy(savedState.chartBreakdownBy);
+              
               const validatedWidths = allColumns.reduce((acc, col) => {
-                  acc[col.id] = savedWidths[col.id] || defaultWidths[col.id];
+                  acc[col.id] = savedState.columnWidths?.[col.id] || defaultWidths[col.id];
                   return acc;
               }, {} as Record<keyof ErrorLog, number>);
               setColumnWidths(validatedWidths);
@@ -118,7 +141,7 @@ export default function ErrorDashboard() {
               setColumnWidths(defaultWidths);
           }
       } catch (error) {
-          console.error("Failed to parse column widths from localStorage", error);
+          console.error("Failed to parse dashboard state from localStorage", error);
           const defaultWidths = allColumns.reduce((acc, col) => {
             acc[col.id] = col.id === 'log_message' ? 400 : col.id === 'log_date_time' ? 180 : 150;
             return acc;
@@ -127,11 +150,33 @@ export default function ErrorDashboard() {
       }
   }, [isClient]);
 
-  // Save column widths to local storage whenever they change
+  // Save dashboard state to local storage whenever it changes
   useEffect(() => {
       if (!isClient || Object.keys(columnWidths).length === 0) return;
-      localStorage.setItem('error-table-column-widths', JSON.stringify(columnWidths));
-  }, [columnWidths, isClient]);
+
+      const stateToSave: DashboardViewState = {
+        columnFilters,
+        dateRange,
+        timePreset,
+        sort,
+        groupBy,
+        columnVisibility,
+        chartBreakdownBy,
+        columnWidths
+      };
+      
+      localStorage.setItem('error-dashboard-view-state', JSON.stringify(stateToSave));
+  }, [
+      columnFilters, 
+      dateRange, 
+      timePreset, 
+      sort, 
+      groupBy, 
+      columnVisibility, 
+      chartBreakdownBy, 
+      columnWidths, 
+      isClient
+  ]);
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
