@@ -1,23 +1,10 @@
 import { NextResponse } from 'next/server';
-// import { getLogsByDateRange } from '@/services/logService';
 
 export async function POST(request: Request) {
-  /*
-    This Next.js API route is no longer needed because the frontend 
-    would now call the external service directly.
-    This code would be moved to the new external service.
-
-    try {
-      const { dateRange }: { dateRange?: { from?: string; to?: string } } = await request.json();
-
-      const logs = await getLogsByDateRange(dateRange);
-      
-      // Return all logs matching the date range.
-      return NextResponse.json(logs);
-
-    } catch (error) {
-      console.error("API Error:", error);
-      return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
-    }
-  */
+  // This route is not in use, as the frontend calls the external service directly.
+  // Returning a 'Not Implemented' status makes this a valid API route and prevents server errors.
+  return NextResponse.json(
+    { message: "This API endpoint is not operational." },
+    { status: 501 } // 501 Not Implemented
+  );
 }
