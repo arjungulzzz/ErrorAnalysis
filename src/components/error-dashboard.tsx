@@ -15,7 +15,7 @@ import { ErrorTable } from "@/components/error-table";
 import { type DateRange } from "react-day-picker";
 import { format, subDays, subMonths, addMonths, subHours } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RotateCw, ChevronDown, Calendar as CalendarIcon } from "lucide-react";
+import { RotateCw, ChevronDown, Calendar as CalendarIcon, X } from "lucide-react";
 import { Label } from "./ui/label";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { ErrorTrendChart } from "./error-trend-chart";
 import { useToast } from "@/hooks/use-toast";
 import pako from "pako";
+import { Badge } from "./ui/badge";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -281,6 +282,8 @@ export default function ErrorDashboard() {
   const handleRefresh = () => {
     fetchData();
   };
+  
+  const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
 
   return (
     <div className="space-y-6">
@@ -455,6 +458,47 @@ export default function ErrorDashboard() {
                     </div>
                 </div>
             </div>
+            {activeFilters.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-dashed">
+                    <div className="flex items-center gap-2 mb-2">
+                        <h4 className="text-sm font-medium">Active Table Filters</h4>
+                        <Button 
+                            variant="link" 
+                            className="h-auto p-0 text-sm"
+                            onClick={() => setColumnFilters({})}
+                            disabled={isPending}
+                        >
+                            Clear all
+                        </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {activeFilters.map(([key, value]) => {
+                            const column = allColumns.find(c => c.id === key);
+                            if (!column) return null;
+
+                            return (
+                                <Badge key={key} variant="secondary" className="pl-2 pr-1 py-1 text-sm font-normal">
+                                    <span className="font-semibold mr-1">{column.name}:</span>
+                                    <span className="mr-1 truncate max-w-xs">{String(value)}</span>
+                                    <button 
+                                        className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20 disabled:opacity-50"
+                                        onClick={() => {
+                                            setColumnFilters(prev => ({
+                                                ...prev,
+                                                [key]: ''
+                                            }));
+                                        }}
+                                        disabled={isPending}
+                                    >
+                                        <span className="sr-only">Remove {column.name} filter</span>
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </Badge>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </CardContent>
       </Card>
       
