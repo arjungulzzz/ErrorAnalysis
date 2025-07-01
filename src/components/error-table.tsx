@@ -8,7 +8,7 @@
 
 import React from "react";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type GroupDataPoint } from "@/types";
-import { Copy } from "lucide-react";
+import { Copy, ChevronRight } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -43,9 +43,8 @@ interface ErrorTableProps {
   pageSize: number;
   totalLogs: number;
   setPage: (page: number) => void;
-  groupBy: GroupByOption;
+  groupBy: GroupByOption[];
   groupData: GroupDataPoint[] | null;
-  onGroupSelect: (groupKey: string) => void;
   columnFilters: ColumnFilters;
   setColumnFilters: (filters: React.SetStateAction<ColumnFilters>) => void;
   columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
@@ -75,16 +74,34 @@ const columnConfig: {
     { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg" },
 ];
 
-const getFriendlyGroupName = (groupByValue: GroupByOption) => {
-    switch (groupByValue) {
-      case 'host_name': return 'Host';
-      case 'repository_path': return 'Model Name';
-      case 'error_number': return 'Error Code';
-      case 'user_id': return 'User';
-      case 'version_number': return 'AS Version';
-      default: return 'Group';
-    }
+const GroupedRow = ({ item, level, allColumns }: { item: GroupDataPoint; level: number; allColumns: { id: keyof ErrorLog; name: string }[] }) => {
+    const [isExpanded, setIsExpanded] = React.useState(false);
+    const hasSubgroups = item.subgroups && item.subgroups.length > 0;
+
+    return (
+        <React.Fragment>
+            <TableRow onClick={() => hasSubgroups && setIsExpanded(!isExpanded)} className={cn(hasSubgroups && "cursor-pointer hover:bg-muted/50")}>
+                <TableCell style={{ paddingLeft: `${1 + level * 1.5}rem` }}>
+                    <div className="flex items-center gap-2">
+                       {hasSubgroups ? (
+                            <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
+                       ) : (
+                            <span className="w-4 h-4" /> // for alignment
+                       )}
+                       <span className="font-medium">{item.key}</span>
+                    </div>
+                </TableCell>
+                <TableCell className="text-right">{item.count.toLocaleString()}</TableCell>
+            </TableRow>
+            {isExpanded && hasSubgroups && (
+                item.subgroups.map(subItem => (
+                    <GroupedRow key={`${level}-${subItem.key}`} item={subItem} level={level + 1} allColumns={allColumns} />
+                ))
+            )}
+        </React.Fragment>
+    );
 };
+
 
 export function ErrorTable({
   logs,
@@ -97,7 +114,6 @@ export function ErrorTable({
   setPage,
   groupBy,
   groupData,
-  onGroupSelect,
   columnFilters,
   setColumnFilters,
   columnVisibility,
@@ -163,44 +179,27 @@ export function ErrorTable({
 
     let success = false;
 
-    // Try modern Clipboard API first
-    if (navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(textToCopy);
-        success = true;
-      } catch (err) {
-        console.error('Modern clipboard copy failed, falling back.', err);
-      }
-    }
-
-    // Fallback to deprecated execCommand if modern API failed or is not available
-    if (!success) {
-      try {
-        const textArea = document.createElement("textarea");
-        textArea.value = textToCopy;
-        
-        // Make it invisible and not take up space
-        textArea.style.position = "fixed";
-        textArea.style.top = "-9999px";
-        textArea.style.left = "-9999px";
-
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-
-        success = document.execCommand('copy');
-        
-        document.body.removeChild(textArea);
-
-        if (!success) {
-            throw new Error('execCommand returned false');
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(textToCopy);
+          success = true;
+        } else {
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+            textArea.style.position = "fixed";
+            textArea.style.top = "-9999px";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            success = document.execCommand('copy');
+            document.body.removeChild(textArea);
         }
-      } catch (err) {
-        console.error('Fallback clipboard copy failed:', err);
-      }
+    } catch (err) {
+        console.error('Copy to clipboard failed:', err);
+        success = false;
     }
     
-    // Final feedback to user
     if (success) {
       toast({
         title: "Copied to clipboard",
@@ -210,7 +209,7 @@ export function ErrorTable({
       toast({
         variant: "destructive",
         title: "Copy Failed",
-        description: "Your browser does not support copying to the clipboard.",
+        description: "Could not copy to clipboard. Your browser may not support this feature or is not in a secure context.",
       });
     }
   };
@@ -277,48 +276,24 @@ export function ErrorTable({
     ))
   );
 
-  if (groupBy !== 'none') {
-    const friendlyGroupName = getFriendlyGroupName(groupBy);
+  if (groupBy.length > 0) {
+    const friendlyGroupNames = groupBy.map(g => allColumns.find(c => c.id === g)?.name || g).join(', ');
     
-    if (isLoading && !groupData) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Error Groups by {friendlyGroupName}</CardTitle>
-                    <CardDescription>
-                        Loading groups...
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border p-4 space-y-2">
-                        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
-
-    if (!groupData || groupData.length === 0) {
-        return (
-             <Card>
-                <CardHeader>
-                    <CardTitle>Error Groups by {friendlyGroupName}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border h-24 flex items-center justify-center">
-                        No groups found.
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
+    const renderGroupedSkeleton = () => (
+        Array.from({ length: 5 }).map((_, i) => (
+            <TableRow key={`grouped-skeleton-${i}`}>
+                <TableCell><Skeleton className="h-8 w-3/4" /></TableCell>
+                <TableCell><Skeleton className="h-8 w-1/4 ml-auto" /></TableCell>
+            </TableRow>
+        ))
+    );
 
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Error Groups by {friendlyGroupName}</CardTitle>
+          <CardTitle>Error Groups by {friendlyGroupNames}</CardTitle>
           <CardDescription>
-            Showing top {groupData.length} groups. Click a row to filter logs.
+            {isLoading ? 'Loading groups...' : (groupData && groupData.length > 0 ? 'Showing top groups. Click a row to expand.' : 'No groups to display.')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -326,22 +301,22 @@ export function ErrorTable({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{friendlyGroupName}</TableHead>
+                    <TableHead>Group</TableHead>
                     <TableHead className="text-right">Error Count</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoading && Array.from({length: 5}).map((_, i) => <TableRow key={i}><TableCell colSpan={2}><Skeleton className="h-8 w-full" /></TableCell></TableRow>)}
-                  {!isLoading && groupData.map((item) => (
-                    <TableRow 
-                      key={item.key} 
-                      className="cursor-pointer" 
-                      onClick={() => onGroupSelect(String(item.key))}
-                    >
-                      <TableCell className="font-medium">{item.key}</TableCell>
-                      <TableCell className="text-right">{item.count}</TableCell>
+                  {isLoading ? renderGroupedSkeleton() : groupData && groupData.length > 0 ? (
+                    groupData.map((item) => (
+                      <GroupedRow key={item.key} item={item} level={0} allColumns={allColumns} />
+                    ))
+                  ) : (
+                    <TableRow>
+                        <TableCell colSpan={2} className="h-24 text-center">
+                            No groups found for the selected criteria.
+                        </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </div>

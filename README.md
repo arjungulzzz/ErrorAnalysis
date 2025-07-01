@@ -59,7 +59,7 @@ The `requestId` is a unique identifier generated for each request in the format 
 The `requestId`, `dateRange` (or `interval`), and `pagination` properties are always sent. All others are optional or have defaults.
 
 #### 1. Basic Request (First Page, Default Sort)
-This is the simplest request, fetching the first page of logs for the last 7 days.
+This is the simplest request, fetching the first page of logs for the last 7 days. `groupBy` is an empty array for a flat list of logs.
 
 ```json
 {
@@ -68,7 +68,7 @@ This is the simplest request, fetching the first page of logs for the last 7 day
   "pagination": { "page": 1, "pageSize": 100 },
   "sort": { "column": "log_date_time", "direction": "descending" },
   "filters": {},
-  "groupBy": "none",
+  "groupBy": [],
   "chartBreakdownBy": "host_name"
 }
 ```
@@ -86,46 +86,13 @@ Here, we're requesting a specific date range.
   "pagination": { "page": 1, "pageSize": 100 },
   "sort": { "column": "log_date_time", "direction": "descending" },
   "filters": {},
-  "groupBy": "none",
+  "groupBy": [],
   "chartBreakdownBy": "host_name"
 }
 ```
 
-#### 3. Request with Pagination and Sorting
-This request fetches the third page of results, sorted by `host_name` in ascending order.
-
-```json
-{
-  "requestId": "req_1700586120000_d5m6f7c3",
-  "interval": "1 day",
-  "pagination": { "page": 3, "pageSize": 100 },
-  "sort": { "column": "host_name", "direction": "ascending" },
-  "filters": {},
-  "groupBy": "none",
-  "chartBreakdownBy": "host_name"
-}
-```
-
-#### 4. Request with Column Filters
-This request adds filters to find logs from a specific host and for a specific error code.
-
-```json
-{
-  "requestId": "req_1700586180000_e6n7g8d4",
-  "interval": "1 day",
-  "pagination": { "page": 1, "pageSize": 100 },
-  "sort": { "column": "log_date_time", "direction": "descending" },
-  "filters": {
-    "host_name": "server-alpha",
-    "error_number": "500"
-  },
-  "groupBy": "none",
-  "chartBreakdownBy": "host_name"
-}
-```
-
-#### 5. Request for Grouped Data
-When a user selects a "Group By" option (e.g., "User"), the frontend makes a request with the `groupBy` parameter.
+#### 3. Request for Multi-Column Grouped Data
+When a user selects "Group By" options, the frontend sends a request with an array of column names in the `groupBy` parameter.
 
 ```json
 {
@@ -134,29 +101,14 @@ When a user selects a "Group By" option (e.g., "User"), the frontend makes a req
   "pagination": { "page": 1, "pageSize": 100 },
   "sort": { "column": "log_date_time", "direction": "descending" },
   "filters": {},
-  "groupBy": "user_id",
+  "groupBy": ["host_name", "error_number"],
   "chartBreakdownBy": "host_name"
-}
-```
-
-#### 6. Request with a Different Chart Breakdown
-The `chartBreakdownBy` parameter can be changed by the user to get different insights in the chart's tooltip.
-
-```json
-{
-  "requestId": "req_1700586300000_g8p9i0f6",
-  "interval": "1 day",
-  "pagination": { "page": 1, "pageSize": 100 },
-  "sort": { "column": "log_date_time", "direction": "descending" },
-  "filters": {},
-  "groupBy": "none",
-  "chartBreakdownBy": "repository_path"
 }
 ```
 
 ### Expected Response Structure
 
-The API must always return a JSON object with the following structure. If a request is for grouped data (`groupBy` is not `'none'`), the `logs` array can be empty, but `groupData` must be populated.
+The API must always return a JSON object with the following structure. If a request is for grouped data (`groupBy` is not an empty array), the `logs` array can be empty, but `groupData` must be populated with a nested structure.
 
 ```json
 {
@@ -192,11 +144,24 @@ The API must always return a JSON object with the following structure. If a requ
   "groupData": [
     {
       "key": "server-alpha-01",
-      "count": 1500
+      "count": 1500,
+      "subgroups": [
+        {
+          "key": "500",
+          "count": 800,
+          "subgroups": []
+        },
+        {
+          "key": "404",
+          "count": 700,
+          "subgroups": []
+        }
+      ]
     },
     {
       "key": "server-beta-02",
-      "count": 980
+      "count": 980,
+      "subgroups": []
     }
   ]
 }
@@ -208,5 +173,5 @@ The `log_date_time` and `as_start_date_time` fields should be in ISO 8601 format
 *   **Dynamic Data Fetching**: Retrieves error logs from a configurable backend service.
 *   **Time-Based Filtering**: Filter logs by preset time ranges (e.g., "Last 4 hours") or a custom date range.
 *   **Interactive Table**: Sort, filter, and view detailed log data.
-*   **Data Grouping**: Group logs by common attributes like Host, Repository, or Error Code.
+*   **Multi-Column Data Grouping**: Group logs by multiple attributes like Host, Repository, or Error Code in a nested view.
 *   **Error Trend Visualization**: A chart that displays the frequency of errors over time.

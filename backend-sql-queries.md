@@ -123,21 +123,65 @@ JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
 WHERE ... -- (Same WHERE clauses from Scenarios 1 & 2)
 ```
 
-**2. `groupData` Query:**
+**2. `groupData` Query (Multi-Column Grouping):**
 
-Groups by a specified field and returns the top groups. The `groupBy` column name must be whitelisted.
-
-**Example Request: `{ "groupBy": "host_name" }`**
+When `groupBy` is an array (e.g., `["host_name", "error_number"]`), the query becomes more complex. It needs to generate a hierarchical JSON structure. The following is a conceptual example using a recursive CTE in PostgreSQL. The exact implementation will depend on the number of group levels and database dialect.
 
 ```sql
-SELECT
-  asli.host_name as key,
-  COUNT(*) as count
-FROM as_log_info ali
-JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
-WHERE ... -- (Same WHERE clauses from Scenarios 1 & 2)
-GROUP BY key
-ORDER BY count DESC
+-- Example for: { "groupBy": ["host_name", "error_number"] }
+
+-- NOTE: This is a conceptual query. A production implementation would need to
+-- dynamically generate the CTEs based on the length and contents of the 'groupBy' array.
+-- All 'groupBy' column names MUST be validated against a whitelist to prevent SQL injection.
+
+WITH RECURSIVE
+  -- Define the hierarchy of grouping columns
+  grouping_levels (level, col_name) AS (
+    VALUES (1, 'host_name'), (2, 'error_number')
+  ),
+  -- Aggregate data at each level
+  grouped_data AS (
+    SELECT
+      g.level,
+      -- Create an array of group keys for the current path, e.g., [server-alpha, 500]
+      ARRAY_AGG(
+        CASE
+          WHEN g2.col_name = 'host_name' THEN asli.host_name
+          WHEN g2.col_name = 'error_number' THEN ali.error_number::text
+          -- Add other whitelisted columns here
+        END
+      ) OVER (PARTITION BY g.level ORDER BY
+        CASE WHEN g2.col_name = 'host_name' THEN asli.host_name END,
+        CASE WHEN g2.col_name = 'error_number' THEN ali.error_number::text END
+      ) as group_path,
+      COUNT(*) AS count
+    FROM as_log_info ali
+    JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
+    CROSS JOIN grouping_levels g
+    JOIN grouping_levels g2 ON g2.level <= g.level
+    WHERE ... -- (Apply same time and column filters)
+    GROUP BY g.level, group_path
+  ),
+  -- Build the JSON hierarchy
+  json_hierarchy AS (
+    SELECT
+      level,
+      group_path[level] as key,
+      (SELECT array_to_json(group_path[1:level-1])) as parent_path,
+      count,
+      (
+        SELECT jsonb_agg(sub)
+        FROM (
+          SELECT s.group_path[s.level] as key, s.count, s.subgroups
+          FROM json_hierarchy s
+          WHERE s.level = h.level + 1 AND s.group_path[1:h.level] = h.group_path
+        ) sub
+      ) as subgroups
+    FROM grouped_data h
+  )
+SELECT key, count, subgroups
+FROM json_hierarchy
+WHERE level = 1; -- Select only the top-level groups
 ```
 
 **3. `chartData` Query:**
@@ -169,4 +213,3 @@ FROM TimeBuckets
 GROUP BY date
 ORDER BY date;
 ```
-The `jsonb_object_agg` function is highly efficient for building the breakdown object directly in the database.

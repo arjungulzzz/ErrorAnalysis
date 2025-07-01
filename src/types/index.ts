@@ -65,14 +65,16 @@ export type ColumnFilters = Partial<Record<keyof ErrorLog, string>>;
 /**
  * Defines the available options for grouping logs in the table.
  */
-export type GroupByOption = 'none' | 'host_name' | 'repository_path' | 'error_number' | 'user_id' | 'version_number';
+export type GroupByOption = 'host_name' | 'repository_path' | 'error_number' | 'user_id' | 'version_number';
 
 /**
  * Represents a single data point in a grouped data summary.
+ * Can be nested to support multi-level grouping.
  */
 export type GroupDataPoint = {
   key: string;
   count: number;
+  subgroups?: GroupDataPoint[];
 };
 
 /**
@@ -101,6 +103,6 @@ export type LogsApiRequest = {
   pagination: { page: number; pageSize: number };
   sort: SortDescriptor;
   filters: ColumnFilters;
-  groupBy: GroupByOption;
+  groupBy: GroupByOption[];
   chartBreakdownBy: ChartBreakdownByOption;
 };

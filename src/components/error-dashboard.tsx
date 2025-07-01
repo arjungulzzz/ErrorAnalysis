@@ -10,7 +10,6 @@
 import { useState, useEffect, useCallback, useTransition } from "react";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorTable } from "@/components/error-table";
 import { type DateRange } from "react-day-picker";
 import { format, subDays, subMonths, addMonths, subHours } from "date-fns";
@@ -31,7 +30,7 @@ interface DashboardViewState {
   dateRange?: DateRange;
   timePreset: string;
   sort: SortDescriptor;
-  groupBy: GroupByOption;
+  groupBy: GroupByOption[];
   columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
   chartBreakdownBy: ChartBreakdownByOption;
   columnWidths: Record<keyof ErrorLog, number>;
@@ -82,7 +81,7 @@ export default function ErrorDashboard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [timePreset, setTimePreset] = useState<string>('none');
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
-  const [groupBy, setGroupBy] = useState<GroupByOption>('none');
+  const [groupBy, setGroupBy] = useState<GroupByOption[]>([]);
   const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
     log_date_time: true,
     host_name: true,
@@ -136,7 +135,7 @@ export default function ErrorDashboard() {
               }
               if (savedState.timePreset) setTimePreset(savedState.timePreset);
               if (savedState.sort) setSort(savedState.sort);
-              if (savedState.groupBy) setGroupBy(savedState.groupBy);
+              if (savedState.groupBy && Array.isArray(savedState.groupBy)) setGroupBy(savedState.groupBy);
               if (savedState.columnVisibility) setColumnVisibility(savedState.columnVisibility);
               if (savedState.chartBreakdownBy) setChartBreakdownBy(savedState.chartBreakdownBy);
               
@@ -286,13 +285,6 @@ export default function ErrorDashboard() {
     }
   }, [fetchData, isClient]);
 
-  const handleGroupSelect = (groupKey: string) => {
-    if (groupBy !== 'none') {
-        setColumnFilters(prev => ({ ...prev, [groupBy]: groupKey }));
-        setGroupBy('none');
-    }
-  };
-  
   const handlePresetSelect = (value: string) => {
     setTimePreset(value);
     
@@ -334,21 +326,52 @@ export default function ErrorDashboard() {
   
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
 
-  const groupableColumnIds = new Set(groupableColumns.map(col => col.id));
   const availableGroupByOptions = allColumns.filter(
-    (col) => groupableColumnIds.has(col.id as GroupByOption) && columnVisibility[col.id]
+    (col) => groupableColumns.some(g => g.id === col.id) && columnVisibility[col.id]
   );
+  
+  const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
+    if (!value && groupBy.includes(columnId)) {
+        setGroupBy(prev => prev.filter(g => g !== columnId));
+    }
+    setColumnVisibility(prev => ({
+        ...prev,
+        [columnId]: !!value,
+    }));
+  };
+
+  const handleDeselectAll = () => {
+    setColumnVisibility(
+      Object.fromEntries(allColumns.map(col => [col.id, false]))
+    );
+    setGroupBy([]);
+  };
 
   return (
     <div className="space-y-6">
        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
-            <svg viewBox="0 0 190 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" fill="currentColor">
-              <path d="M95 0C42.533 0 0 42.533 0 95s42.533 95 95 95 95-42.533 95-95S147.467 0 95 0Zm0 180c-46.869 0-85-38.131-85-85S48.131 10 95 10s85 38.131 85 85-38.131 85-85 85Z" />
-              <path d="M95 47.5c-26.196 0-47.5 21.304-47.5 47.5s21.304 47.5 47.5 47.5 47.5-21.304 47.5-47.5-21.304-47.5-47.5-47.5Zm0 85c-20.691 0-37.5-16.809-37.5-37.5s16.809-37.5 37.5-37.5 37.5 16.809 37.5 37.5-16.809 37.5-37.5 37.5Z" />
-              <path d="M123.5 95a28.5 28.5 0 0 1-28.5 28.5A28.5 28.5 0 0 1 66.5 95a28.5 28.5 0 0 1 28.5-28.5A28.5 28.5 0 0 1 123.5 95Z" />
-            </svg>
+             <svg viewBox='0 0 190 200' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' fill='currentColor'>
+                <defs>
+                  <linearGradient id='logo-gradient-header' x1='0%' y1='0%' x2='100%' y2='0%'>
+                    <stop offset='0%' stop-color='hsl(var(--accent))' />
+                    <stop offset='100%' stop-color='hsl(var(--primary))' />
+                  </linearGradient>
+                  <mask id='logo-mask-header'>
+                    <g stroke='white' stroke-width='10' fill='none'>
+                      <ellipse cx='45' cy='100' rx='40' ry='95' />
+                      <ellipse cx='60' cy='100' rx='40' ry='95' />
+                      <ellipse cx='75' cy='100' rx='40' ry='95' />
+                      <ellipse cx='90' cy='100' rx='40' ry='95' />
+                      <ellipse cx='105' cy='100' rx='40' ry='95' />
+                      <ellipse cx='120' cy='100' rx='40' ry='95' />
+                      <ellipse cx='135' cy='100' rx='40' ry='95' />
+                    </g>
+                  </mask>
+                </defs>
+                <rect x='0' y='0' width='190' height='200' fill='url(#logo-gradient-header)' mask='url(#logo-mask-header)' />
+              </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
         </div>
@@ -459,19 +482,34 @@ export default function ErrorDashboard() {
 
                 <div className="grid w-full items-center gap-1.5">
                     <Label htmlFor="group-by-trigger">Group By</Label>
-                    <Select onValueChange={(value) => setGroupBy(value as GroupByOption)} value={groupBy} disabled={isPending}>
-                        <SelectTrigger className="w-full" id="group-by-trigger">
-                            <SelectValue placeholder="Group by..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            {availableGroupByOptions.map((option) => (
-                                <SelectItem key={option.id} value={option.id}>
-                                    {option.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between" disabled={isPending} id="group-by-trigger">
+                          <span>Group By {groupBy.length > 0 && `(${groupBy.length})`}</span>
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuLabel>Group by columns</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {availableGroupByOptions.map((option) => (
+                              <DropdownMenuCheckboxItem
+                                  key={option.id}
+                                  checked={groupBy.includes(option.id)}
+                                  onCheckedChange={(checked) => {
+                                      setGroupBy(current =>
+                                          checked
+                                              ? [...current, option.id]
+                                              : current.filter(item => item !== option.id)
+                                      );
+                                  }}
+                                  onSelect={(e) => e.preventDefault()}
+                              >
+                                  {option.name}
+                              </DropdownMenuCheckboxItem>
+                          ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
                 
                 <div className="grid w-full items-center gap-1.5">
@@ -491,12 +529,7 @@ export default function ErrorDashboard() {
                             )}>
                               Select All
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => {
-                              setColumnVisibility(
-                                Object.fromEntries(allColumns.map(col => [col.id, false]))
-                              );
-                              setGroupBy('none');
-                            }}>
+                            <DropdownMenuItem onSelect={handleDeselectAll}>
                               Deselect All
                             </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -505,15 +538,7 @@ export default function ErrorDashboard() {
                                   key={column.id}
                                   className="capitalize"
                                   checked={columnVisibility[column.id] ?? false}
-                                  onCheckedChange={(value) => {
-                                      if (!value && groupBy === column.id) {
-                                          setGroupBy('none');
-                                      }
-                                      setColumnVisibility((prev) => ({
-                                          ...prev,
-                                          [column.id]: !!value,
-                                      }));
-                                  }}
+                                  onCheckedChange={(value) => handleVisibilityChange(column.id, !!value)}
                                   onSelect={(e) => e.preventDefault()}
                               >
                                   {column.name}
@@ -523,45 +548,82 @@ export default function ErrorDashboard() {
                   </DropdownMenu>
                 </div>
             </div>
-            {activeFilters.length > 0 && (
-                <div className="pt-4 border-t border-dashed">
-                    <div className="flex items-center gap-2 mb-2">
-                        <h4 className="text-sm font-medium">Active Filters</h4>
-                        <Button 
-                            variant="link" 
-                            className="h-auto p-0 text-sm"
-                            onClick={() => setColumnFilters({})}
-                            disabled={isPending}
-                        >
-                            Clear all
-                        </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {activeFilters.map(([key, value]) => {
-                            const column = allColumns.find(c => c.id === key);
-                            if (!column) return null;
+            {(activeFilters.length > 0 || groupBy.length > 0) && (
+                <div className="pt-4 border-t border-dashed space-y-4">
+                    {activeFilters.length > 0 && (
+                        <div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <h4 className="text-sm font-medium">Active Filters</h4>
+                                <Button 
+                                    variant="link" 
+                                    className="h-auto p-0 text-sm"
+                                    onClick={() => setColumnFilters({})}
+                                    disabled={isPending}
+                                >
+                                    Clear all
+                                </Button>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {activeFilters.map(([key, value]) => {
+                                    const column = allColumns.find(c => c.id === key);
+                                    if (!column) return null;
 
-                            return (
-                                <Badge key={key} variant="secondary" className="pl-2 pr-1 py-1 text-sm font-normal">
-                                    <span className="font-semibold mr-1">{column.name}:</span>
-                                    <span className="mr-1 truncate max-w-xs">{String(value)}</span>
-                                    <button 
-                                        className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20 disabled:opacity-50"
-                                        onClick={() => {
-                                            setColumnFilters(prev => ({
-                                                ...prev,
-                                                [key]: ''
-                                            }));
-                                        }}
-                                        disabled={isPending}
+                                    return (
+                                        <Badge key={key} variant="secondary" className="pl-2 pr-1 py-1 text-sm font-normal">
+                                            <span className="font-semibold mr-1">{column.name}:</span>
+                                            <span className="mr-1 truncate max-w-xs">{String(value)}</span>
+                                            <button 
+                                                className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20 disabled:opacity-50"
+                                                onClick={() => {
+                                                    setColumnFilters(prev => ({
+                                                        ...prev,
+                                                        [key]: ''
+                                                    }));
+                                                }}
+                                                disabled={isPending}
+                                            >
+                                                <span className="sr-only">Remove {column.name} filter</span>
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    {groupBy.length > 0 && (
+                        <div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <h4 className="text-sm font-medium">Grouping Order</h4>
+                                <Button 
+                                    variant="link" 
+                                    className="h-auto p-0 text-sm"
+                                    onClick={() => setGroupBy([])}
+                                    disabled={isPending}
+                                >
+                                    Clear grouping
+                                </Button>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {groupBy.map((groupKey) => {
+                                const column = allColumns.find(c => c.id === groupKey);
+                                return (
+                                  <Badge key={groupKey} variant="secondary" className="pl-2 pr-1 py-1 text-sm font-normal">
+                                    <span className="mr-1 truncate max-w-xs">{column?.name || groupKey}</span>
+                                    <button
+                                      className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20 disabled:opacity-50"
+                                      onClick={() => setGroupBy(current => current.filter(item => item !== groupKey))}
+                                      disabled={isPending}
                                     >
-                                        <span className="sr-only">Remove {column.name} filter</span>
-                                        <X className="h-3 w-3" />
+                                      <span className="sr-only">Remove {column?.name} grouping</span>
+                                      <X className="h-3 w-3" />
                                     </button>
-                                </Badge>
-                            );
-                        })}
-                    </div>
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </CardContent>
@@ -578,7 +640,6 @@ export default function ErrorDashboard() {
         setPage={setPage}
         groupBy={groupBy}
         groupData={groupData}
-        onGroupSelect={handleGroupSelect}
         columnFilters={columnFilters}
         setColumnFilters={setColumnFilters}
         columnVisibility={columnVisibility}
