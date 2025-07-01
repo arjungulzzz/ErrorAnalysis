@@ -60,7 +60,7 @@ export default function ErrorDashboard() {
   const [pageSize] = useState(100);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [timePreset, setTimePreset] = useState<string>('7 days');
+  const [timePreset, setTimePreset] = useState<string>('none');
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption>('none');
   const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
@@ -96,6 +96,7 @@ export default function ErrorDashboard() {
     const fromDate = subDays(now, 7);
     
     setIsClient(true);
+    setTimePreset('7 days');
     setDateRange({ from: fromDate, to: now });
   }, []);
 
@@ -286,13 +287,13 @@ export default function ErrorDashboard() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-card border">
+       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
-          <p className="text-muted-foreground">An interface for analyzing application error logs.</p>
+          <p className="text-primary-foreground/80">An interface for analyzing application error logs.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={handleRefresh} disabled={isPending || timePreset === 'none'} variant="outline">
+          <Button onClick={handleRefresh} disabled={isPending || timePreset === 'none'} variant="outline" className="bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground">
             <RotateCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
@@ -328,7 +329,7 @@ export default function ErrorDashboard() {
                                     <span>Pick a date</span>
                                 )
                             ) : (
-                                TIME_PRESETS.find(p => p.value === timePreset)?.label
+                                TIME_PRESETS.find(p => p.value === timePreset)?.label || 'Select time range...'
                             )}
                         </Button>
                     </PopoverTrigger>
