@@ -14,28 +14,28 @@ const repos = ['/apps/main-service', '/apps/auth-service', '/apps/payment-gatewa
 const versions = ['1.2.3', '1.2.4', '2.0.0-beta', '2.0.1'];
 const users = ['user-101', 'user-203', 'system-internal', 'api-key-xyz', 'guest'];
 const reportNames = [
-  'daily_summary_report_for_all_active_users', 
-  'user_activity_detailed_breakdown_report_q3_final',
-  'monthly_payment_failure_analysis_and_trends_report',
-  'system_health_and_performance_overview_report',
-  'daily_summary', 
-  'user_activity_report', 
-  'payment_failures', 
-  'system_health_check', 
+  'daily_summary',
+  'user_activity_report',
+  'payment_failures',
+  'system_health_check',
+  'this_is_an_extremely_long_report_name_that_is_designed_to_test_the_truncation_and_tooltip_functionality_of_the_data_table_interface_to_ensure_a_clean_and_user_friendly_experience_across_all_columns_and_data_types',
+  'short_report',
+  'another_very_long_report_name_for_the_purpose_of_testing_ui_behavior_with_long_strings_and_ensuring_that_the_elipsis_and_tooltips_work_correctly',
   ''
 ];
-const errorNumbers = [500, 404, 401, 503, 1201, 1337, 429];
 const logMessages = [
-  'Failed to connect to database: timeout expired while waiting for connection pool.',
-  'Null pointer exception at user processing module during the final stage of the user data aggregation pipeline.',
-  'API rate limit exceeded for user. The user has made too many requests in a short period of time. Please advise them to back off.',
-  'Authentication token is invalid or has expired. User needs to re-authenticate to get a new session token.',
-  'Disk space is critically low on the primary data partition. Automated cleanup failed to run. Manual intervention is required immediately.',
-  'Could not resolve external service DNS. The DNS server may be down or there is a network configuration issue preventing resolution.',
-  'Request failed with status code 503: Service Unavailable. The upstream service is currently not responding to requests.',
-  'Unable to acquire lock for resource: payment-processing. The resource is currently locked by another process and the timeout was exceeded.',
+  'Failed to connect to database: timeout expired.',
+  'Null pointer exception at user processing module.',
+  'API rate limit exceeded for user.',
+  'Authentication token is invalid or has expired.',
+  'Disk space is critically low on the primary data partition.',
+  'This is an exceptionally long and detailed log message created specifically for testing purposes. It needs to be long enough to ensure that the truncation logic in the UI is triggered correctly and that the expandable row feature functions as expected, showing the full content without breaking the layout. The message details a hypothetical critical failure scenario involving multiple subsystems, such as: [Subsystem: Authentication, Error: TokenValidationFailure, Timestamp: 2023-11-21T10:30:00Z], [Subsystem: DatabaseConnector, Error: ConnectionPoolExhausted, Details: All connections are in use and the timeout of 30s was reached while waiting for a free connection], [Subsystem: CachingLayer, Error: RedisCacheMiss, Key: \'user:session:xyz123\']. This comprehensive message simulates real-world verbosity.',
+  'Request failed with status code 503: Service Unavailable.',
+  'Here is another very long log message designed to stretch the boundaries of the UI components. It contains a lot of technical jargon and error codes like "0xDEADBEEF" and "ERR_CONNECTION_RESET" to simulate a real-world debugging scenario. We need to verify that line breaks, special characters, and long uninterrupted strings are all handled gracefully by the expandable details view and that the copy-to-clipboard functionality works seamlessly with this complex content. The goal is to create a robust and resilient user interface that never fails, no matter how chaotic the input data gets. This includes handling paths like C:\\Users\\Default\\AppData\\Local\\Temp and URLs like https://example.com/this/is/a/very/long/url/that/should/also/be/handled/correctly.',
   '',
 ];
+const errorNumbers = [500, 404, 401, 503, 1201, 1337, 429];
+
 
 const generateMockLog = (id: number): ErrorLog => {
   const logDateTime = randomDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date()); // last 30 days
