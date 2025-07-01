@@ -40,7 +40,7 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_message', name: 'Message' },
 ];
 
-const nonGroupableColumns: Array<keyof ErrorLog> = ['log_date_time', 'as_start_date_time', 'log_message'];
+const nonGroupableColumns: Array<keyof ErrorLog> = ['log_date_time', 'as_start_date_time'];
 
 export default function ErrorDashboard() {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
@@ -105,13 +105,16 @@ export default function ErrorDashboard() {
 
       const requestBody: LogsApiRequest = {
         requestId,
-        dateRange,
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
         groupBy,
         chartBreakdownBy,
       };
+
+      if (dateRange) {
+        requestBody.dateRange = dateRange;
+      }
 
       try {
         const response = await fetch(apiUrl, {
