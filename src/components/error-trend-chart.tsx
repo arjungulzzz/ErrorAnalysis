@@ -31,8 +31,6 @@ const breakdownOptions: { value: ChartBreakdownByOption; label: string }[] = [
   { value: 'host_name', label: 'Host' },
   { value: 'error_number', label: 'Error Code' },
   { value: 'user_id', label: 'User' },
-  { value: 'version_number', label: 'Version' },
-  { value: 'repository_path', label: 'Repository' },
 ];
 
 const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
