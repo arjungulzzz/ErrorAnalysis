@@ -122,11 +122,14 @@ export function processLogsRequest(request: LogsApiRequest): LogsApiResponse {
 function convertGroupDataToApi(groupData: GroupDataPoint[]): ApiGroupDataPoint[] {
     return groupData.map(group => ({
         ...group,
-        logs: group.logs ? group.logs.map(log => ({
-            ...log,
-            log_date_time: log.log_date_time.toISOString(),
-            as_start_date_time: log.as_start_date_time.toISOString(),
-        })) : undefined,
+        logs: group.logs ? group.logs.map(log => {
+            const { id, ...apiLog } = log;
+            return {
+                ...apiLog,
+                log_date_time: apiLog.log_date_time.toISOString(),
+                as_start_date_time: apiLog.as_start_date_time.toISOString(),
+            }
+        }) : undefined,
         subgroups: group.subgroups ? convertGroupDataToApi(group.subgroups) : undefined
     }));
 }
@@ -167,7 +170,7 @@ function generateGroupData(logs: ErrorLog[], groupBy: GroupByOption[]): GroupDat
         count: groupLogs.length,
         subgroups: recursiveGroup(groupLogs, remainingLevels),
         // Add the actual logs if this is the last grouping level
-        logs: remainingLevels.length === 0 ? groupLogs : undefined,
+        logs: remainingLevels.length === 0 ? groupLogs : [],
       });
     }
 
