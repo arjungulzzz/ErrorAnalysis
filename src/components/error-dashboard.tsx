@@ -192,7 +192,7 @@ export default function ErrorDashboard() {
       const requestBody: LogsApiRequest = {
         requestId,
         interval: timePreset !== 'custom' ? timePreset : null,
-        dateRange: dateRange, // Always send the dateRange object to the mock service
+        dateRange: timePreset === 'custom' ? dateRange : undefined,
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
@@ -361,7 +361,7 @@ export default function ErrorDashboard() {
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
   
   const availableGroupByOptions = allColumns.filter(
-    (col) => !nonGroupableColumns.includes(col.id) && columnVisibility[col.id]
+    (col) => !nonGroupableColumns.includes(col.id)
   );
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
