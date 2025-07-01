@@ -153,21 +153,36 @@ export function ErrorTable({
   }, [resizingColumn, handleResize, handleResizeEnd]);
 
   const handleCopy = (textToCopy: string, fieldName: string) => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        toast({
-          title: "Copied to clipboard",
-          description: `The ${fieldName} has been copied.`,
-        });
-      }).catch(err => {
-        console.error('Failed to copy text: ', err);
-        toast({
-          variant: "destructive",
-          title: "Copy Failed",
-          description: "Could not copy the message to your clipboard.",
-        });
+    if (!navigator.clipboard) {
+      toast({
+        variant: "destructive",
+        title: "Copy Not Supported",
+        description: "Could not copy text in your current browser.",
       });
+      return;
     }
+    
+    if (!textToCopy || textToCopy === '—') {
+      toast({
+        title: "Nothing to copy",
+        description: `The ${fieldName} field is empty.`,
+      });
+      return;
+    }
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      toast({
+        title: "Copied to clipboard",
+        description: `The ${fieldName} has been copied.`,
+      });
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+      toast({
+        variant: "destructive",
+        title: "Copy Failed",
+        description: "Could not copy the message to your clipboard.",
+      });
+    });
   };
 
   const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog) => {
@@ -213,8 +228,7 @@ export function ErrorTable({
             return String(value);
         case 'repository_path': {
             const path = String(value);
-            const lastSlashIndex = path.lastIndexOf('/');
-            return lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
+            return path;
         }
         default:
             return String(value);
@@ -276,7 +290,7 @@ export function ErrorTable({
           <CardDescription>
             Showing top {groupData.length} groups. Click a row to filter logs.
           </CardDescription>
-        </CardHeader>
+        </Header>
         <CardContent>
             <div className="rounded-md border">
               <Table>
@@ -292,7 +306,7 @@ export function ErrorTable({
                     <TableRow 
                       key={item.key} 
                       className="cursor-pointer" 
-                      onClick={() => onGroupSelect(item.key)}
+                      onClick={() => onGroupSelect(String(item.key))}
                     >
                       <TableCell className="font-medium">{item.key}</TableCell>
                       <TableCell className="text-right">{item.count}</TableCell>
@@ -375,6 +389,7 @@ export function ErrorTable({
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
                                 {allColumns.map(col => {
                                   const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
+                                  const detailValue = renderExpandedDetail(log, col.id);
                                   return (
                                     <div 
                                       key={col.id}
@@ -386,7 +401,7 @@ export function ErrorTable({
                                       <dt className="font-medium text-muted-foreground">{col.name}</dt>
                                       <dd className="flex items-start justify-between gap-2 font-mono">
                                         <span className="whitespace-pre-wrap break-all pt-1">
-                                          {renderExpandedDetail(log, col.id)}
+                                          {detailValue}
                                         </span>
                                         {isCopyable && (
                                            <Tooltip>
@@ -397,7 +412,7 @@ export function ErrorTable({
                                                   className="h-7 w-7 shrink-0"
                                                   onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleCopy(renderExpandedDetail(log, col.id), col.name);
+                                                    handleCopy(detailValue, col.name);
                                                   }}
                                                 >
                                                   <Copy className="h-4 w-4" />
