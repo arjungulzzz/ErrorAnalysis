@@ -31,7 +31,11 @@ JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
 
 ---
 
-### Scenario 1: Applying Time Filters
+### Filtering and Sorting
+
+These clauses should be applied to all queries to ensure the data is consistent across all parts of the API response (logs, counts, charts, etc.).
+
+#### 1. Applying Time Filters
 
 Add a `WHERE` clause based on the `interval` or `dateRange` provided in the request body.
 
@@ -54,9 +58,7 @@ WHERE ali.log_date_time BETWEEN $1 AND $2
 -- Parameter $2 would be: the 'to' date (ISO 8601 string)
 ```
 
----
-
-### Scenario 2: Applying Column Filters
+#### 2. Applying Column Filters
 
 Append `AND` conditions by iterating through the `filters` object from the request.
 
@@ -72,9 +74,7 @@ AND ali.error_number = CAST($4 AS INTEGER)
 -- Parameter $4 would be: '500'
 ```
 
----
-
-### Scenario 3: Applying Sorting
+#### 3. Applying Sorting
 
 Dynamically construct the `ORDER BY` clause. **Security is critical**: you must validate the `column` name against a whitelist of allowed columns.
 
@@ -87,55 +87,64 @@ ORDER BY asli.host_name ASC
 -- If direction is "descending":
 ORDER BY asli.host_name DESC
 ```
-
 If no sort is specified, a sensible default is `ORDER BY ali.log_date_time DESC`.
 
 ---
 
-### Scenario 4: Applying Pagination (for Flat Lists)
+### Data Fetching Modes
 
-Use `LIMIT` and `OFFSET` to fetch the correct page of data.
+The API has two primary modes, determined by the `groupBy` parameter in the request.
 
-**IMPORTANT**: Pagination should **only** be applied when fetching a flat list of logs (i.e., when the `groupBy` array in the request body is empty). Aggregation queries for `totalCount` and `groupData` should **not** be paginated.
+#### Case A: Fetching a List of Logs (`groupBy: []`)
 
-**Example Request: `{ "pagination": { "page": 3, "pageSize": 100 } }`**
+When `groupBy` is an empty array, the API should return a paginated list of individual logs. To do this efficiently, the backend should retrieve both the logs and the total count in a single query using a window function. This avoids a second database round trip for a separate `COUNT(*)` query.
+
+**IMPORTANT**: Pagination (`LIMIT` and `OFFSET`) must be applied in this mode.
+
+**Example Combined Query (PostgreSQL):**
 
 ```sql
--- Appended at the very end of the query for a FLAT LIST of logs:
-LIMIT $5 OFFSET $6
-
--- Parameter $5 (LIMIT) would be: 100
--- Parameter $6 (OFFSET) would be: 200 (calculated as (page - 1) * pageSize)
+SELECT
+  ali.log_date_time,
+  asli.host_name,
+  -- ... other columns
+  ali.log_message,
+  COUNT(*) OVER() AS total_count -- This calculates the total count before LIMIT is applied
+FROM as_log_info ali
+JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
+WHERE
+  -- Apply time and column filters here
+ORDER BY
+  -- Apply sorting here
+LIMIT $5 -- pageSize
+OFFSET $6; -- (page - 1) * pageSize
 ```
+Your backend code would then read the `total_count` from the first row of the result set and use the full result set for the `logs` array in the API response. The `totalCount` field in the response should be populated with this value.
 
----
+#### Case B: Fetching Aggregated Data (`groupBy: ["column", ...]`)
 
-### Aggregation Queries
+When the `groupBy` array is not empty, the API should return an aggregated summary.
 
-These queries run separately to calculate `totalCount`, `groupData`, and `chartData`. They must use the **same `WHERE` clauses** from scenarios 1 and 2 to ensure the aggregations match the filtered dataset. **Crucially, they must not be paginated.**
+**IMPORTANT**: Pagination (`LIMIT` and `OFFSET`) must be **ignored** for these aggregation queries. They must run against the entire filtered dataset.
+
+The response should contain three main pieces of data, which can be generated with separate queries: `totalCount`, `groupData`, and `chartData`.
 
 **1. `totalCount` Query:**
 
-Calculates the total number of matching records before pagination.
+Calculates the total number of matching records before any grouping is applied.
 
 ```sql
 SELECT COUNT(*)
 FROM as_log_info ali
 JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
-WHERE ... -- (Same WHERE clauses from Scenarios 1 & 2)
+WHERE ... -- (Apply same time and column filters)
 ```
 
 **2. `groupData` Query (Multi-Column Grouping):**
 
-When the `groupBy` array in the request contains one or more column names (e.g., `["host_name", "error_number"]`), the backend must generate a nested JSON structure. The order of columns in the array determines the hierarchy.
-
-**CRITICAL**: This query must **not** be paginated with `LIMIT` or `OFFSET`. It must aggregate over the entire filtered result set to provide a complete summary. The resulting nested objects should not contain the individual logs, as they will be fetched on demand.
-
 A common approach is to fetch the aggregated data and then build the hierarchy in your application code, as this is often more straightforward than building complex JSON directly in SQL.
 
 **Step 1: Fetch Flattened Aggregated Data**
-
-First, run a query that groups by all requested columns and gets the count for each unique combination.
 
 ```sql
 -- Example for: { "groupBy": ["host_name", "error_number"] }
@@ -157,46 +166,14 @@ ORDER BY
 
 **Step 2: Build the Nested Structure in Application Code**
 
-In your backend service (e.g., in Node.js, Python, Go), process the flattened results from Step 1 into the required nested JSON format.
-
-**Expected `groupData` structure:**
-
-The final structure must be an array of objects, where each object has a `key`, `count`, and `subgroups`. For data consistency, `subgroups` must always be an array, even if empty. The `logs` property should not be included.
-
-```json
-// Example response for groupBy: ["host_name", "error_number"]
-[
-  {
-    "key": "server-alpha-01",
-    "count": 1500,
-    "subgroups": [
-      {
-        "key": "500",
-        "count": 800,
-        "subgroups": []
-      },
-      {
-        "key": "404",
-        "count": 700,
-        "subgroups": []
-      }
-    ]
-  },
-  {
-    "key": "server-beta-02",
-    "count": 980,
-    "subgroups": [ /* ... */ ]
-  }
-]
-```
+In your backend service (e.g., in Node.js, Python, Go), process the flattened results from Step 1 into the required nested JSON format. The final structure must be an array of objects, where each object has a `key`, `count`, and `subgroups`. The `logs` property should not be included.
 
 **3. `chartData` Query:**
 
-Groups data into time buckets and creates a JSON object for the breakdown. This is the most complex query.
-
-**Example Request: `{ "chartBreakdownBy": "error_number" }` (assuming hourly buckets)**
+Groups data into time buckets and creates a JSON object for the breakdown.
 
 ```sql
+-- Example Request: { "chartBreakdownBy": "error_number" } (assuming hourly buckets)
 WITH TimeBuckets AS (
   SELECT
     -- Dynamically truncate based on the time range: 'day', 'hour', or '30 minute'
@@ -206,7 +183,7 @@ WITH TimeBuckets AS (
     COUNT(*) as error_count
   FROM as_log_info ali
   JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
-  WHERE ... -- (Same WHERE clauses from Scenarios 1 & 2)
+  WHERE ... -- (Same WHERE clauses from filters)
   GROUP BY 1, 2
 )
 SELECT

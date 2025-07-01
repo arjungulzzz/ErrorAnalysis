@@ -137,9 +137,38 @@ To do this, the request must:
 
 ### Expected Response Structure
 
-The API must always return a JSON object with the following structure.
+The API must always return a JSON object with the following structure. The contents of the `logs` and `groupData` fields depend on whether the `groupBy` parameter was provided in the request.
 
-#### `groupData` Structure (for Grouped Requests)
+#### Response for Log List Requests (`groupBy: []`)
+When `groupBy` is an empty array, the response should contain the paginated list of logs and the total count of all matching logs before pagination.
+
+- `logs`: An array of the paginated log objects.
+- `totalCount`: The total number of logs matching the query filters. This is crucial for the UI's pagination controls.
+- `groupData`: Must be an empty array `[]`.
+
+```json
+{
+  "logs": [
+    { "log_date_time": "2023-11-21T10:30:00.000Z", "host_name": "server-alpha-01", "repository_path": "/models/model_a.xql", ... },
+    { "log_date_time": "2023-11-21T10:28:00.000Z", "host_name": "server-beta-02", "repository_path": "/models/model_b.xql", ... }
+  ],
+  "totalCount": 5432,
+  "chartData": [
+    {
+      "date": "2023-11-21T10:00:00.000Z",
+      "count": 50,
+      "formattedDate": "Nov 21",
+      "breakdown": {
+        "server-alpha-01": 25,
+        "server-beta-02": 25
+      }
+    }
+  ],
+  "groupData": []
+}
+```
+
+#### Response for Grouped Requests (`groupBy: ["host_name", ...]`)
 The `groupData` array contains a nested structure when `groupBy` is used. Each object contains a `key`, `count`, and a `subgroups` array for the next level of grouping.
 - The `logs` property should **not** be included. It will be fetched on demand.
 - For data consistency, `subgroups` should always be returned as an array, even if empty.
