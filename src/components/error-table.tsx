@@ -28,7 +28,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTablePagination } from "./data-table-pagination";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface ErrorTableProps {
@@ -96,14 +95,13 @@ export function ErrorTable({
   setColumnFilters,
   columnVisibility,
 }: ErrorTableProps) {
-    
+  const [expandedRowId, setExpandedRowId] = React.useState<string | null>(null);
   const visibleColumns = React.useMemo(() => columnConfig.filter(c => columnVisibility[c.id]), [columnVisibility]);
   const visibleColumnCount = visibleColumns.length;
 
   const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog) => {
     const value = log[columnId];
     
-    // Handle null, undefined, or empty string values consistently
     if (value === null || value === undefined || value === '') {
         return <span className="text-muted-foreground">—</span>;
     }
@@ -112,20 +110,13 @@ export function ErrorTable({
         case 'log_date_time':
         case 'as_start_date_time':
             if (value instanceof Date) {
-              // Format Date object to 'YYYY-MM-DD HH:MM:SS' in UTC
               return value.toISOString().slice(0, 19).replace('T', ' ');
             }
-            return String(value); // Fallback for string dates
+            return String(value);
         case 'repository_path':
             const path = String(value);
             const lastSlashIndex = path.lastIndexOf('/');
-            const modelName = lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
-            return (
-              <Tooltip>
-                <TooltipTrigger asChild><span>{modelName}</span></TooltipTrigger>
-                <TooltipContent><p>{modelName}</p></TooltipContent>
-              </Tooltip>
-            );
+            return lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
         case 'error_number':
             return (
                 <Badge variant={(value as number) >= 500 ? "destructive" : "secondary"}>
@@ -133,17 +124,7 @@ export function ErrorTable({
                 </Badge>
             );
         default:
-            const stringValue = String(value);
-            return (
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span>{stringValue}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p className="max-w-md">{stringValue}</p>
-                    </TooltipContent>
-                </Tooltip>
-            );
+            return String(value);
     }
   }
 
@@ -243,47 +224,63 @@ export function ErrorTable({
       </CardHeader>
       <CardContent>
         <div className="rounded-md border">
-          <TooltipProvider>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {columnConfig.map(column => (
-                      columnVisibility[column.id] && (
-                        <DataTableColumnHeader 
-                          key={column.id}
-                          column={column.id} 
-                          title={column.name} 
-                          sortDescriptor={sortDescriptor} 
-                          setSortDescriptor={setSortDescriptor} 
-                          columnFilters={column.isFilterable ? columnFilters : undefined} 
-                          setColumnFilters={column.isFilterable ? setColumnFilters : undefined}
-                          isPending={isLoading}
-                        />
-                      )
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? renderSkeleton() : logs.length > 0 ? (
-                  logs.map((log) => (
-                    <TableRow key={log.id}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {columnConfig.map(column => (
+                    columnVisibility[column.id] && (
+                      <DataTableColumnHeader 
+                        key={column.id}
+                        column={column.id} 
+                        title={column.name} 
+                        sortDescriptor={sortDescriptor} 
+                        setSortDescriptor={setSortDescriptor} 
+                        columnFilters={column.isFilterable ? columnFilters : undefined} 
+                        setColumnFilters={column.isFilterable ? setColumnFilters : undefined}
+                        isPending={isLoading}
+                      />
+                    )
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? renderSkeleton() : logs.length > 0 ? (
+                logs.map((log) => (
+                  <React.Fragment key={log.id}>
+                    <TableRow
+                      data-state={expandedRowId === log.id && "selected"}
+                      className="cursor-pointer"
+                      onClick={() => setExpandedRowId(prev => (prev === log.id ? null : log.id))}
+                    >
                       {visibleColumns.map(column => (
                         <TableCell key={column.id} className={cn(column.cellClassName, "truncate")}>
                           {renderCellContent(log, column.id)}
                         </TableCell>
                       ))}
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={visibleColumnCount || 1} className="h-24 text-center">
-                      No results found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TooltipProvider>
+                    {expandedRowId === log.id && (
+                      <TableRow>
+                        <TableCell colSpan={visibleColumnCount}>
+                          <div className="p-2 bg-muted/50 rounded-md">
+                            <p className="text-sm font-semibold">Full Message:</p>
+                            <p className="text-xs font-mono whitespace-pre-wrap break-words">
+                              {log.log_message || <span className="text-muted-foreground">—</span>}
+                            </p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={visibleColumnCount || 1} className="h-24 text-center">
+                    No results found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
       </CardContent>
       <CardFooter>
