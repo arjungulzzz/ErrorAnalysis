@@ -24,6 +24,8 @@ import { cn } from "@/lib/utils";
 import { ErrorTrendChart } from "./error-trend-chart";
 import * as pako from "pako";
 import { useToast } from "@/hooks/use-toast";
+import { MOCK_LOGS } from "@/lib/mock-data";
+import { Switch } from "@/components/ui/switch";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -60,7 +62,7 @@ export default function ErrorDashboard() {
   const [pageSize] = useState(100);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [timePreset, setTimePreset] = useState<string>('none');
+  const [timePreset, setTimePreset] = useState<string>('7 days');
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption>('none');
   const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
@@ -84,15 +86,13 @@ export default function ErrorDashboard() {
   
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const { toast } = useToast();
-  const [renderStartTime, setRenderStartTime] = useState<number | null>(null);
+  
+  const [messageDisplayMode, setMessageDisplayMode] = useState<'truncate' | 'expand'>('expand');
 
+  const [isClient, setIsClient] = useState(false);
   useEffect(() => {
-    if (renderStartTime) {
-      const renderEndTime = performance.now();
-      console.log(`UI render took: ${(renderEndTime - renderStartTime).toFixed(2)}ms`);
-      setRenderStartTime(null);
-    }
-  }, [logs, renderStartTime]);
+    setIsClient(true);
+  }, []);
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
@@ -104,99 +104,76 @@ export default function ErrorDashboard() {
         return;
       }
 
-      const externalApiUrl = process.env.NEXT_PUBLIC_API_URL;
-      
-      if (!externalApiUrl) {
-        console.error("API URL not configured. Set NEXT_PUBLIC_API_URL in .env");
-        toast({
-          variant: "destructive",
-          title: "Configuration Error",
-          description: "The application's API endpoint is not set.",
-        });
-        return;
+      // --- START TEMPORARY MOCK DATA IMPLEMENTATION ---
+      await new Promise(resolve => setTimeout(resolve, 200)); // Simulate network delay
+
+      let processedLogs: ErrorLog[] = MOCK_LOGS.map(log => ({ ...log }));
+
+      // Date filtering
+      if (dateRange?.from) {
+        processedLogs = processedLogs.filter(log => log.log_date_time >= dateRange!.from!);
       }
+      if (dateRange?.to) {
+        processedLogs = processedLogs.filter(log => log.log_date_time <= dateRange!.to!);
+      }
+
+      // Column filtering
+      Object.entries(columnFilters).forEach(([key, value]) => {
+        if (value) {
+          processedLogs = processedLogs.filter(log =>
+            String(log[key as keyof ErrorLog]).toLowerCase().includes(String(value).toLowerCase())
+          );
+        }
+      });
       
-      try {
-        const preset = TIME_PRESETS.find(p => p.value === timePreset);
-        const requestBody: LogsApiRequest = {
-          requestId: `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`,
-          ...(timePreset === 'custom' ? { dateRange } : { interval: preset?.interval }),
-          pagination: { page, pageSize },
-          sort,
-          filters: columnFilters,
-          groupBy,
-          chartBreakdownBy,
-        };
+      const totalCount = processedLogs.length;
 
-        const fetchStartTime = performance.now();
-        const response = await fetch(externalApiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
-        const responseReceivedTime = performance.now();
-        console.log(`API response received (TTFB): ${(responseReceivedTime - fetchStartTime).toFixed(2)}ms`);
+      // Grouping
+      let apiGroupData: GroupDataPoint[] = [];
+      if (groupBy !== 'none') {
+        const groups = processedLogs.reduce((acc, log) => {
+          const key = String(log[groupBy]);
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        apiGroupData = Object.entries(groups)
+          .map(([key, count]) => ({ key, count }))
+          .sort((a, b) => b.count - a.count);
+      }
 
-        if (!response.ok) {
-          console.error("Failed to fetch logs:", response.statusText);
-          toast({
-            variant: "destructive",
-            title: "Failed to fetch logs",
-            description: "The API could not be reached. Please check your connection or try again later.",
-          });
-          return;
-        }
-
-        let apiResponse: LogsApiResponse;
-        const isCompressed = response.headers.get('X-Compressed') === 'true';
-
-        if (isCompressed) {
-          const compressedData = await response.arrayBuffer();
-          const bodyDownloadedTime = performance.now();
-          console.log(`Body download took: ${(bodyDownloadedTime - responseReceivedTime).toFixed(2)}ms`);
-          
-          const decompressedData = pako.inflate(new Uint8Array(compressedData), { to: 'string' });
-          const decompressionDoneTime = performance.now();
-          console.log(`Decompression took: ${(decompressionDoneTime - bodyDownloadedTime).toFixed(2)}ms`);
-
-          apiResponse = JSON.parse(decompressedData) as LogsApiResponse;
-          const jsonParsedTime = performance.now();
-          console.log(`JSON parsing took: ${(jsonParsedTime - decompressionDoneTime).toFixed(2)}ms`);
-        } else {
-          apiResponse = await response.json();
-          const bodyParsedTime = performance.now();
-          console.log(`Body download & parsing took: ${(bodyParsedTime - responseReceivedTime).toFixed(2)}ms`);
-        }
-        
-        const processingStartTime = performance.now();
-        const { logs: apiLogs, totalCount, chartData: apiChartData, groupData: apiGroupData } = apiResponse;
-        
-        const processedLogs = apiLogs.map((log: ApiErrorLog) => ({
-          ...log,
-          log_date_time: new Date(log.log_date_time),
-          as_start_date_time: new Date(log.as_start_date_time),
-        }));
-        
-        setLogs(processedLogs);
-        setTotalLogs(totalCount);
-        setChartData(apiChartData);
-        setGroupData(apiGroupData);
-
-        const processingEndTime = performance.now();
-        console.log(`Data processing took: ${(processingEndTime - processingStartTime).toFixed(2)}ms`);
-        setRenderStartTime(performance.now());
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        toast({
-          variant: "destructive",
-          title: "Failed to fetch logs",
-          description: "An error occurred while processing the data. Please try again.",
+      // Sorting
+      if (sort.column && sort.direction) {
+        processedLogs.sort((a, b) => {
+          const valA = a[sort.column!];
+          const valB = b[sort.column!];
+          if (valA < valB) return sort.direction === 'ascending' ? -1 : 1;
+          if (valA > valB) return sort.direction === 'ascending' ? 1 : -1;
+          return 0;
         });
       }
+
+      // Pagination
+      const paginatedLogs = processedLogs.slice((page - 1) * pageSize, page * pageSize);
+
+      // Mock chart data
+      const chartPoints = 15;
+      const apiChartData = Array.from({ length: chartPoints }).map((_, i) => {
+        const date = subDays(new Date(), chartPoints - 1 - i);
+        return {
+          date: date.toISOString(),
+          count: Math.floor(Math.random() * (50 + i * 5)),
+          formattedDate: format(date, 'MMM dd'),
+          breakdown: { 'server-alpha-01': Math.floor(Math.random() * 20), 'server-beta-02': Math.floor(Math.random() * 30) }
+        }
+      });
+      
+      setLogs(paginatedLogs);
+      setTotalLogs(totalCount);
+      setChartData(apiChartData);
+      setGroupData(apiGroupData);
+      // --- END TEMPORARY MOCK DATA IMPLEMENTATION ---
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, timePreset, toast]);
+  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, timePreset]);
   
   useEffect(() => {
     // Reset page to 1 whenever filters, grouping, or date changes
@@ -215,6 +192,12 @@ export default function ErrorDashboard() {
     }
   };
   
+  useEffect(() => {
+    if (timePreset !== 'custom') {
+      handlePresetSelect(timePreset);
+    }
+  }, []);
+
   const handlePresetSelect = (value: string) => {
     setTimePreset(value);
     
@@ -254,24 +237,6 @@ export default function ErrorDashboard() {
     fetchData();
   };
 
-  const calendarDefaultMonth = useMemo(() => {
-    const today = new Date();
-    if (!dateRange?.from) {
-      return subMonths(today, 1);
-    }
-    
-    const isFromInCurrentMonth = dateRange.from.getMonth() === today.getMonth() && dateRange.from.getFullYear() === today.getFullYear();
-    
-    if (isFromInCurrentMonth) {
-      const isToInCurrentMonth = !dateRange.to || (dateRange.to.getMonth() === today.getMonth() && dateRange.to.getFullYear() === today.getFullYear());
-      if (isToInCurrentMonth) {
-        return subMonths(today, 1);
-      }
-    }
-    
-    return dateRange.from;
-  }, [dateRange]);
-
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -299,7 +264,7 @@ export default function ErrorDashboard() {
                             <Button
                                 id="date"
                                 variant={"outline"}
-                                disabled={isPending}
+                                disabled={isPending || !isClient}
                                 className={cn(
                                     "w-[260px] justify-start text-left font-normal",
                                     timePreset === 'none' && "text-muted-foreground"
@@ -333,42 +298,55 @@ export default function ErrorDashboard() {
                                         size="sm"
                                         className="justify-start"
                                         onClick={() => handlePresetSelect(p.value)}
-                                        disabled={isPending}
+                                        disabled={isPending || !isClient}
                                     >
                                         {p.label}
                                     </Button>
                                 ))}
                             </div>
-                            <Calendar
-                                initialFocus
-                                mode="range"
-                                defaultMonth={calendarDefaultMonth}
-                                selected={dateRange}
-                                onSelect={(range) => {
-                                    setDateRange(range);
-                                    setTimePreset('custom');
-                                    if (range?.from && range.to) {
-                                      setDatePickerOpen(false);
+                            {isClient ? (() => {
+                                const today = new Date();
+                                const defaultMonth = (() => {
+                                    if (!dateRange?.from) return subMonths(today, 1);
+                                    const isFromInCurrentMonth = dateRange.from.getMonth() === today.getMonth() && dateRange.from.getFullYear() === today.getFullYear();
+                                    if (isFromInCurrentMonth) {
+                                        const isToInCurrentMonth = !dateRange.to || (dateRange.to.getMonth() === today.getMonth() && dateRange.to.getFullYear() === today.getFullYear());
+                                        if (isToInCurrentMonth) return subMonths(today, 1);
                                     }
-                                }}
-                                numberOfMonths={2}
-                                fromDate={subMonths(new Date(), 1)}
-                                toDate={new Date()}
-                                disabled={isPending ? true : (date: Date) => {
-                                    const today = new Date();
-                                
-                                    if (date > today) return true;
+                                    return dateRange.from;
+                                })();
 
-                                    if (dateRange?.from && !dateRange.to) {
-                                        const oneMonthFromStart = addMonths(dateRange.from, 1);
-                                        if (date > oneMonthFromStart) {
-                                            return true;
-                                        }
-                                    }
-                                
-                                    return false;
-                                }}
-                            />
+                                return (
+                                    <Calendar
+                                        initialFocus
+                                        mode="range"
+                                        defaultMonth={defaultMonth}
+                                        selected={dateRange}
+                                        onSelect={(range) => {
+                                            setDateRange(range);
+                                            setTimePreset('custom');
+                                            if (range?.from && range.to) {
+                                              setDatePickerOpen(false);
+                                            }
+                                        }}
+                                        numberOfMonths={2}
+                                        fromDate={subMonths(today, 1)}
+                                        toDate={today}
+                                        disabled={isPending ? true : (date: Date) => {
+                                            if (date > today) return true;
+                                            if (dateRange?.from && !dateRange.to) {
+                                                const oneMonthFromStart = addMonths(dateRange.from, 1);
+                                                if (date > oneMonthFromStart) return true;
+                                            }
+                                            return false;
+                                        }}
+                                    />
+                                );
+                            })() : (
+                                <div className="p-3 w-[574px] h-[352px] flex items-center justify-center">
+                                    <RotateCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                                </div>
+                            )}
                         </PopoverContent>
                     </Popover>
                 </div>
@@ -388,46 +366,57 @@ export default function ErrorDashboard() {
                         </SelectContent>
                     </Select>
                 </div>
-                 <div className="ml-auto">
-                    <Label className="block text-sm font-medium">View Options</Label>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-[180px] mt-1" disabled={isPending}>
-                          Visible Columns <ChevronDown className="ml-auto h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56 max-h-72 overflow-y-auto">
-                          <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                           <DropdownMenuItem onSelect={() => setColumnVisibility(
-                              Object.fromEntries(allColumns.map(col => [col.id, true]))
-                            )}>
-                              Select All
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setColumnVisibility(
-                              Object.fromEntries(allColumns.map(col => [col.id, false]))
-                            )}>
-                              Deselect All
-                            </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {allColumns.map((column) => (
-                              <DropdownMenuCheckboxItem
-                                  key={column.id}
-                                  className="capitalize"
-                                  checked={columnVisibility[column.id] ?? false}
-                                  onCheckedChange={(value) =>
-                                      setColumnVisibility((prev) => ({
-                                          ...prev,
-                                          [column.id]: !!value,
-                                      }))
-                                  }
-                                  onSelect={(e) => e.preventDefault()}
-                              >
-                                  {column.name}
-                              </DropdownMenuCheckboxItem>
-                          ))}
-                      </DropdownMenuContent>
-                  </DropdownMenu>
+                 <div className="ml-auto flex items-end gap-4">
+                    <div className="flex items-center space-x-2 pb-1">
+                        <Switch
+                            id="expand-rows-switch"
+                            checked={messageDisplayMode === 'expand'}
+                            onCheckedChange={(checked) => setMessageDisplayMode(checked ? 'expand' : 'truncate')}
+                            disabled={isPending}
+                        />
+                        <Label htmlFor="expand-rows-switch">Expandable Rows</Label>
+                    </div>
+                    <div>
+                        <Label className="block text-sm font-medium">View Options</Label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-[180px] mt-1" disabled={isPending}>
+                              Visible Columns <ChevronDown className="ml-auto h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56 max-h-72 overflow-y-auto">
+                              <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                               <DropdownMenuItem onSelect={() => setColumnVisibility(
+                                  Object.fromEntries(allColumns.map(col => [col.id, true]))
+                                )}>
+                                  Select All
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setColumnVisibility(
+                                  Object.fromEntries(allColumns.map(col => [col.id, false]))
+                                )}>
+                                  Deselect All
+                                </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {allColumns.map((column) => (
+                                  <DropdownMenuCheckboxItem
+                                      key={column.id}
+                                      className="capitalize"
+                                      checked={columnVisibility[column.id] ?? false}
+                                      onCheckedChange={(value) =>
+                                          setColumnVisibility((prev) => ({
+                                              ...prev,
+                                              [column.id]: !!value,
+                                          }))
+                                      }
+                                      onSelect={(e) => e.preventDefault()}
+                                  >
+                                      {column.name}
+                                  </DropdownMenuCheckboxItem>
+                              ))}
+                          </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                 </div>
             </div>
         </CardContent>
@@ -448,6 +437,7 @@ export default function ErrorDashboard() {
         columnFilters={columnFilters}
         setColumnFilters={setColumnFilters}
         columnVisibility={columnVisibility}
+        messageDisplayMode={messageDisplayMode}
       />
       <div className="mt-6">
         <ErrorTrendChart 

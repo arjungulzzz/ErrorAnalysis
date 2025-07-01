@@ -46,6 +46,7 @@ interface ErrorTableProps {
   columnFilters: ColumnFilters;
   setColumnFilters: (filters: React.SetStateAction<ColumnFilters>) => void;
   columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
+  messageDisplayMode: 'truncate' | 'expand';
 }
 
 const columnConfig: {
@@ -53,7 +54,6 @@ const columnConfig: {
   name: string;
   isFilterable: boolean;
   cellClassName?: string;
-  truncate?: boolean;
 }[] = [
     { id: 'log_date_time', name: 'Timestamp', isFilterable: false, cellClassName: "font-mono text-xs" },
     { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "font-mono text-xs" },
@@ -67,7 +67,7 @@ const columnConfig: {
     { id: 'report_id_name', name: 'Report Name', isFilterable: true },
     { id: 'error_number', name: 'Error Code', isFilterable: true },
     { id: 'xql_query_id', name: 'Query ID', isFilterable: true, cellClassName: "font-mono text-xs" },
-    { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg", truncate: true },
+    { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg" },
 ];
 
 const getFriendlyGroupName = (groupByValue: GroupByOption) => {
@@ -95,7 +95,8 @@ export function ErrorTable({
   onGroupSelect,
   columnFilters,
   setColumnFilters,
-  columnVisibility
+  columnVisibility,
+  messageDisplayMode,
 }: ErrorTableProps) {
     
   const [expandedRowKey, setExpandedRowKey] = React.useState<string | null>(null);
@@ -128,16 +129,19 @@ export function ErrorTable({
                 </Badge>
             );
         case 'log_message':
-            return (
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span>{String(value)}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p className="max-w-md">{String(value)}</p>
-                    </TooltipContent>
-                </Tooltip>
-            );
+             if (messageDisplayMode === 'truncate') {
+                return (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span>{String(value)}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p className="max-w-md">{String(value)}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                );
+            }
+            return String(value);
         default:
             return String(value);
     }
@@ -267,18 +271,22 @@ export function ErrorTable({
                     
                     return (
                         <React.Fragment key={rowKey}>
-                          <TableRow 
-                            onClick={() => setExpandedRowKey(isExpanded ? null : rowKey)}
-                            className="cursor-pointer"
-                            data-state={isExpanded ? 'selected' : ''}
+                          <TableRow
+                            onClick={() => {
+                                if (messageDisplayMode === 'expand') {
+                                    setExpandedRowKey(isExpanded ? null : rowKey);
+                                }
+                            }}
+                            className={cn(messageDisplayMode === 'expand' && "cursor-pointer")}
+                            data-state={isExpanded && messageDisplayMode === 'expand' ? 'selected' : ''}
                           >
                             {visibleColumns.map(column => (
-                              <TableCell key={column.id} className={cn(column.cellClassName, column.truncate && 'truncate')}>
+                              <TableCell key={column.id} className={cn(column.cellClassName, column.id === 'log_message' && messageDisplayMode === 'truncate' && 'truncate')}>
                                 {renderCellContent(log, column.id)}
                               </TableCell>
                             ))}
                           </TableRow>
-                          {isExpanded && (
+                          {isExpanded && messageDisplayMode === 'expand' && (
                             <TableRow>
                                 <TableCell colSpan={visibleColumnCount} className="p-2 bg-muted/50">
                                     <div className="p-4 bg-background rounded-md">
