@@ -154,12 +154,6 @@ export function ErrorTable({
   };
 
   const renderExpandedDetail = (log: ErrorLog, columnId: keyof ErrorLog) => {
-    if (columnId === 'repository_path') {
-        const value = log[columnId];
-        const path = String(value);
-        const lastSlashIndex = path.lastIndexOf('/');
-        return lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
-    }
     const value = log[columnId];
     if (value === null || value === undefined || value === '') {
       return '—';
