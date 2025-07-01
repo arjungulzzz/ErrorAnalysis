@@ -54,7 +54,6 @@ const TIME_PRESETS = [
 
 export default function ErrorDashboard() {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
-  const [mockData, setMockData] = useState<ErrorLog[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
   const [chartData, setChartData] = useState<ErrorTrendDataPoint[]>([]);
   const [groupData, setGroupData] = useState<GroupDataPoint[]>([]);
@@ -88,6 +87,7 @@ export default function ErrorDashboard() {
   const { toast } = useToast();
   
   const [isClient, setIsClient] = useState(false);
+  const [mockData, setMockData] = useState<ErrorLog[]>([]);
   
   useEffect(() => {
     // This effect runs only once on the client after the component mounts.
@@ -438,7 +438,7 @@ export default function ErrorDashboard() {
           data={chartData} 
           isLoading={isPending}
           breakdownBy={chartBreakdownBy}
-          setBreakdownBy={setBreakdownBy}
+          setBreakdownBy={setChartBreakdownBy}
         />
       </div>
     </div>
