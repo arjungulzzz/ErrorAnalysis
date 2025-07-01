@@ -158,10 +158,21 @@ export function ErrorTable({
     if (value === null || value === undefined || value === '') {
       return '—';
     }
-    if (value instanceof Date) {
-      return value.toISOString();
+    switch (columnId) {
+        case 'log_date_time':
+        case 'as_start_date_time':
+            if (value instanceof Date) {
+              return value.toISOString();
+            }
+            return String(value);
+        case 'repository_path': {
+            const path = String(value);
+            const lastSlashIndex = path.lastIndexOf('/');
+            return lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
+        }
+        default:
+            return String(value);
     }
-    return String(value);
   };
 
   const renderSkeleton = () => (
