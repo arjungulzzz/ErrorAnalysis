@@ -63,6 +63,14 @@ const TIME_PRESETS = [
     { value: '1 month', label: 'Last 1 month', interval: '1 month' },
 ];
 
+const groupableColumns: { id: GroupByOption; name: string }[] = [
+    { id: 'host_name', name: 'Host' },
+    { id: 'repository_path', name: 'Model Name' },
+    { id: 'error_number', name: 'Error Code' },
+    { id: 'user_id', name: 'User' },
+    { id: 'version_number', name: 'AS Version' },
+];
+
 export default function ErrorDashboard() {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
@@ -86,7 +94,7 @@ export default function ErrorDashboard() {
     as_server_config: false,
     user_id: true,
     report_id_name: false,
-    error_number: false,
+    error_number: true,
     xql_query_id: false,
     log_message: true,
   });
@@ -326,6 +334,10 @@ export default function ErrorDashboard() {
   
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
 
+  const availableGroupByOptions = groupableColumns.filter(
+    (col) => columnVisibility[col.id]
+  );
+
   return (
     <div className="space-y-6">
        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
@@ -467,11 +479,11 @@ export default function ErrorDashboard() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="none">None</SelectItem>
-                            <SelectItem value="host_name">Host</SelectItem>
-                            <SelectItem value="repository_path">Model Name</SelectItem>
-                            <SelectItem value="error_number">Error Code</SelectItem>
-                            <SelectItem value="user_id">User</SelectItem>
-                            <SelectItem value="version_number">AS Version</SelectItem>
+                            {availableGroupByOptions.map((option) => (
+                                <SelectItem key={option.id} value={option.id}>
+                                    {option.name}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>
@@ -493,9 +505,12 @@ export default function ErrorDashboard() {
                             )}>
                               Select All
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setColumnVisibility(
-                              Object.fromEntries(allColumns.map(col => [col.id, false]))
-                            )}>
+                            <DropdownMenuItem onSelect={() => {
+                              setColumnVisibility(
+                                Object.fromEntries(allColumns.map(col => [col.id, false]))
+                              );
+                              setGroupBy('none');
+                            }}>
                               Deselect All
                             </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -504,12 +519,15 @@ export default function ErrorDashboard() {
                                   key={column.id}
                                   className="capitalize"
                                   checked={columnVisibility[column.id] ?? false}
-                                  onCheckedChange={(value) =>
+                                  onCheckedChange={(value) => {
+                                      if (!value && groupBy === column.id) {
+                                          setGroupBy('none');
+                                      }
                                       setColumnVisibility((prev) => ({
                                           ...prev,
                                           [column.id]: !!value,
-                                      }))
-                                  }
+                                      }));
+                                  }}
                                   onSelect={(e) => e.preventDefault()}
                               >
                                   {column.name}
