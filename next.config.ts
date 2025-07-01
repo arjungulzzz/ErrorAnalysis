@@ -24,3 +24,5 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+// Triggering a server restart
