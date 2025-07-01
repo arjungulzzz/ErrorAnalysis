@@ -67,7 +67,7 @@ const columnConfig: {
     { id: 'report_id_name', name: 'Report Name', isFilterable: true },
     { id: 'error_number', name: 'Error Code', isFilterable: true },
     { id: 'xql_query_id', name: 'Query ID', isFilterable: true, cellClassName: "font-mono text-xs" },
-    { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-[200px] sm:max-w-xs", truncate: true },
+    { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg" },
 ];
 
 const getFriendlyGroupName = (groupByValue: GroupByOption) => {
