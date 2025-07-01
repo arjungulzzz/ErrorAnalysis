@@ -523,7 +523,7 @@ export default function ErrorDashboard() {
           data={chartData} 
           isLoading={isPending}
           breakdownBy={chartBreakdownBy}
-          setBreakdownBy={setBreakdownBy}
+          setBreakdownBy={setChartBreakdownBy}
         />
       </div>
     </div>
