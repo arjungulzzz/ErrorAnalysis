@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
     { id: 'host_name', name: 'Host' },
-    { id: 'repository_path', name: 'Repository' },
+    { id: 'repository_path', name: 'Model Name' },
     { id: 'port_number', name: 'Port' },
     { id: 'version_number', name: 'AS Version' },
     { id: 'as_server_mode', name: 'Server Mode' },
@@ -68,13 +68,13 @@ export default function ErrorDashboard() {
     host_name: true,
     repository_path: true,
     port_number: false,
-    version_number: false,
+    version_number: true,
     as_server_mode: false,
     as_start_date_time: false,
     as_server_config: false,
     user_id: true,
-    report_id_name: false,
-    error_number: true,
+    report_id_name: true,
+    error_number: false,
     xql_query_id: false,
     log_message: true,
   });
@@ -381,7 +381,7 @@ export default function ErrorDashboard() {
                         <SelectContent>
                             <SelectItem value="none">None</SelectItem>
                             <SelectItem value="host_name">Host</SelectItem>
-                            <SelectItem value="repository_path">Repository</SelectItem>
+                            <SelectItem value="repository_path">Model Name</SelectItem>
                             <SelectItem value="error_number">Error Code</SelectItem>
                             <SelectItem value="user_id">User</SelectItem>
                             <SelectItem value="version_number">AS Version</SelectItem>

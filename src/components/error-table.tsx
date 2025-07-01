@@ -57,7 +57,7 @@ const columnConfig: {
 }[] = [
     { id: 'log_date_time', name: 'Timestamp', isFilterable: false, cellClassName: "font-mono text-xs" },
     { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "font-mono text-xs" },
-    { id: 'repository_path', name: 'Repository', isFilterable: true },
+    { id: 'repository_path', name: 'Model Name', isFilterable: true },
     { id: 'port_number', name: 'Port', isFilterable: true },
     { id: 'version_number', name: 'AS Version', isFilterable: true },
     { id: 'as_server_mode', name: 'Server Mode', isFilterable: true },
@@ -73,7 +73,7 @@ const columnConfig: {
 const getFriendlyGroupName = (groupByValue: GroupByOption) => {
     switch (groupByValue) {
       case 'host_name': return 'Host';
-      case 'repository_path': return 'Repository';
+      case 'repository_path': return 'Model Name';
       case 'error_number': return 'Error Code';
       case 'user_id': return 'User';
       case 'version_number': return 'AS Version';
@@ -113,6 +113,8 @@ export function ErrorTable({
               return value.toISOString().slice(0, 19).replace('T', ' ');
             }
             return String(value);
+        case 'repository_path':
+            return String(value).replace('/ldmodels/', '');
         case 'error_number':
             return (
                 <Badge variant={(value as number) >= 500 ? "destructive" : "secondary"}>
