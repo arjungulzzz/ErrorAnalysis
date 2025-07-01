@@ -196,7 +196,7 @@ export default function ErrorDashboard() {
   
   const availableGroupByOptions = allColumns.filter(
     (col) => {
-      // Exclude columns that are not practical for grouping, but ensure 'log_message' is included if visible.
+      // Exclude columns that are not practical for grouping
       if (col.id === 'log_date_time' || col.id === 'as_start_date_time') {
         return false;
       }
@@ -273,10 +273,10 @@ export default function ErrorDashboard() {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
-            <svg width="38" height="40" viewBox="0 0 38 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19 0L37.0526 10V30L19 40L0.947441 30V10L19 0Z" fill="#7595B3"/>
-                <path d="M19 6.15385L32.2368 14.0769V25.9231L19 33.8462L5.76316 25.9231V14.0769L19 6.15385Z" fill="#F47272"/>
-                <path d="M19 13.8462L27.6842 18.9231V23.0769L19 28.1538L10.3158 23.0769V18.9231L19 13.8462Z" fill="#6750A4"/>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-full w-full">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <path d="M12 8v4"></path>
+                <path d="M12 16h.01"></path>
             </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
