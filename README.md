@@ -54,11 +54,14 @@ The dashboard communicates with the backend service via a `POST` request to the 
 
 The `requestId` is a unique identifier generated for each request in the format `req_{epoch_timestamp}_{random_string}` to aid in server-side logging and tracking. The timestamp is the Unix epoch time in milliseconds.
 
+The API has two primary modes of operation, determined by the `groupBy` parameter:
+
+1.  **Fetching a List of Logs** (when `groupBy` is `[]`): This mode is for retrieving individual log rows. The backend **must apply pagination**.
+2.  **Fetching Aggregated Data** (when `groupBy` is `["host_name", ...]`): This mode is for generating the nested `groupData` summary. The backend **must ignore pagination** for the grouping query.
+
 ### Request Body Scenarios
 
-The `requestId`, `dateRange` (or `interval`), and `pagination` properties are always sent. All others are optional or have defaults.
-
-#### 1. Basic Request (First Page, Default Sort)
+#### 1. Fetching Logs: Basic Request (First Page, Default Sort)
 This is the simplest request, fetching the first page of logs for the last 7 days. `groupBy` is an empty array for a flat list of logs. Pagination should be applied.
 
 ```json
@@ -73,7 +76,7 @@ This is the simplest request, fetching the first page of logs for the last 7 day
 }
 ```
 
-#### 2. Request with Custom Date Range
+#### 2. Fetching Logs: Request with Custom Date Range
 Here, we're requesting a specific date range.
 
 ```json
@@ -91,7 +94,7 @@ Here, we're requesting a specific date range.
 }
 ```
 
-#### 3. Request for Multi-Column Grouped Data
+#### 3. Fetching Aggregated Data: Multi-Column Grouping
 When a user selects "Group By" options, the frontend sends a request with an ordered array of column names in the `groupBy` parameter.
 
 **IMPORTANT:** When the `groupBy` array is not empty, the backend service **must ignore** the `pagination` parameters for the query that generates `groupData`. The grouped summary must be calculated over the entire filtered dataset, not just one page. The response for a grouped request should **not** include individual logs inside the `groupData` structure.
@@ -108,7 +111,7 @@ When a user selects "Group By" options, the frontend sends a request with an ord
 }
 ```
 
-#### 4. Fetching Logs for a Specific Group (Drill-Down)
+#### 4. Fetching Logs: For a Specific Group (Drill-Down)
 When a user expands a final-level group in the UI, the frontend makes a new request to fetch the individual logs for that group. This is an "on-demand" request that reuses the same API endpoint.
 
 To do this, the request must:

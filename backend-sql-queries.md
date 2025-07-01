@@ -112,7 +112,7 @@ LIMIT $5 OFFSET $6
 
 ### Aggregation Queries
 
-These queries run separately to calculate `totalCount`, `groupData`, and `chartData`. They must use the **same `WHERE` clauses** from scenarios 1 and 2 to ensure the aggregations match the filtered dataset. They **must not** be paginated.
+These queries run separately to calculate `totalCount`, `groupData`, and `chartData`. They must use the **same `WHERE` clauses** from scenarios 1 and 2 to ensure the aggregations match the filtered dataset. **Crucially, they must not be paginated.**
 
 **1. `totalCount` Query:**
 
