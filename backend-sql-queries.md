@@ -97,13 +97,17 @@ The API has two primary modes, determined by the `groupBy` parameter in the requ
 
 #### Case A: Fetching a List of Logs (`groupBy: []`)
 
-When `groupBy` is an empty array, the API should return a paginated list of individual logs. To do this efficiently, the backend should retrieve both the logs and the total count in a single query using a window function. This avoids a second database round trip for a separate `COUNT(*)` query.
+When `groupBy` is an empty array, the API should return a paginated list of individual logs and their total count. To do this efficiently, the backend should retrieve both the logs and the total count in a single query using a window function like `COUNT(*) OVER()`. This avoids a second database round trip for a separate `COUNT(*)` query.
 
 **IMPORTANT**: Pagination (`LIMIT` and `OFFSET`) must be applied in this mode.
 
-**Example Combined Query (PostgreSQL):**
+This mode is used in two contexts:
+
+##### 1. General Log Fetch (Main Table)
+This is a standard request for a page of logs. The filters are based on the main UI controls.
 
 ```sql
+-- Combined Query Example (PostgreSQL):
 SELECT
   ali.log_date_time,
   asli.host_name,
@@ -113,19 +117,47 @@ SELECT
 FROM as_log_info ali
 JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
 WHERE
-  -- Apply time and column filters here
+  -- Apply time and column filters from the main UI here
+  -- e.g., ali.log_date_time >= NOW() - CAST($1 AS INTERVAL)
 ORDER BY
   -- Apply sorting here
-LIMIT $5 -- pageSize
-OFFSET $6; -- (page - 1) * pageSize
+LIMIT $2 -- pageSize
+OFFSET $3; -- (page - 1) * pageSize
 ```
-Your backend code would then read the `total_count` from the first row of the result set and use the full result set for the `logs` array in the API response. The `totalCount` field in the response should be populated with this value.
+The `totalCount` in the response should be populated with the `total_count` value from the query result.
+
+##### 2. Drill-Down Log Fetch (Expanding a Group)
+This request fetches logs for a specific group. The `filters` object will contain additional key-value pairs corresponding to the expanded group's path. The backend **must add these to the `WHERE` clause**.
+
+```sql
+-- Request filters might be: { "host_name": "server-alpha-01", "error_number": "500" }
+-- This results in an extended WHERE clause:
+SELECT
+  ali.log_date_time,
+  asli.host_name,
+  -- ... other columns
+  ali.log_message,
+  COUNT(*) OVER() AS total_count
+FROM as_log_info ali
+JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
+WHERE
+  -- Apply time and column filters from the main UI here
+  ali.log_date_time >= NOW() - CAST($1 AS INTERVAL)
+  -- AND add the specific drill-down filters
+  AND asli.host_name = $2
+  AND ali.error_number = CAST($3 AS INTEGER)
+ORDER BY
+  -- Apply sorting here
+LIMIT $4 -- pageSize
+OFFSET $5; -- (page - 1) * pageSize
+```
+The `totalCount` in this response is crucial for the sub-table's independent pagination.
 
 #### Case B: Fetching Aggregated Data (`groupBy: ["column", ...]`)
 
 When the `groupBy` array is not empty, the API should return an aggregated summary.
 
-**IMPORTANT**: Pagination (`LIMIT` and `OFFSET`) must be **ignored** for these aggregation queries. They must run against the entire filtered dataset.
+**IMPORTANT**: Pagination (`LIMIT` and `OFFSET`) must be **ignored** for these aggregation queries. They must run against the entire filtered dataset. The response **must not** contain the `logs` array within `groupData`, as logs will be fetched on demand.
 
 The response should contain three main pieces of data, which can be generated with separate queries: `totalCount`, `groupData`, and `chartData`.
 
