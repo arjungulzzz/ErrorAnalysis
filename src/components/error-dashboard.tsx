@@ -92,12 +92,11 @@ export default function ErrorDashboard() {
   useEffect(() => {
     // This effect runs only once on the client after the component mounts.
     // We set all client-specific initial state here to avoid hydration errors.
-    setIsClient(true);
-    setMockData(generateMockLogs());
-    
-    // Set the initial date range based on the default time preset.
     const now = new Date();
     const fromDate = subDays(now, 7);
+    
+    setIsClient(true);
+    setMockData(generateMockLogs());
     setDateRange({ from: fromDate, to: now });
   }, []);
 
@@ -243,9 +242,9 @@ export default function ErrorDashboard() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary/10 border border-primary/20">
         <div>
-          <h1 className="text-3xl font-bold font-headline tracking-tight">AS Error Table</h1>
+          <h1 className="text-3xl font-bold font-headline tracking-tight text-primary">Error Insights Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={handleRefresh} disabled={isPending || timePreset === 'none'}>
