@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ErrorTable } from "@/components/error-table";
 import { type DateRange } from "react-day-picker";
 import { format, subDays, subMonths, addMonths, subHours } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { RotateCw, ChevronDown, Calendar as CalendarIcon, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -329,23 +329,10 @@ export default function ErrorDashboard() {
   return (
     <div className="space-y-6">
        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
-        <div className="flex items-center gap-3">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 100 100"
-            fill="currentColor"
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-8 w-8"
-            aria-hidden="true"
-          >
-            <path
-              d="M50 0C22.38 0 0 22.38 0 50C0 77.62 22.38 100 50 100C77.62 100 100 77.62 100 50C100 22.38 77.62 0 50 0ZM50 88.24C28.9 88.24 11.76 71.1 11.76 50C11.76 28.9 28.9 11.76 50 11.76C71.1 11.76 88.24 28.9 88.24 50C88.24 71.1 71.1 88.24 50 88.24Z"
-            />
-            <path
-              d="M50 23.53C35.39 23.53 23.53 35.39 23.53 50C23.53 64.61 35.39 76.47 50 76.47C64.61 76.47 76.47 64.61 76.47 50C76.47 35.39 64.61 23.53 50 23.53ZM50 64.71C41.88 64.71 35.29 58.12 35.29 50C35.29 41.88 41.88 35.29 50 35.29C58.12 35.29 64.71 41.88 64.71 50C64.71 58.12 58.12 64.71 50 64.71Z"
-            />
-          </svg>
+        <div className="flex items-center gap-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-foreground">
+            <span className="text-xl font-bold text-primary">C</span>
+          </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
