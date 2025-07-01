@@ -92,11 +92,11 @@ If no sort is specified, a sensible default is `ORDER BY ali.log_date_time DESC`
 
 ---
 
-### Scenario 4: Applying Pagination
+### Scenario 4: Applying Pagination (for Flat Lists)
 
 Use `LIMIT` and `OFFSET` to fetch the correct page of data.
 
-**IMPORTANT**: Pagination should **only** be applied when fetching a flat list of logs (i.e., when the `groupBy` array in the request body is empty). Aggregation queries for `totalCount`, `groupData`, and `chartData` should **not** be paginated.
+**IMPORTANT**: Pagination should **only** be applied when fetching a flat list of logs (i.e., when the `groupBy` array in the request body is empty). Aggregation queries for `totalCount` and `groupData` should **not** be paginated.
 
 **Example Request: `{ "pagination": { "page": 3, "pageSize": 100 } }`**
 
@@ -129,7 +129,7 @@ WHERE ... -- (Same WHERE clauses from Scenarios 1 & 2)
 
 When the `groupBy` array in the request contains one or more column names (e.g., `["host_name", "error_number"]`), the backend must generate a nested JSON structure. The order of columns in the array determines the hierarchy.
 
-**CRITICAL**: This query must **not** be paginated with `LIMIT` or `OFFSET`. It must aggregate over the entire filtered result set to provide a complete summary.
+**CRITICAL**: This query must **not** be paginated with `LIMIT` or `OFFSET`. It must aggregate over the entire filtered result set to provide a complete summary. The resulting nested objects should not contain the individual logs, as they will be fetched on demand.
 
 A common approach is to fetch the aggregated data and then build the hierarchy in your application code, as this is often more straightforward than building complex JSON directly in SQL.
 
@@ -155,21 +155,13 @@ ORDER BY
   count DESC;
 ```
 
-**Step 2: (Optional) Fetch Individual Logs for Deepest Group**
-
-To populate the `logs` array for the deepest group level, you can run a separate query or fetch them alongside the main data. This is optional but enables the UI's final drill-down feature. Pagination could potentially be applied to this specific sub-query if you were to implement on-demand loading of logs within a group.
-
-**Step 3: Build the Nested Structure in Application Code**
+**Step 2: Build the Nested Structure in Application Code**
 
 In your backend service (e.g., in Node.js, Python, Go), process the flattened results from Step 1 into the required nested JSON format.
 
 **Expected `groupData` structure:**
 
-The final structure must be an array of objects, where each object has a `key`, `count`, `subgroups`, and a `logs` array.
-
-- For **parent groups**, the `logs` array can be omitted or empty.
-- For the **deepest group level**, `subgroups` must be `[]` and the `logs` array can be populated.
-- **Data Consistency**: For the UI to work correctly, every group object must have a `subgroups` property (an array) and a `logs` property (an array), even if they are empty.
+The final structure must be an array of objects, where each object has a `key`, `count`, and `subgroups`. For data consistency, `subgroups` must always be an array, even if empty. The `logs` property should not be included.
 
 ```json
 // Example response for groupBy: ["host_name", "error_number"]
@@ -177,18 +169,15 @@ The final structure must be an array of objects, where each object has a `key`, 
   {
     "key": "server-alpha-01",
     "count": 1500,
-    "logs": [],
     "subgroups": [
       {
         "key": "500",
         "count": 800,
-        "logs": [ /* Array of log objects for server-alpha-01 and error 500 */ ],
         "subgroups": []
       },
       {
         "key": "404",
         "count": 700,
-        "logs": [ /* ... */ ],
         "subgroups": []
       }
     ]
@@ -196,7 +185,6 @@ The final structure must be an array of objects, where each object has a `key`, 
   {
     "key": "server-beta-02",
     "count": 980,
-    "logs": [],
     "subgroups": [ /* ... */ ]
   }
 ]

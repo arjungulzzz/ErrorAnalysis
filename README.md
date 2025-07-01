@@ -94,7 +94,7 @@ Here, we're requesting a specific date range.
 #### 3. Request for Multi-Column Grouped Data
 When a user selects "Group By" options, the frontend sends a request with an ordered array of column names in the `groupBy` parameter.
 
-**IMPORTANT:** When the `groupBy` array is not empty, the backend service **must ignore** the `pagination` parameters for the query that generates `groupData`. The grouped summary must be calculated over the entire filtered dataset, not just one page.
+**IMPORTANT:** When the `groupBy` array is not empty, the backend service **must ignore** the `pagination` parameters for the query that generates `groupData`. The grouped summary must be calculated over the entire filtered dataset, not just one page. The response for a grouped request should **not** include individual logs inside the `groupData` structure.
 
 ```json
 {
@@ -108,20 +108,42 @@ When a user selects "Group By" options, the frontend sends a request with an ord
 }
 ```
 
+#### 4. Fetching Logs for a Specific Group (Drill-Down)
+When a user expands a final-level group in the UI, the frontend makes a new request to fetch the individual logs for that group. This is an "on-demand" request that reuses the same API endpoint.
+
+To do this, the request must:
+1.  Add the keys of the parent groups to the `filters` object.
+2.  Send an **empty** `groupBy` array (`[]`).
+3.  The `pagination` sent in this request **should be applied** by the backend, as it now applies to the list of individual logs being fetched.
+
+```json
+// This request fetches page 1 of logs where host_name is 'server-alpha-01' and error_number is '500'
+{
+  "requestId": "req_1700586300000_g8p9i0f6",
+  "interval": "1 day",
+  "pagination": { "page": 1, "pageSize": 100 },
+  "sort": { "column": "log_date_time", "direction": "descending" },
+  "filters": {
+    "host_name": "server-alpha-01",
+    "error_number": "500"
+  },
+  "groupBy": [], // Empty array is crucial
+  "chartBreakdownBy": "host_name"
+}
+```
+
 ### Expected Response Structure
 
-The API must always return a JSON object with the following structure. When a request is for grouped data (`groupBy` is not an empty array), the top-level `logs` array can be empty, as the UI will be populated from `groupData`.
+The API must always return a JSON object with the following structure.
 
-#### `groupData` Structure
-The `groupData` array contains a nested structure when `groupBy` is used. Each object contains a `key`, `count`, a `subgroups` array for the next level of grouping, and a `logs` array.
-- The `logs` property is optional and should contain the individual log entries for the *deepest* level of a group hierarchy.
-- For data consistency, `subgroups` and `logs` should always be returned as arrays, even if they are empty.
+#### `groupData` Structure (for Grouped Requests)
+The `groupData` array contains a nested structure when `groupBy` is used. Each object contains a `key`, `count`, and a `subgroups` array for the next level of grouping.
+- The `logs` property should **not** be included. It will be fetched on demand.
+- For data consistency, `subgroups` should always be returned as an array, even if empty.
 
 ```json
 {
-  "logs": [
-    /* This can be empty when groupData is populated */
-  ],
+  "logs": [],
   "totalCount": 12345,
   "chartData": [
     {
@@ -142,16 +164,12 @@ The `groupData` array contains a nested structure when `groupBy` is used. Each o
         {
           "key": "500",
           "count": 800,
-          "subgroups": [],
-          "logs": [
-            { "log_date_time": "...", "host_name": "server-alpha-01", "error_number": 500, "..." }
-          ]
+          "subgroups": []
         },
         {
           "key": "404",
           "count": 700,
-          "subgroups": [],
-          "logs": []
+          "subgroups": []
         }
       ]
     },
@@ -162,8 +180,7 @@ The `groupData` array contains a nested structure when `groupBy` is used. Each o
         {
           "key": "503",
           "count": 980,
-          "subgroups": [],
-          "logs": []
+          "subgroups": []
         }
       ]
     }
