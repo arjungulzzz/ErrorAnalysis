@@ -96,12 +96,11 @@ const GroupedRow = ({
     const [isExpanded, setIsExpanded] = React.useState(false);
     const hasSubgroups = item.subgroups && item.subgroups.length > 0;
     const hasLogs = item.logs && item.logs.length > 0;
-    const isExpandable = hasSubgroups || hasLogs;
+    // A group is always expandable. It either drills down into subgroups, or shows the logs/a message.
+    const isExpandable = true;
 
     const handleToggle = () => {
-        if (isExpandable) {
-            setIsExpanded(!isExpanded);
-        }
+        setIsExpanded(!isExpanded);
     };
 
     return (
@@ -134,87 +133,97 @@ const GroupedRow = ({
                     />
                 ))
             )}
-            {isExpanded && !hasSubgroups && hasLogs && item.logs?.map(log => (
-              <React.Fragment key={log.id}>
-                <TableRow
-                  data-state={expandedRowId === log.id ? "selected" : undefined}
-                  className="cursor-pointer hover:bg-muted/30"
-                  onClick={() => onLogClick(log.id)}
-                  style={{backgroundColor: 'hsl(var(--muted) / 0.5)'}}
-                >
-                  <TableCell colSpan={2} style={{ paddingLeft: `${1 + (level + 1) * 1.5}rem` }}>
-                      <Tooltip delayDuration={300}>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center gap-4 truncate">
-                            <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">
-                              {renderCellContent(log, 'log_date_time')}
-                            </span>
-                            <span className="truncate">
-                              {renderCellContent(log, 'log_message')}
-                            </span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Click row to view all details.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                  </TableCell>
-                </TableRow>
-                  
-                {expandedRowId === log.id && (
-                    <TableRow style={{backgroundColor: 'hsl(var(--muted) / 0.5)'}}>
-                        <TableCell colSpan={2}>
-                            <div className="p-4 bg-background rounded-md space-y-3">
-                                <h4 className="text-sm font-semibold">Full Log Details</h4>
-                                <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
-                                    {visibleColumns.map(col => {
-                                        const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
-                                        const detailValue = renderExpandedDetail(log, col.id);
-                                        return (
-                                            <div 
-                                                key={col.id}
-                                                className={cn(
-                                                    "flex flex-col gap-1", 
-                                                    col.id === 'log_message' && 'md:col-span-2 lg:col-span-3'
-                                                )}
-                                            >
-                                                <dt className="font-medium text-muted-foreground">{col.name}</dt>
-                                                <dd className="flex items-start justify-between gap-2 font-mono">
-                                                    <span className="whitespace-pre-wrap break-all pt-1">
-                                                        {detailValue}
-                                                    </span>
-                                                    {isCopyable && (
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-7 w-7 shrink-0"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleCopy(String(detailValue), col.name);
-                                                                    }}
-                                                                >
-                                                                    <Copy className="h-4 w-4" />
-                                                                    <span className="sr-only">Copy {col.name}</span>
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>Copy {col.name}</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    )}
-                                                </dd>
-                                            </div>
-                                        );
-                                    })}
-                                </dl>
-                            </div>
+            {isExpanded && !hasSubgroups && (
+                hasLogs ? (
+                    item.logs?.map(log => (
+                      <React.Fragment key={log.id}>
+                        <TableRow
+                          data-state={expandedRowId === log.id ? "selected" : undefined}
+                          className="cursor-pointer hover:bg-muted/30"
+                          onClick={() => onLogClick(log.id)}
+                          style={{backgroundColor: 'hsl(var(--muted) / 0.5)'}}
+                        >
+                          <TableCell colSpan={2} style={{ paddingLeft: `${1 + (level + 1) * 1.5}rem` }}>
+                              <Tooltip delayDuration={300}>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-4 truncate">
+                                    <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                                      {renderCellContent(log, 'log_date_time')}
+                                    </span>
+                                    <span className="truncate">
+                                      {renderCellContent(log, 'log_message')}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Click row to view all details.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                          
+                        {expandedRowId === log.id && (
+                            <TableRow style={{backgroundColor: 'hsl(var(--muted) / 0.5)'}}>
+                                <TableCell colSpan={2}>
+                                    <div className="p-4 bg-background rounded-md space-y-3">
+                                        <h4 className="text-sm font-semibold">Full Log Details</h4>
+                                        <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
+                                            {visibleColumns.map(col => {
+                                                const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
+                                                const detailValue = renderExpandedDetail(log, col.id);
+                                                return (
+                                                    <div 
+                                                        key={col.id}
+                                                        className={cn(
+                                                            "flex flex-col gap-1", 
+                                                            col.id === 'log_message' && 'md:col-span-2 lg:col-span-3'
+                                                        )}
+                                                    >
+                                                        <dt className="font-medium text-muted-foreground">{col.name}</dt>
+                                                        <dd className="flex items-start justify-between gap-2 font-mono">
+                                                            <span className="whitespace-pre-wrap break-all pt-1">
+                                                                {detailValue}
+                                                            </span>
+                                                            {isCopyable && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 shrink-0"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleCopy(String(detailValue), col.name);
+                                                                            }}
+                                                                        >
+                                                                            <Copy className="h-4 w-4" />
+                                                                            <span className="sr-only">Copy {col.name}</span>
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>Copy {col.name}</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            )}
+                                                        </dd>
+                                                    </div>
+                                                );
+                                            })}
+                                        </dl>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        )}
+                      </React.Fragment>
+                    ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={2} className="h-24 text-center text-muted-foreground" style={{ paddingLeft: `${1 + (level + 1) * 1.5}rem`, paddingTop: '1rem', paddingBottom: '1rem' }}>
+                            No individual logs are available to display for this group.
                         </TableCell>
                     </TableRow>
-                )}
-              </React.Fragment>
-            ))}
+                )
+            )}
         </React.Fragment>
     );
 };
