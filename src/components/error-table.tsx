@@ -67,7 +67,7 @@ const columnConfig: {
     { id: 'report_id_name', name: 'Report Name', isFilterable: true },
     { id: 'error_number', name: 'Error Code', isFilterable: true },
     { id: 'xql_query_id', name: 'Query ID', isFilterable: true, cellClassName: "font-mono text-xs" },
-    { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg" },
+    { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg", truncate: true },
 ];
 
 const getFriendlyGroupName = (groupByValue: GroupByOption) => {
@@ -98,6 +98,7 @@ export function ErrorTable({
   columnVisibility
 }: ErrorTableProps) {
     
+  const [expandedRowKey, setExpandedRowKey] = React.useState<string | null>(null);
   const visibleColumns = React.useMemo(() => columnConfig.filter(c => columnVisibility[c.id]), [columnVisibility]);
   const visibleColumnCount = visibleColumns.length;
 
@@ -260,17 +261,36 @@ export function ErrorTable({
               </TableHeader>
               <TableBody>
                 {isLoading ? renderSkeleton() : logs.length > 0 ? (
-                  logs.map((log, index) => (
-                    <TableRow 
-                      key={`${log.log_date_time.toISOString()}-${index}`}
-                    >
-                      {visibleColumns.map(column => (
-                        <TableCell key={column.id} className={cn(column.cellClassName, column.truncate && 'truncate')}>
-                          {renderCellContent(log, column.id)}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
+                  logs.map((log, index) => {
+                    const rowKey = `${log.log_date_time.toISOString()}-${index}`;
+                    const isExpanded = expandedRowKey === rowKey;
+                    
+                    return (
+                        <React.Fragment key={rowKey}>
+                          <TableRow 
+                            onClick={() => setExpandedRowKey(isExpanded ? null : rowKey)}
+                            className="cursor-pointer"
+                            data-state={isExpanded ? 'selected' : ''}
+                          >
+                            {visibleColumns.map(column => (
+                              <TableCell key={column.id} className={cn(column.cellClassName, column.truncate && 'truncate')}>
+                                {renderCellContent(log, column.id)}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                          {isExpanded && (
+                            <TableRow>
+                                <TableCell colSpan={visibleColumnCount} className="p-2 bg-muted/50">
+                                    <div className="p-4 bg-background rounded-md">
+                                        <h4 className="font-bold mb-2">Full Log Message:</h4>
+                                        <pre className="text-sm whitespace-pre-wrap font-mono">{log.log_message}</pre>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                    )
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={visibleColumnCount || 1} className="h-24 text-center">
