@@ -114,7 +114,12 @@ export function ErrorTable({
             }
             return String(value);
         case 'repository_path':
-            return String(value).replace('/ldmodels/', '');
+            const path = String(value);
+            const lastSlashIndex = path.lastIndexOf('/');
+            if (lastSlashIndex !== -1) {
+                return path.substring(lastSlashIndex + 1);
+            }
+            return path;
         case 'error_number':
             return (
                 <Badge variant={(value as number) >= 500 ? "destructive" : "secondary"}>
