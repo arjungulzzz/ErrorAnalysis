@@ -85,7 +85,7 @@ export default function ErrorDashboard() {
     as_start_date_time: false,
     as_server_config: false,
     user_id: true,
-    report_id_name: true,
+    report_id_name: false,
     error_number: false,
     xql_query_id: false,
     log_message: true,
