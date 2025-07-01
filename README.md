@@ -119,6 +119,8 @@ To do this, the request must:
 2.  Send an **empty** `groupBy` array (`[]`).
 3.  The `pagination` sent in this request **should be applied** by the backend, as it now applies to the list of individual logs being fetched.
 
+**The response to this request should follow the format for Log List Requests**, including the paginated `logs` array and the `totalCount` of all logs matching the drill-down filters. This `totalCount` is crucial for the sub-table's independent pagination controls.
+
 ```json
 // This request fetches page 1 of logs where host_name is 'server-alpha-01' and error_number is '500'
 {
