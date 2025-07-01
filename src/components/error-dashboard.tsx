@@ -75,7 +75,7 @@ export default function ErrorDashboard() {
     as_server_config: false,
     user_id: true,
     report_id_name: false,
-    error_number: true,
+    error_number: false,
     xql_query_id: false,
     log_message: true,
   });
@@ -94,6 +94,15 @@ export default function ErrorDashboard() {
   
   const fetchData = useCallback(() => {
     startTransition(async () => {
+      // If no time range is selected, do not fetch data. Clear existing data.
+      if (selectedPreset === 'none' && !dateRange?.from) {
+        setLogs([]);
+        setTotalLogs(0);
+        setChartData([]);
+        setGroupData([]);
+        return;
+      }
+
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
       if (!apiUrl) {
