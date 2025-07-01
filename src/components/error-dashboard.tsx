@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useTransition } from "react";
 import type { DateRange } from "react-day-picker";
-import { format, subDays } from "date-fns";
+import { format, subDays, subHours, subMonths } from "date-fns";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ErrorTable } from "@/components/error-table";
@@ -42,6 +42,16 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
 
 const nonGroupableColumns: Array<keyof ErrorLog> = ['log_date_time', 'as_start_date_time'];
 
+const timePresets = [
+    { key: 'none', label: 'None' },
+    { key: '4h', label: 'Last 4 hours' },
+    { key: '8h', label: 'Last 8 hours' },
+    { key: '1d', label: 'Last 1 day' },
+    { key: '7d', label: 'Last 7 days' },
+    { key: '15d', label: 'Last 15 days' },
+    { key: '1m', label: 'Last 1 month' },
+];
+
 export default function ErrorDashboard() {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
@@ -49,10 +59,13 @@ export default function ErrorDashboard() {
   const [groupData, setGroupData] = useState<GroupDataPoint[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(100);
+  
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 6),
     to: new Date(),
   });
+  const [selectedPreset, setSelectedPreset] = useState<string | null>('7d');
+  
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption[]>([]);
@@ -111,9 +124,12 @@ export default function ErrorDashboard() {
         groupBy,
         chartBreakdownBy,
       };
-
+      
       if (dateRange) {
-        requestBody.dateRange = dateRange;
+        requestBody.dateRange = {
+            from: dateRange.from?.toISOString(),
+            to: dateRange.to?.toISOString()
+        };
       }
 
       try {
@@ -129,7 +145,6 @@ export default function ErrorDashboard() {
         }
         const data: LogsApiResponse = await response.json();
 
-        // Process API response: convert date strings to Date objects and ensure a unique ID
         const processedLogs: ErrorLog[] = data.logs.map((log: ApiErrorLog, index: number) => ({
           ...log,
           id: `log-${new Date(log.log_date_time).getTime()}-${index}`,
@@ -158,12 +173,10 @@ export default function ErrorDashboard() {
   }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, toast]);
   
   useEffect(() => {
-    // Reset page to 1 whenever filters, grouping, or date changes
     setPage(1);
   }, [columnFilters, groupBy, sort, dateRange]);
 
   useEffect(() => {
-    // Main fetch trigger
     fetchData();
   }, [fetchData]);
 
@@ -195,6 +208,53 @@ export default function ErrorDashboard() {
     setGroupBy([]);
   };
 
+  const handlePresetClick = (key: string) => {
+    setSelectedPreset(key);
+    const now = new Date();
+    switch (key) {
+        case 'none':
+            setDateRange(undefined);
+            break;
+        case '4h':
+            setDateRange({ from: subHours(now, 4), to: now });
+            break;
+        case '8h':
+            setDateRange({ from: subHours(now, 8), to: now });
+            break;
+        case '1d':
+            setDateRange({ from: subDays(now, 1), to: now });
+            break;
+        case '7d':
+            setDateRange({ from: subDays(now, 6), to: now });
+            break;
+        case '15d':
+            setDateRange({ from: subDays(now, 14), to: now });
+            break;
+        case '1m':
+            setDateRange({ from: subMonths(now, 1), to: now });
+            break;
+    }
+  };
+
+  const handleCalendarSelect = (range: DateRange | undefined) => {
+      setDateRange(range);
+      setSelectedPreset(null);
+  };
+  
+  const displayDateText = () => {
+    if (selectedPreset) {
+      const preset = timePresets.find(p => p.key === selectedPreset);
+      return preset?.label;
+    }
+    if (dateRange?.from) {
+      if (dateRange.to) {
+        return `${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}`;
+      }
+      return format(dateRange.from, "LLL dd, y");
+    }
+    return "None";
+  };
+  
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
@@ -233,27 +293,22 @@ export default function ErrorDashboard() {
                         disabled={isPending}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (
-                          dateRange.to ? (
-                            <>
-                              {format(dateRange.from, "LLL dd, y")} -{" "}
-                              {format(dateRange.to, "LLL dd, y")}
-                            </>
-                          ) : (
-                            format(dateRange.from, "LLL dd, y")
-                          )
-                        ) : (
-                          <span>None</span>
-                        )}
+                        {displayDateText()}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 flex flex-col sm:flex-row" align="start">
                       <div className="p-4 border-b sm:border-b-0 sm:border-r">
                         <div className="grid gap-2">
-                          <Button variant="ghost" className="justify-start" onClick={() => setDateRange({ from: subDays(new Date(), 6), to: new Date() })}>Last 7 days</Button>
-                          <Button variant="ghost" className="justify-start" onClick={() => setDateRange({ from: subDays(new Date(), 29), to: new Date() })}>Last 30 days</Button>
-                          <Button variant="ghost" className="justify-start" onClick={() => setDateRange({ from: new Date(new Date().getFullYear(), 0, 1), to: new Date() })}>This Year</Button>
-                          <Button variant="ghost" className="justify-start" onClick={() => setDateRange(undefined)}>None</Button>
+                            {timePresets.map((preset) => (
+                                <Button
+                                    key={preset.key}
+                                    variant={selectedPreset === preset.key ? "default" : "ghost"}
+                                    className="justify-start"
+                                    onClick={() => handlePresetClick(preset.key)}
+                                >
+                                    {preset.label}
+                                </Button>
+                            ))}
                         </div>
                       </div>
                       <Calendar
@@ -261,8 +316,9 @@ export default function ErrorDashboard() {
                         mode="range"
                         defaultMonth={dateRange?.from}
                         selected={dateRange}
-                        onSelect={setDateRange}
-                        numberOfMonths={2}
+                        onSelect={handleCalendarSelect}
+                        numberOfMonths={1}
+                        disabled={{ after: new Date() }}
                       />
                     </PopoverContent>
                   </Popover>

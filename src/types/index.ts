@@ -6,8 +6,6 @@
  * format from the API and the processed format used by the frontend.
  */
 
-import { type DateRange } from "react-day-picker";
-
 /**
  * Represents the raw error log entry as it comes from the API.
  * Dates are strings.
@@ -105,11 +103,19 @@ export type ErrorTrendDataPoint = {
 };
 
 /**
+ * The shape of a date range sent to the API. Dates must be ISO strings.
+ */
+export type ApiDateRange = {
+    from?: string;
+    to?: string;
+}
+
+/**
  * Defines the structure of the request body sent to the logs API.
  */
 export type LogsApiRequest = {
   requestId: string;
-  dateRange?: DateRange;
+  dateRange?: ApiDateRange;
   pagination: { page: number; pageSize: number };
   sort: SortDescriptor;
   filters: ColumnFilters;
