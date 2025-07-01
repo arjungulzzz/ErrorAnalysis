@@ -315,7 +315,7 @@ export function ErrorTable({
                 <TableBody>
                   {isLoading ? renderGroupedSkeleton() : groupData && groupData.length > 0 ? (
                     groupData.map((item) => (
-                      <GroupedRow key={item.key} item={item} level={0} />
+                      <GroupedRow key={`0-${item.key}`} item={item} level={0} />
                     ))
                   ) : (
                     <TableRow>
