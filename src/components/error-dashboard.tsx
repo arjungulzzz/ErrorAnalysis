@@ -192,7 +192,7 @@ export default function ErrorDashboard() {
       const requestBody: LogsApiRequest = {
         requestId,
         interval: timePreset !== 'custom' ? timePreset : null,
-        dateRange: timePreset === 'custom' ? dateRange : undefined,
+        dateRange: dateRange, // Always send the dateRange object to the mock service
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
@@ -383,10 +383,10 @@ export default function ErrorDashboard() {
 
   return (
     <div className="space-y-6">
-       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
-             <svg width="35" height="32" viewBox="0 0 35 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <svg width="35" height="32" viewBox="0 0 35 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M10.6691 1.7208L0.666992 18.2736C-0.0886745 19.5392 -0.219508 21.036 0.354658 22.4299C0.928825 23.8238 2.16416 24.9749 3.66806 25.6456L15.3421 30.7391C16.846 31.4098 18.5445 31.4098 20.0484 30.7391L31.7224 25.6456C33.2263 24.9749 34.4616 23.8238 35.0358 22.4299C35.61 21.036 35.4791 19.5392 34.7235 18.2736L24.7214 1.7208C23.9657 0.455201 22.6109 -0.252066 21.1448 -0.252066H14.2497C12.7836 -0.252066 11.4288 0.455201 10.6732 1.7208H10.6691Z" fill="url(#paint0_linear_103_2)"/>
               <path d="M17.7021 17.5137L8.91699 15.2505L10.6698 12.0003L17.7021 13.9189V17.5137Z" fill="#A2E5E6"/>
               <path d="M17.7019 17.5137V13.9189L24.7205 12.0003L26.4733 15.2505L17.7019 17.5137Z" fill="url(#paint1_linear_103_2)"/>
