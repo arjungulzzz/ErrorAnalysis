@@ -1,6 +1,6 @@
 import { type LogsApiRequest, type LogsApiResponse, type ErrorLog, type ApiErrorLog, type GroupDataPoint, type ErrorTrendDataPoint, GroupByOption } from '@/types';
 import { generateMockLogs } from './mock-data';
-import { format, subDays, subHours, startOfDay, endOfDay, eachDayOfInterval, parseISO } from 'date-fns';
+import { format, subDays, subHours, startOfDay, endOfDay, eachDayOfInterval, parseISO, subMonths } from 'date-fns';
 
 // Generate a large set of logs once to be used by all mock requests
 const allMockLogs = generateMockLogs(5000);
@@ -84,8 +84,8 @@ function generateChartData(logs: ErrorLog[], request: LogsApiRequest): ErrorTren
     let endDate = new Date();
 
     if (request.dateRange?.from) {
-        startDate = request.dateRange.from instanceof Date ? request.dateRange.from : parseISO(request.dateRange.from as unknown as string);
-        if(request.dateRange.to) endDate = request.dateRange.to instanceof Date ? request.dateRange.to : parseISO(request.dateRange.to as unknown as string);
+        startDate = request.dateRange.from instanceof Date ? request.dateRange.from : parseISO(request.dateRange.from as string);
+        if(request.dateRange.to) endDate = request.dateRange.to instanceof Date ? request.dateRange.to : parseISO(request.dateRange.to as string);
     } else {
         const interval = request.interval || '7 days';
         const [numStr, unit] = interval.split(' ');
@@ -128,11 +128,12 @@ export function processMockRequest(request: LogsApiRequest): LogsApiResponse {
     if (request.dateRange) {
         if(request.dateRange.from) {
             const from = request.dateRange.from instanceof Date ? request.dateRange.from : new Date(request.dateRange.from);
+            from.setHours(0, 0, 0, 0); // Start of day for date-based ranges
             logs = logs.filter(l => l.log_date_time >= from);
         }
         if(request.dateRange.to) {
             const to = request.dateRange.to instanceof Date ? request.dateRange.to : new Date(request.dateRange.to);
-            to.setHours(23, 59, 59, 999); // include end of day
+            to.setHours(23, 59, 59, 999); // End of day to be inclusive
             logs = logs.filter(l => l.log_date_time <= to);
         }
     } else if (request.interval && request.interval !== 'none') {
@@ -146,7 +147,7 @@ export function processMockRequest(request: LogsApiRequest): LogsApiResponse {
             if(unit.startsWith('day')){
                 from = subDays(now, num);
             } else {
-                from = subDays(now, 30); // crude month
+                from = subMonths(now, num);
             }
         }
         logs = logs.filter(l => l.log_date_time >= from);
