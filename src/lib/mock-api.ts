@@ -92,8 +92,10 @@ function generateChartData(logs: ErrorLog[], request: LogsApiRequest): ErrorTren
         const num = parseInt(numStr);
         if (unit.startsWith('hour')) {
             startDate = subHours(endDate, num);
-        } else { // default to days
+        } else if (unit.startsWith('day')) {
             startDate = subDays(endDate, num);
+        } else { // month
+            startDate = subMonths(endDate, num);
         }
     }
     
@@ -125,32 +127,30 @@ export function processMockRequest(request: LogsApiRequest): LogsApiResponse {
     let logs = [...allMockLogs];
     
     // 1. Filter by date/interval
-    if (request.dateRange) {
-        if(request.dateRange.from) {
-            const from = request.dateRange.from instanceof Date ? request.dateRange.from : new Date(request.dateRange.from);
-            from.setHours(0, 0, 0, 0); // Start of day for date-based ranges
-            logs = logs.filter(l => l.log_date_time >= from);
-        }
-        if(request.dateRange.to) {
-            const to = request.dateRange.to instanceof Date ? request.dateRange.to : new Date(request.dateRange.to);
-            to.setHours(23, 59, 59, 999); // End of day to be inclusive
-            logs = logs.filter(l => l.log_date_time <= to);
-        }
-    } else if (request.interval && request.interval !== 'none') {
+    if (request.dateRange?.from) { // This handles 'custom' date ranges from the calendar
+        const fromDate = request.dateRange.from instanceof Date ? request.dateRange.from : new Date(request.dateRange.from);
+        const toDate = request.dateRange.to ? (request.dateRange.to instanceof Date ? request.dateRange.to : new Date(request.dateRange.to)) : new Date();
+        
+        logs = logs.filter(log => {
+            const logTime = log.log_date_time.getTime();
+            return logTime >= startOfDay(fromDate).getTime() && logTime <= endOfDay(toDate).getTime();
+        });
+
+    } else if (request.interval && request.interval !== 'none') { // This handles presets like "Last 7 days"
         const [numStr, unit] = request.interval.split(' ');
         const num = parseInt(numStr);
-        let from: Date;
-        if(unit.startsWith('hour')) {
-            from = subHours(new Date(), num);
-        } else { //days, month
-            const now = new Date();
-            if(unit.startsWith('day')){
-                from = subDays(now, num);
-            } else {
-                from = subMonths(now, num);
-            }
+        let fromDate: Date;
+        const now = new Date();
+
+        if (unit.startsWith('hour')) {
+            fromDate = subHours(now, num);
+        } else if (unit.startsWith('day')) {
+            fromDate = subDays(now, num);
+        } else { // month
+            fromDate = subMonths(now, num);
         }
-        logs = logs.filter(l => l.log_date_time >= from);
+        
+        logs = logs.filter(l => l.log_date_time >= fromDate);
     }
     
     // 2. Apply column filters
