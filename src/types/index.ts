@@ -65,7 +65,17 @@ export type ColumnFilters = Partial<Record<keyof ErrorLog, string>>;
 /**
  * Defines the available options for grouping logs in the table.
  */
-export type GroupByOption = 'host_name' | 'repository_path' | 'error_number' | 'user_id' | 'version_number';
+export type GroupByOption =
+  | 'host_name'
+  | 'repository_path'
+  | 'port_number'
+  | 'version_number'
+  | 'as_server_mode'
+  | 'as_server_config'
+  | 'user_id'
+  | 'report_id_name'
+  | 'error_number'
+  | 'xql_query_id';
 
 /**
  * Represents a single data point in a grouped data summary.
@@ -80,7 +90,7 @@ export type GroupDataPoint = {
 /**
  * Defines the available options for the chart's breakdown tooltip.
  */
-export type ChartBreakdownByOption = 'host_name' | 'error_number' | 'user_id' | 'version_number' | 'repository_path';
+export type ChartBreakdownByOption = GroupByOption;
 
 /**
  * Defines the data structure for a single point in the error trend chart.

@@ -30,9 +30,14 @@ const chartConfig = {
 const breakdownOptions: { value: ChartBreakdownByOption; label: string }[] = [
   { value: 'host_name', label: 'Host' },
   { value: 'repository_path', label: 'Model Name' },
+  { value: 'port_number', label: 'Port' },
   { value: 'version_number', label: 'AS Version' },
-  { value: 'error_number', label: 'Error Code' },
+  { value: 'as_server_mode', label: 'Server Mode' },
+  { value: 'as_server_config', label: 'Server Config' },
   { value: 'user_id', label: 'User' },
+  { value: 'report_id_name', label: 'Report Name' },
+  { value: 'error_number', label: 'Error Code' },
+  { value: 'xql_query_id', label: 'Query ID' },
 ];
 
 const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
