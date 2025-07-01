@@ -18,9 +18,7 @@ const reportNames = [
   'user_activity_report',
   'payment_failures',
   'system_health_check',
-  'this_is_an_extremely_long_report_name_that_is_designed_to_test_the_truncation_and_tooltip_functionality_of_the_data_table_interface_to_ensure_a_clean_and_user_friendly_experience_across_all_columns_and_data_types',
   'short_report',
-  'another_very_long_report_name_for_the_purpose_of_testing_ui_behavior_with_long_strings_and_ensuring_that_the_elipsis_and_tooltips_work_correctly',
   ''
 ];
 const logMessages = [
@@ -29,9 +27,7 @@ const logMessages = [
   'API rate limit exceeded for user.',
   'Authentication token is invalid or has expired.',
   'Disk space is critically low on the primary data partition.',
-  'This is an exceptionally long and detailed log message created specifically for testing purposes. It needs to be long enough to ensure that the truncation logic in the UI is triggered correctly and that the expandable row feature functions as expected, showing the full content without breaking the layout. The message details a hypothetical critical failure scenario involving multiple subsystems, such as: [Subsystem: Authentication, Error: TokenValidationFailure, Timestamp: 2023-11-21T10:30:00Z], [Subsystem: DatabaseConnector, Error: ConnectionPoolExhausted, Details: All connections are in use and the timeout of 30s was reached while waiting for a free connection], [Subsystem: CachingLayer, Error: RedisCacheMiss, Key: \'user:session:xyz123\']. This comprehensive message simulates real-world verbosity.',
   'Request failed with status code 503: Service Unavailable.',
-  'Here is another very long log message designed to stretch the boundaries of the UI components. It contains a lot of technical jargon and error codes like "0xDEADBEEF" and "ERR_CONNECTION_RESET" to simulate a real-world debugging scenario. We need to verify that line breaks, special characters, and long uninterrupted strings are all handled gracefully by the expandable details view and that the copy-to-clipboard functionality works seamlessly with this complex content. The goal is to create a robust and resilient user interface that never fails, no matter how chaotic the input data gets. This includes handling paths like C:\\Users\\Default\\AppData\\Local\\Temp and URLs like https://example.com/this/is/a/very/long/url/that/should/also/be/handled/correctly.',
   '',
 ];
 const errorNumbers = [500, 404, 401, 503, 1201, 1337, 429];

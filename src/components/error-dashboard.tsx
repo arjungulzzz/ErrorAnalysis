@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
+import { useState, useEffect, useCallback, useTransition } from "react";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,9 +22,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { ErrorTrendChart } from "./error-trend-chart";
-import * as pako from "pako";
 import { useToast } from "@/hooks/use-toast";
-import { generateMockLogs } from "@/lib/mock-data";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -87,8 +85,7 @@ export default function ErrorDashboard() {
   const { toast } = useToast();
   
   const [isClient, setIsClient] = useState(false);
-  const [mockData, setMockData] = useState<ErrorLog[]>([]);
-
+  
   const [columnWidths, setColumnWidths] = useState<Record<keyof ErrorLog, number>>({} as Record<keyof ErrorLog, number>);
   
   useEffect(() => {
@@ -98,7 +95,6 @@ export default function ErrorDashboard() {
     const fromDate = subDays(now, 7);
     
     setIsClient(true);
-    setMockData(generateMockLogs());
     setDateRange({ from: fromDate, to: now });
   }, []);
 
@@ -141,7 +137,14 @@ export default function ErrorDashboard() {
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
-      if (timePreset === 'none' || (timePreset === 'custom' && !dateRange?.from) || mockData.length === 0) {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+      if (!apiUrl) {
+        toast({
+          variant: "destructive",
+          title: "Configuration Error",
+          description: "The API URL is not configured. Please set NEXT_PUBLIC_API_URL in your environment.",
+        });
         setLogs([]);
         setTotalLogs(0);
         setChartData([]);
@@ -149,77 +152,67 @@ export default function ErrorDashboard() {
         return;
       }
 
-      // --- START TEMPORARY MOCK DATA IMPLEMENTATION ---
-      await new Promise(resolve => setTimeout(resolve, 200)); // Simulate network delay
-
-      let processedLogs: ErrorLog[] = mockData.map(log => ({ ...log }));
-
-      // Date filtering
-      if (dateRange?.from) {
-        processedLogs = processedLogs.filter(log => log.log_date_time >= dateRange!.from!);
-      }
-      if (dateRange?.to) {
-        processedLogs = processedLogs.filter(log => log.log_date_time <= dateRange!.to!);
+      if (timePreset === 'none') {
+        setLogs([]);
+        setTotalLogs(0);
+        setChartData([]);
+        setGroupData([]);
+        return;
       }
 
-      // Column filtering
-      Object.entries(columnFilters).forEach(([key, value]) => {
-        if (value) {
-          processedLogs = processedLogs.filter(log =>
-            String(log[key as keyof ErrorLog]).toLowerCase().includes(String(value).toLowerCase())
-          );
-        }
-      });
-      
-      const totalCount = processedLogs.length;
+      const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
 
-      // Grouping
-      let apiGroupData: GroupDataPoint[] = [];
-      if (groupBy !== 'none') {
-        const groups = processedLogs.reduce((acc, log) => {
-          const key = String(log[groupBy]);
-          acc[key] = (acc[key] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-        apiGroupData = Object.entries(groups)
-          .map(([key, count]) => ({ key, count }))
-          .sort((a, b) => b.count - a.count);
-      }
+      const requestBody: LogsApiRequest = {
+        requestId,
+        interval: timePreset !== 'custom' ? timePreset : null,
+        dateRange: timePreset === 'custom' ? dateRange : undefined,
+        pagination: { page, pageSize },
+        sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
+        filters: columnFilters,
+        groupBy,
+        chartBreakdownBy,
+      };
 
-      // Sorting
-      if (sort.column && sort.direction) {
-        processedLogs.sort((a, b) => {
-          const valA = a[sort.column!];
-          const valB = b[sort.column!];
-          if (valA < valB) return sort.direction === 'ascending' ? -1 : 1;
-          if (valA > valB) return sort.direction === 'ascending' ? 1 : -1;
-          return 0;
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
         });
-      }
 
-      // Pagination
-      const paginatedLogs = processedLogs.slice((page - 1) * pageSize, page * pageSize);
-
-      // Mock chart data (deterministic)
-      const chartPoints = 15;
-      const apiChartData = Array.from({ length: chartPoints }).map((_, i) => {
-        const referenceDate = dateRange?.to || new Date();
-        const date = subDays(referenceDate, chartPoints - 1 - i);
-        return {
-          date: date.toISOString(),
-          count: (15 - i) * 7 % 50,
-          formattedDate: format(date, 'MMM dd'),
-          breakdown: { 'server-alpha-01': (15 - i) * 3, 'server-beta-02': (15 - i) * 4 }
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: response.statusText }));
+          throw new Error(errorData.message || `API request failed with status ${response.status}`);
         }
-      });
-      
-      setLogs(paginatedLogs);
-      setTotalLogs(totalCount);
-      setChartData(apiChartData);
-      setGroupData(apiGroupData);
-      // --- END TEMPORARY MOCK DATA IMPLEMENTATION ---
+
+        const data: LogsApiResponse = await response.json();
+
+        // Process API response: convert date strings to Date objects
+        const processedLogs = data.logs.map((log: ApiErrorLog) => ({
+          ...log,
+          log_date_time: new Date(log.log_date_time),
+          as_start_date_time: new Date(log.as_start_date_time),
+        }));
+
+        setLogs(processedLogs);
+        setTotalLogs(data.totalCount);
+        setChartData(data.chartData || []);
+        setGroupData(data.groupData || []);
+
+      } catch (error) {
+        console.error("Failed to fetch logs:", error);
+        toast({
+          variant: "destructive",
+          title: "Failed to Fetch Data",
+          description: error instanceof Error ? error.message : "An unknown error occurred.",
+        });
+        setLogs([]);
+        setTotalLogs(0);
+        setChartData([]);
+        setGroupData([]);
+      }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, timePreset, mockData]);
+  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, timePreset, chartBreakdownBy, toast]);
   
   useEffect(() => {
     // Reset page to 1 whenever filters, grouping, or date changes
