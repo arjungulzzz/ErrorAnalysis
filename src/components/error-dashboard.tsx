@@ -40,16 +40,14 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_message', name: 'Message' },
 ];
 
-const nonGroupableColumns: Array<keyof ErrorLog> = ['log_date_time', 'as_start_date_time'];
-
 const timePresets = [
-    { key: 'none', label: 'None' },
-    { key: '4h', label: 'Last 4 hours' },
-    { key: '8h', label: 'Last 8 hours' },
-    { key: '1d', label: 'Last 1 day' },
-    { key: '7d', label: 'Last 7 days' },
-    { key: '15d', label: 'Last 15 days' },
-    { key: '1m', label: 'Last 1 month' },
+    { key: 'none', label: 'None', interval: null },
+    { key: '4h', label: 'Last 4 hours', interval: '4 hours' },
+    { key: '8h', label: 'Last 8 hours', interval: '8 hours' },
+    { key: '1d', label: 'Last 1 day', interval: '1 day' },
+    { key: '7d', label: 'Last 7 days', interval: '7 days' },
+    { key: '15d', label: 'Last 15 days', interval: '15 days' },
+    { key: '1m', label: 'Last 1 month', interval: '1 month' },
 ];
 
 export default function ErrorDashboard() {
@@ -125,7 +123,10 @@ export default function ErrorDashboard() {
         chartBreakdownBy,
       };
       
-      if (dateRange) {
+      const preset = timePresets.find(p => p.key === selectedPreset);
+      if (preset?.interval) {
+        requestBody.interval = preset.interval;
+      } else if (dateRange) {
         requestBody.dateRange = {
             from: dateRange.from?.toISOString(),
             to: dateRange.to?.toISOString()
@@ -170,11 +171,11 @@ export default function ErrorDashboard() {
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, toast]);
+  }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, selectedPreset, toast]);
   
   useEffect(() => {
     setPage(1);
-  }, [columnFilters, groupBy, sort, dateRange]);
+  }, [columnFilters, groupBy, sort, dateRange, selectedPreset]);
 
   useEffect(() => {
     fetchData();
@@ -188,7 +189,7 @@ export default function ErrorDashboard() {
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
   
   const availableGroupByOptions = allColumns.filter(
-    (col) => !nonGroupableColumns.includes(col.id) && columnVisibility[col.id]
+    (col) => columnVisibility[col.id]
   );
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {

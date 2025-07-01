@@ -115,6 +115,7 @@ export type ApiDateRange = {
  */
 export type LogsApiRequest = {
   requestId: string;
+  interval?: string;
   dateRange?: ApiDateRange;
   pagination: { page: number; pageSize: number };
   sort: SortDescriptor;
