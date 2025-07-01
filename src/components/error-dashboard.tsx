@@ -23,7 +23,6 @@ import { ErrorTrendChart } from "./error-trend-chart";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
-import { processLogsRequest } from "@/lib/mock-api";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -78,8 +77,6 @@ export default function ErrorDashboard() {
   
   const { toast } = useToast();
   
-  const [isClient, setIsClient] = useState(false);
-  
   const [columnWidths, setColumnWidths] = useState<Record<keyof ErrorLog, number>>(
     allColumns.reduce((acc, col) => {
       acc[col.id] = col.id === 'log_message' ? 400 : col.id === 'log_date_time' ? 180 : 150;
@@ -87,19 +84,28 @@ export default function ErrorDashboard() {
     }, {} as Record<keyof ErrorLog, number>)
   );
   
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
   const fetchData = useCallback(() => {
     startTransition(async () => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+      if (!apiUrl) {
+        toast({
+          variant: "destructive",
+          title: "API URL Not Configured",
+          description: "Please set NEXT_PUBLIC_API_URL in your environment to fetch data.",
+        });
+        setLogs([]);
+        setTotalLogs(0);
+        setChartData([]);
+        setGroupData([]);
+        return;
+      }
 
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
 
       const requestBody: LogsApiRequest = {
         requestId,
-        dateRange: dateRange,
+        dateRange,
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
@@ -108,34 +114,17 @@ export default function ErrorDashboard() {
       };
 
       try {
-        let data: LogsApiResponse;
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
 
-        if (apiUrl) {
-            const response = await fetch(apiUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestBody),
-            });
-
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({ message: response.statusText }));
-              throw new Error(errorData.message || `API request failed with status ${response.status}`);
-            }
-            data = await response.json();
-        } else {
-            // Use mock service if no API URL is provided
-            if (isClient) {
-              data = processLogsRequest(requestBody);
-            } else {
-              // Return empty state for server-side render
-              setLogs([]);
-              setTotalLogs(0);
-              setChartData([]);
-              setGroupData([]);
-              return;
-            }
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: response.statusText }));
+          throw new Error(errorData.message || `API request failed with status ${response.status}`);
         }
-        
+        const data: LogsApiResponse = await response.json();
 
         // Process API response: convert date strings to Date objects and ensure a unique ID
         const processedLogs: ErrorLog[] = data.logs.map((log: ApiErrorLog, index: number) => ({
@@ -163,7 +152,7 @@ export default function ErrorDashboard() {
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, toast, isClient]);
+  }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, toast]);
   
   useEffect(() => {
     // Reset page to 1 whenever filters, grouping, or date changes
@@ -172,10 +161,8 @@ export default function ErrorDashboard() {
 
   useEffect(() => {
     // Main fetch trigger
-    if (isClient) { // Only fetch data on the client
-      fetchData();
-    }
-  }, [fetchData, isClient]);
+    fetchData();
+  }, [fetchData]);
 
   
   const handleRefresh = () => {
@@ -185,7 +172,7 @@ export default function ErrorDashboard() {
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
   
   const availableGroupByOptions = allColumns.filter(
-    (col) => !nonGroupableColumns.includes(col.id) && columnVisibility[col.id] && col.id !== 'log_message'
+    (col) => !nonGroupableColumns.includes(col.id) && columnVisibility[col.id]
   );
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
