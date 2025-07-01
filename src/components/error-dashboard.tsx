@@ -2,7 +2,7 @@
  * @fileoverview
  * The main component for the Error Insights Dashboard.
  * This component manages the state for the entire dashboard, including data fetching,
- * filters (date range, grouping, column visibility), and layout of sub-components
+ * filters (grouping, column visibility), and layout of sub-components
  * like the error table and trend chart.
  */
 "use client";
@@ -11,14 +11,9 @@ import { useState, useEffect, useCallback, useTransition } from "react";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ErrorTable } from "@/components/error-table";
-import { type DateRange } from "react-day-picker";
-import { format, subDays, subMonths, addMonths, subHours } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
-import { RotateCw, ChevronDown, Calendar as CalendarIcon, X } from "lucide-react";
+import { RotateCw, ChevronDown, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 import { ErrorTrendChart } from "./error-trend-chart";
 import { useToast } from "@/hooks/use-toast";
 import pako from "pako";
@@ -28,8 +23,6 @@ import { processMockRequest } from "@/lib/mock-api";
 
 interface DashboardViewState {
   columnFilters: ColumnFilters;
-  dateRange?: DateRange;
-  timePreset: string;
   sort: SortDescriptor;
   groupBy: GroupByOption[];
   columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
@@ -53,16 +46,6 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_message', name: 'Message' },
 ];
 
-const TIME_PRESETS = [
-    { value: 'none', label: 'None', interval: null },
-    { value: '4 hours', label: 'Last 4 hours', interval: '4 hours' },
-    { value: '8 hours', label: 'Last 8 hours', interval: '8 hours' },
-    { value: '1 day', label: 'Last 1 day', interval: '1 day' },
-    { value: '7 days', label: 'Last 7 days', interval: '7 days' },
-    { value: '15 days', label: 'Last 15 days', interval: '15 days' },
-    { value: '1 month', label: 'Last 1 month', interval: '1 month' },
-];
-
 const nonGroupableColumns: Array<keyof ErrorLog> = ['log_date_time', 'as_start_date_time', 'log_message'];
 
 const allGroupableColumns: { id: GroupByOption; name: string }[] = allColumns
@@ -78,11 +61,6 @@ export default function ErrorDashboard() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(100);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 7),
-    to: new Date(),
-  });
-  const [timePreset, setTimePreset] = useState<string>('7 days');
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption[]>([]);
   const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
@@ -104,7 +82,6 @@ export default function ErrorDashboard() {
   const [isPending, startTransition] = useTransition();
   const [chartBreakdownBy, setChartBreakdownBy] = useState<ChartBreakdownByOption>('host_name');
   
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const { toast } = useToast();
   
   const [isClient, setIsClient] = useState(false);
@@ -129,21 +106,6 @@ export default function ErrorDashboard() {
               const savedState = JSON.parse(savedStateRaw) as Partial<DashboardViewState>;
               
               if (savedState.columnFilters) setColumnFilters(savedState.columnFilters);
-              
-              // Only restore dateRange if it's not the default "None"
-              if (savedState.timePreset && savedState.dateRange) {
-                  const restoredDateRange = {
-                      from: savedState.dateRange.from ? new Date(savedState.dateRange.from) : undefined,
-                      to: savedState.dateRange.to ? new Date(savedState.dateRange.to) : undefined,
-                  };
-                  setDateRange(restoredDateRange);
-                  setTimePreset(savedState.timePreset);
-              } else {
-                 // Set default if nothing usable in storage
-                 setDateRange({ from: subDays(new Date(), 7), to: new Date() });
-                 setTimePreset('7 days');
-              }
-              
               if (savedState.sort) setSort(savedState.sort);
               if (savedState.groupBy && Array.isArray(savedState.groupBy)) setGroupBy(savedState.groupBy);
               if (savedState.columnVisibility) setColumnVisibility(savedState.columnVisibility);
@@ -173,8 +135,6 @@ export default function ErrorDashboard() {
 
       const stateToSave: DashboardViewState = {
         columnFilters,
-        dateRange,
-        timePreset,
         sort,
         groupBy,
         columnVisibility,
@@ -185,8 +145,6 @@ export default function ErrorDashboard() {
       localStorage.setItem('error-dashboard-view-state', JSON.stringify(stateToSave));
   }, [
       columnFilters, 
-      dateRange, 
-      timePreset, 
       sort, 
       groupBy, 
       columnVisibility, 
@@ -203,7 +161,6 @@ export default function ErrorDashboard() {
 
       const requestBody: LogsApiRequest = {
         requestId,
-        dateRange: dateRange, // Always send the current dateRange state
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
@@ -300,12 +257,12 @@ export default function ErrorDashboard() {
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, timePreset, chartBreakdownBy, toast]);
+  }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, toast]);
   
   useEffect(() => {
-    // Reset page to 1 whenever filters, grouping, or date changes
+    // Reset page to 1 whenever filters, grouping, or sorting changes
     setPage(1);
-  }, [columnFilters, groupBy, dateRange, timePreset, sort]);
+  }, [columnFilters, groupBy, sort]);
 
   useEffect(() => {
     // Main fetch trigger
@@ -314,41 +271,6 @@ export default function ErrorDashboard() {
     }
   }, [fetchData, isClient]);
 
-  const handlePresetSelect = (value: string) => {
-    setTimePreset(value);
-    
-    if (value === 'none') {
-        setDateRange(undefined);
-        setDatePickerOpen(false);
-        return;
-    }
-    
-    const now = new Date();
-    let fromDate: Date | undefined;
-    switch (value) {
-      case "4 hours":
-        fromDate = subHours(now, 4);
-        break;
-      case "8 hours":
-        fromDate = subHours(now, 8);
-        break;
-      case "1 day":
-        fromDate = subDays(now, 1);
-        break;
-      case "7 days":
-        fromDate = subDays(now, 7);
-        break;
-      case "15 days":
-        fromDate = subDays(now, 15);
-        break;
-      case "1 month":
-        fromDate = subMonths(now, 1);
-        break;
-    }
-    setDateRange({ from: fromDate, to: now });
-    setDatePickerOpen(false);
-  };
-  
   const handleRefresh = () => {
     fetchData();
   };
@@ -380,18 +302,64 @@ export default function ErrorDashboard() {
        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M18 36C27.9411 36 36 27.9411 36 18C36 8.05887 27.9411 0 18 0C8.05887 0 0 8.05887 0 18C0 27.9411 8.05887 36 18 36Z" fill="url(#paint0_linear_header_logo)"/>
-                <path d="M12.6416 11.6621L11.5303 17.5186L19.497 12.6371L12.6416 11.6621Z" fill="white"/>
-                <path d="M11.5303 17.5186L12.5029 23.3389L15.3409 18.068L11.5303 17.5186Z" fill="white"/>
-                <path d="M19.4971 12.6371L15.341 18.068L23.3642 17.3824L19.4971 12.6371Z" fill="white"/>
-                <path d="M15.3409 18.068L12.5029 23.3389L20.8038 22.9515L15.3409 18.068Z" fill="white"/>
-                <defs>
-                    <linearGradient id="paint0_linear_header_logo" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-                        <stop stopColor="#6750A4"/>
-                        <stop offset="1" stopColor="#D0BCFF"/>
-                    </linearGradient>
-                </defs>
+            <svg
+              width="38"
+              height="38"
+              viewBox="0 0 38 38"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M36.7222 19C36.7222 28.6853 28.6853 36.7222 19 36.7222C9.31472 36.7222 1.27778 28.6853 1.27778 19C1.27778 9.31472 9.31472 1.27778 19 1.27778C28.6853 1.27778 36.7222 9.31472 36.7222 19Z"
+                fill="url(#paint0_linear_header_logo_new)"
+              />
+              <path
+                d="M19 38C29.4934 38 38 29.4934 38 19C38 8.50659 29.4934 0 19 0C8.50659 0 0 8.50659 0 19C0 29.4934 8.50659 38 19 38Z"
+                stroke="url(#paint1_linear_header_logo_new)"
+                strokeOpacity="0.2"
+                strokeWidth="2"
+              />
+              <path
+                d="M13.2514 11.9619L12.0673 18.232L20.2185 13.0856L13.2514 11.9619Z"
+                fill="white"
+              />
+              <path
+                d="M12.0673 18.232L13.1205 24.4688L16.149 18.8286L12.0673 18.232Z"
+                fill="white"
+              />
+              <path
+                d="M20.2185 13.0855L16.1489 18.8286L24.3547 18.0934L20.2185 13.0855Z"
+                fill="white"
+              />
+              <path
+                d="M16.149 18.8286L13.1205 24.4688L21.6844 23.9515L16.149 18.8286Z"
+                fill="white"
+              />
+              <defs>
+                <linearGradient
+                  id="paint0_linear_header_logo_new"
+                  x1="0"
+                  y1="0"
+                  x2="38"
+                  y2="38"
+                  gradientUnits="userSpaceOnUse"
+                >
+                  <stop stopColor="#6750A4" />
+                  <stop offset="1" stopColor="#D0BCFF" />
+                </linearGradient>
+                <linearGradient
+                  id="paint1_linear_header_logo_new"
+                  x1="0"
+                  y1="0"
+                  x2="38"
+                  y2="38"
+                  gradientUnits="userSpaceOnUse"
+                >
+                  <stop stopColor="white" />
+                  <stop offset="1" stopColor="white" stopOpacity="0" />
+                </linearGradient>
+              </defs>
             </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
@@ -406,101 +374,7 @@ export default function ErrorDashboard() {
 
       <Card>
         <CardContent className="p-4 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-                <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="date-picker-trigger">Time Range</Label>
-                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                        <PopoverTrigger asChild>
-                            <Button
-                                id="date-picker-trigger"
-                                variant={"outline"}
-                                disabled={isPending || !isClient}
-                                className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !dateRange && "text-muted-foreground"
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {timePreset === 'custom' && dateRange ? (
-                                    dateRange.from ? (
-                                        dateRange.to ? (
-                                            <>
-                                                {format(dateRange.from, "LLL dd, y")} -{" "}
-                                                {format(dateRange.to, "LLL dd, y")}
-                                            </>
-                                        ) : (
-                                            format(dateRange.from, "LLL dd, y")
-                                        )
-                                    ) : (
-                                        <span>Pick a date</span>
-                                    )
-                                ) : (
-                                    TIME_PRESETS.find(p => p.value === timePreset)?.label || 'Select time range...'
-                                )}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 flex" align="start">
-                            <div className="flex flex-col gap-1 p-2 border-r">
-                                {TIME_PRESETS.map(p => (
-                                    <Button 
-                                        key={p.value}
-                                        variant={timePreset === p.value ? "secondary" : "ghost"}
-                                        size="sm"
-                                        className="justify-start"
-                                        onClick={() => handlePresetSelect(p.value)}
-                                        disabled={isPending || !isClient}
-                                    >
-                                        {p.label}
-                                    </Button>
-                                ))}
-                            </div>
-                            {isClient ? (() => {
-                                const today = new Date();
-                                const defaultMonth = (() => {
-                                    if (!dateRange?.from) return subMonths(today, 1);
-                                    const isFromInCurrentMonth = dateRange.from.getMonth() === today.getMonth() && dateRange.from.getFullYear() === today.getFullYear();
-                                    if (isFromInCurrentMonth) {
-                                        const isToInCurrentMonth = !dateRange.to || (dateRange.to.getMonth() === today.getMonth() && dateRange.to.getFullYear() === today.getFullYear());
-                                        if (isToInCurrentMonth) return subMonths(today, 1);
-                                    }
-                                    return dateRange.from;
-                                })();
-
-                                return (
-                                    <Calendar
-                                        initialFocus
-                                        mode="range"
-                                        defaultMonth={defaultMonth}
-                                        selected={dateRange}
-                                        onSelect={(range) => {
-                                            setDateRange(range);
-                                            setTimePreset('custom');
-                                            if (range?.from && range.to) {
-                                              setDatePickerOpen(false);
-                                            }
-                                        }}
-                                        numberOfMonths={2}
-                                        fromDate={subMonths(today, 1)}
-                                        toDate={today}
-                                        disabled={isPending ? true : (date: Date) => {
-                                            if (date > today) return true;
-                                            if (dateRange?.from && !dateRange.to) {
-                                                const oneMonthFromStart = addMonths(dateRange.from, 1);
-                                                if (date > oneMonthFromStart) return true;
-                                            }
-                                            return false;
-                                        }}
-                                    />
-                                );
-                            })() : (
-                                <div className="p-3 w-[574px] h-[352px] flex items-center justify-center">
-                                    <RotateCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                                </div>
-                            )}
-                        </PopoverContent>
-                    </Popover>
-                </div>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                 <div className="grid w-full items-center gap-1.5">
                     <Label htmlFor="group-by-trigger">Group By</Label>
                     <DropdownMenu>
