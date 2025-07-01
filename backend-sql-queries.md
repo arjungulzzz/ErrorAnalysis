@@ -96,10 +96,12 @@ If no sort is specified, a sensible default is `ORDER BY ali.log_date_time DESC`
 
 Use `LIMIT` and `OFFSET` to fetch the correct page of data.
 
+**IMPORTANT**: Pagination should **only** be applied when fetching a flat list of logs (i.e., when the `groupBy` array in the request body is empty). Aggregation queries for `totalCount`, `groupData`, and `chartData` should **not** be paginated.
+
 **Example Request: `{ "pagination": { "page": 3, "pageSize": 100 } }`**
 
 ```sql
--- Appended at the very end of the query:
+-- Appended at the very end of the query for a FLAT LIST of logs:
 LIMIT $5 OFFSET $6
 
 -- Parameter $5 (LIMIT) would be: 100
@@ -110,7 +112,7 @@ LIMIT $5 OFFSET $6
 
 ### Aggregation Queries
 
-These queries run separately to calculate `totalCount`, `groupData`, and `chartData`. They must use the **same `WHERE` clauses** from scenarios 1 and 2 to ensure the aggregations match the filtered dataset.
+These queries run separately to calculate `totalCount`, `groupData`, and `chartData`. They must use the **same `WHERE` clauses** from scenarios 1 and 2 to ensure the aggregations match the filtered dataset. They **must not** be paginated.
 
 **1. `totalCount` Query:**
 
@@ -126,6 +128,8 @@ WHERE ... -- (Same WHERE clauses from Scenarios 1 & 2)
 **2. `groupData` Query (Multi-Column Grouping):**
 
 When the `groupBy` array in the request contains one or more column names (e.g., `["host_name", "error_number"]`), the backend must generate a nested JSON structure. The order of columns in the array determines the hierarchy.
+
+**CRITICAL**: This query must **not** be paginated with `LIMIT` or `OFFSET`. It must aggregate over the entire filtered result set to provide a complete summary.
 
 A common approach is to fetch the aggregated data and then build the hierarchy in your application code, as this is often more straightforward than building complex JSON directly in SQL.
 
@@ -153,7 +157,7 @@ ORDER BY
 
 **Step 2: (Optional) Fetch Individual Logs for Deepest Group**
 
-To populate the `logs` array for the deepest group level, you can run a separate query or fetch them alongside the main data. This is optional but enables the UI's final drill-down feature.
+To populate the `logs` array for the deepest group level, you can run a separate query or fetch them alongside the main data. This is optional but enables the UI's final drill-down feature. Pagination could potentially be applied to this specific sub-query if you were to implement on-demand loading of logs within a group.
 
 **Step 3: Build the Nested Structure in Application Code**
 

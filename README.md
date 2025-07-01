@@ -59,7 +59,7 @@ The `requestId` is a unique identifier generated for each request in the format 
 The `requestId`, `dateRange` (or `interval`), and `pagination` properties are always sent. All others are optional or have defaults.
 
 #### 1. Basic Request (First Page, Default Sort)
-This is the simplest request, fetching the first page of logs for the last 7 days. `groupBy` is an empty array for a flat list of logs.
+This is the simplest request, fetching the first page of logs for the last 7 days. `groupBy` is an empty array for a flat list of logs. Pagination should be applied.
 
 ```json
 {
@@ -93,6 +93,8 @@ Here, we're requesting a specific date range.
 
 #### 3. Request for Multi-Column Grouped Data
 When a user selects "Group By" options, the frontend sends a request with an ordered array of column names in the `groupBy` parameter.
+
+**IMPORTANT:** When the `groupBy` array is not empty, the backend service **must ignore** the `pagination` parameters for the query that generates `groupData`. The grouped summary must be calculated over the entire filtered dataset, not just one page.
 
 ```json
 {
@@ -156,9 +158,13 @@ The `groupData` array contains a nested structure when `groupBy` is used. Each o
     {
       "key": "server-beta-02",
       "count": 980,
-      "subgroups": [],
-      "logs": [
-        { "log_date_time": "...", "host_name": "server-beta-02", "..." }
+      "subgroups": [
+        {
+          "key": "503",
+          "count": 980,
+          "subgroups": [],
+          "logs": []
+        }
       ]
     }
   ]
