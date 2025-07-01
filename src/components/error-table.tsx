@@ -306,34 +306,36 @@ export function ErrorTable({
                         <TableRow>
                           <TableCell colSpan={visibleColumnCount}>
                             <div className="p-4 bg-muted/50 rounded-md space-y-3">
-                              <h4 className="text-sm font-semibold">Full Log Details</h4>
+                              <div className="flex justify-between items-center">
+                                <h4 className="text-sm font-semibold">Full Log Details</h4>
+                                {visibleColumns.some(c => c.id === 'log_message') && (
+                                   <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleCopy(renderExpandedDetail(log, 'log_message'));
+                                          }}
+                                        >
+                                          <Copy className="h-4 w-4" />
+                                          <span className="sr-only">Copy message</span>
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Copy message</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                )}
+                              </div>
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
                                 {visibleColumns.map(col => (
                                   <div key={col.id} className="flex flex-col gap-1">
                                     <dt className="font-medium text-muted-foreground">{col.name}</dt>
-                                    <dd className="font-mono whitespace-pre-wrap break-words flex items-start justify-between">
+                                    <dd className="font-mono whitespace-pre-wrap break-words">
                                       <span>{renderExpandedDetail(log, col.id)}</span>
-                                      {col.id === 'log_message' && (
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-6 w-6 ml-2 shrink-0"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleCopy(renderExpandedDetail(log, 'log_message'));
-                                              }}
-                                            >
-                                              <Copy className="h-3 w-3" />
-                                              <span className="sr-only">Copy message</span>
-                                            </Button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p>Copy message</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      )}
                                     </dd>
                                   </div>
                                 ))}
