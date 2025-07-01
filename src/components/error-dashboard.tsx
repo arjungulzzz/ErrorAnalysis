@@ -355,8 +355,8 @@ export default function ErrorDashboard() {
             <svg viewBox='0 0 190 200' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' fill='currentColor'>
                 <defs>
                     <linearGradient id='logo-gradient-header' x1='0%' y1='0%' x2='100%' y2='0%'>
-                        <stop offset='0%' stopColor='hsl(var(--accent))' />
-                        <stop offset='100%' stopColor='hsl(var(--primary))' />
+                        <stop offset='0%' stopColor='#6750A4' />
+                        <stop offset='100%' stopColor='#EE6B6B' />
                     </linearGradient>
                     <mask id='logo-mask-header'>
                         <g stroke='white' strokeWidth='10' fill='none'>
