@@ -373,7 +373,7 @@ export function ErrorTable({
                             <div className="p-4 bg-muted/50 rounded-md space-y-3">
                               <h4 className="text-sm font-semibold">Full Log Details</h4>
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
-                                {visibleColumns.map(col => {
+                                {allColumns.map(col => {
                                   const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
                                   return (
                                     <div 
@@ -388,7 +388,7 @@ export function ErrorTable({
                                         <span className="whitespace-pre-wrap break-all pt-1">
                                           {renderExpandedDetail(log, col.id)}
                                         </span>
-                                        {isCopyable && columnVisibility[col.id] && (
+                                        {isCopyable && (
                                            <Tooltip>
                                               <TooltipTrigger asChild>
                                                 <Button
