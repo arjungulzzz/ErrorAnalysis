@@ -58,11 +58,8 @@ export default function ErrorDashboard() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(100);
   
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 6),
-    to: new Date(),
-  });
-  const [selectedPreset, setSelectedPreset] = useState<string | null>('7d');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>('none');
   
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
@@ -126,7 +123,7 @@ export default function ErrorDashboard() {
       const preset = timePresets.find(p => p.key === selectedPreset);
       if (preset?.interval) {
         requestBody.interval = preset.interval;
-      } else if (dateRange) {
+      } else if (dateRange?.from) {
         requestBody.dateRange = {
             from: dateRange.from?.toISOString(),
             to: dateRange.to?.toISOString()
