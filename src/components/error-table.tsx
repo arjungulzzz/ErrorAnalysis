@@ -106,12 +106,12 @@ export function ErrorTable({
   const visibleColumnCount = visibleColumns.length;
   const { toast } = useToast();
 
-  const handleCopy = (textToCopy: string) => {
+  const handleCopy = (textToCopy: string, fieldName: string) => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(textToCopy).then(() => {
         toast({
           title: "Copied to clipboard",
-          description: "The log message has been copied.",
+          description: `The ${fieldName} has been copied.`,
         });
       }).catch(err => {
         console.error('Failed to copy text: ', err);
@@ -308,40 +308,46 @@ export function ErrorTable({
                             <div className="p-4 bg-muted/50 rounded-md space-y-3">
                               <h4 className="text-sm font-semibold">Full Log Details</h4>
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
-                                {visibleColumns.map(col => (
-                                  <div 
-                                    key={col.id}
-                                    className={cn("flex flex-col gap-1", col.id === 'log_message' && 'md:col-span-2 lg:col-span-3')}
-                                  >
-                                    <div className="flex justify-between items-center">
-                                      <dt className="font-medium text-muted-foreground">{col.name}</dt>
-                                      {col.id === 'log_message' && (
-                                         <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleCopy(renderExpandedDetail(log, 'log_message'));
-                                                }}
-                                              >
-                                                <Copy className="h-4 w-4" />
-                                                <span className="sr-only">Copy message</span>
-                                              </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                              <p>Copy message</p>
-                                            </TooltipContent>
-                                          </Tooltip>
+                                {visibleColumns.map(col => {
+                                  const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
+                                  return (
+                                    <div 
+                                      key={col.id}
+                                      className={cn(
+                                        "flex flex-col gap-1", 
+                                        col.id === 'log_message' && 'md:col-span-2 lg:col-span-3'
                                       )}
+                                    >
+                                      <dt className="font-medium text-muted-foreground">{col.name}</dt>
+                                      <dd className="flex items-start justify-between gap-2 font-mono">
+                                        <span className="whitespace-pre-wrap break-words pt-1">
+                                          {renderExpandedDetail(log, col.id)}
+                                        </span>
+                                        {isCopyable && (
+                                           <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-7 w-7 shrink-0"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCopy(renderExpandedDetail(log, col.id), col.name);
+                                                  }}
+                                                >
+                                                  <Copy className="h-4 w-4" />
+                                                  <span className="sr-only">Copy {col.name}</span>
+                                                </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                <p>Copy {col.name}</p>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                        )}
+                                      </dd>
                                     </div>
-                                    <dd className="font-mono whitespace-pre-wrap break-words">
-                                      <span>{renderExpandedDetail(log, col.id)}</span>
-                                    </dd>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </dl>
                             </div>
                           </TableCell>
