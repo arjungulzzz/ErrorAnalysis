@@ -387,7 +387,9 @@ export function ErrorTable({
                             <div className="p-4 bg-muted/50 rounded-md space-y-3">
                               <h4 className="text-sm font-semibold">Full Log Details</h4>
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
-                                {allColumns.map(col => {
+                                {allColumns
+                                .filter(col => columnVisibility[col.id])
+                                .map(col => {
                                   const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
                                   const detailValue = renderExpandedDetail(log, col.id);
                                   return (
@@ -412,7 +414,7 @@ export function ErrorTable({
                                                   className="h-7 w-7 shrink-0"
                                                   onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleCopy(detailValue, col.name);
+                                                    handleCopy(String(detailValue), col.name);
                                                   }}
                                                 >
                                                   <Copy className="h-4 w-4" />
