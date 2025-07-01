@@ -50,6 +50,8 @@ interface ErrorTableProps {
   setColumnFilters: (filters: React.SetStateAction<ColumnFilters>) => void;
   columnVisibility: Partial<Record<keyof ErrorLog, boolean>>;
   allColumns: { id: keyof ErrorLog; name: string }[];
+  columnWidths: Record<keyof ErrorLog, number>;
+  setColumnWidths: React.Dispatch<React.SetStateAction<Record<keyof ErrorLog, number>>>;
 }
 
 const columnConfig: {
@@ -100,11 +102,55 @@ export function ErrorTable({
   setColumnFilters,
   columnVisibility,
   allColumns,
+  columnWidths,
+  setColumnWidths,
 }: ErrorTableProps) {
   const [expandedRowId, setExpandedRowId] = React.useState<string | null>(null);
   const visibleColumns = React.useMemo(() => columnConfig.filter(c => columnVisibility[c.id]), [columnVisibility]);
   const visibleColumnCount = visibleColumns.length;
   const { toast } = useToast();
+
+  const [resizingColumn, setResizingColumn] = React.useState<{ id: keyof ErrorLog; startX: number; startWidth: number; } | null>(null);
+
+  const handleResizeStart = React.useCallback((columnId: keyof ErrorLog, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setResizingColumn({
+          id: columnId,
+          startX: e.clientX,
+          startWidth: columnWidths[columnId] || 150,
+      });
+  }, [columnWidths]);
+
+  const handleResize = React.useCallback((e: MouseEvent) => {
+      if (!resizingColumn) return;
+      const deltaX = e.clientX - resizingColumn.startX;
+      const newWidth = Math.max(resizingColumn.startWidth + deltaX, 80); // min width 80px
+
+      setColumnWidths(prev => ({
+          ...prev,
+          [resizingColumn.id]: newWidth,
+      }));
+  }, [resizingColumn, setColumnWidths]);
+
+  const handleResizeEnd = React.useCallback(() => {
+      setResizingColumn(null);
+  }, []);
+
+  React.useEffect(() => {
+      if (resizingColumn) {
+          document.body.style.cursor = 'col-resize';
+          document.body.style.userSelect = 'none';
+          document.addEventListener('mousemove', handleResize);
+          document.addEventListener('mouseup', handleResizeEnd, { once: true });
+      }
+      return () => {
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          document.removeEventListener('mousemove', handleResize);
+          document.removeEventListener('mouseup', handleResizeEnd);
+      };
+  }, [resizingColumn, handleResize, handleResizeEnd]);
 
   const handleCopy = (textToCopy: string, fieldName: string) => {
     if (navigator.clipboard) {
@@ -271,8 +317,15 @@ export function ErrorTable({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border overflow-auto">
+            <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+              <colgroup>
+                  {columnConfig.map(column => (
+                    columnVisibility[column.id] && (
+                        <col key={column.id} style={{ width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : undefined }} />
+                    )
+                  ))}
+              </colgroup>
               <TableHeader>
                 <TableRow>
                   {columnConfig.map(column => (
@@ -286,6 +339,7 @@ export function ErrorTable({
                           columnFilters={column.isFilterable ? columnFilters : undefined} 
                           setColumnFilters={column.isFilterable ? setColumnFilters : undefined}
                           isPending={isLoading}
+                          onResizeStart={handleResizeStart}
                         />
                       )
                   ))}
@@ -303,7 +357,7 @@ export function ErrorTable({
                             onClick={() => setExpandedRowId(prev => (prev === log.id ? null : log.id))}
                           >
                             {visibleColumns.map(column => (
-                              <TableCell key={column.id} className={cn(column.cellClassName, "truncate")}>
+                              <TableCell key={column.id} className={cn("truncate", column.cellClassName)}>
                                 {renderCellContent(log, column.id)}
                               </TableCell>
                             ))}

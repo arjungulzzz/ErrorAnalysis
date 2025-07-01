@@ -88,6 +88,8 @@ export default function ErrorDashboard() {
   
   const [isClient, setIsClient] = useState(false);
   const [mockData, setMockData] = useState<ErrorLog[]>([]);
+
+  const [columnWidths, setColumnWidths] = useState<Record<keyof ErrorLog, number>>({} as Record<keyof ErrorLog, number>);
   
   useEffect(() => {
     // This effect runs only once on the client after the component mounts.
@@ -99,6 +101,43 @@ export default function ErrorDashboard() {
     setMockData(generateMockLogs());
     setDateRange({ from: fromDate, to: now });
   }, []);
+
+  // Initialize column widths from local storage or set defaults
+  useEffect(() => {
+      if (!isClient) return;
+      try {
+          const savedWidthsRaw = localStorage.getItem('error-table-column-widths');
+          const defaultWidths = allColumns.reduce((acc, col) => {
+              acc[col.id] = col.id === 'log_message' ? 400 : col.id === 'log_date_time' ? 180 : 150;
+              return acc;
+          }, {} as Record<keyof ErrorLog, number>);
+
+          if (savedWidthsRaw) {
+              const savedWidths = JSON.parse(savedWidthsRaw);
+              // Validate saved widths against allColumns to avoid issues if columns change
+              const validatedWidths = allColumns.reduce((acc, col) => {
+                  acc[col.id] = savedWidths[col.id] || defaultWidths[col.id];
+                  return acc;
+              }, {} as Record<keyof ErrorLog, number>);
+              setColumnWidths(validatedWidths);
+          } else {
+              setColumnWidths(defaultWidths);
+          }
+      } catch (error) {
+          console.error("Failed to parse column widths from localStorage", error);
+          const defaultWidths = allColumns.reduce((acc, col) => {
+            acc[col.id] = col.id === 'log_message' ? 400 : col.id === 'log_date_time' ? 180 : 150;
+            return acc;
+          }, {} as Record<keyof ErrorLog, number>);
+          setColumnWidths(defaultWidths);
+      }
+  }, [isClient]);
+
+  // Save column widths to local storage whenever they change
+  useEffect(() => {
+      if (!isClient || Object.keys(columnWidths).length === 0) return;
+      localStorage.setItem('error-table-column-widths', JSON.stringify(columnWidths));
+  }, [columnWidths, isClient]);
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
@@ -432,6 +471,8 @@ export default function ErrorDashboard() {
         setColumnFilters={setColumnFilters}
         columnVisibility={columnVisibility}
         allColumns={allColumns}
+        columnWidths={columnWidths}
+        setColumnWidths={setColumnWidths}
       />
       <div className="mt-6">
         <ErrorTrendChart 

@@ -17,6 +17,7 @@ interface DataTableColumnHeaderProps<TData, TValue>
   columnFilters?: ColumnFilters;
   setColumnFilters?: (filters: React.SetStateAction<ColumnFilters>) => void;
   isPending?: boolean;
+  onResizeStart?: (columnId: keyof ErrorLog, e: React.MouseEvent) => void;
 }
 
 export function DataTableColumnHeader<TData, TValue>({
@@ -28,6 +29,7 @@ export function DataTableColumnHeader<TData, TValue>({
   columnFilters,
   setColumnFilters,
   isPending,
+  onResizeStart,
 }: DataTableColumnHeaderProps<TData, TValue>) {
 
   const handleSort = () => {
@@ -64,21 +66,21 @@ export function DataTableColumnHeader<TData, TValue>({
   };
 
   return (
-    <th className={cn("p-2", className)}>
-       <div className="flex items-center justify-start space-x-1">
+    <th className={cn("p-2 relative group", className)}>
+       <div className="flex items-center justify-between space-x-1">
         <Button
             variant="ghost"
             onClick={handleSort}
-            className="h-8 data-[state=open]:bg-accent px-2"
+            className="h-8 data-[state=open]:bg-accent px-2 flex-grow justify-start text-left"
             disabled={isPending}
         >
-            <span>{title}</span>
+            <span className="truncate">{title}</span>
             {renderSortIcon()}
         </Button>
          {isFilterable && (
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className={cn("h-7 w-7", filterValue && "text-primary bg-accent/50")} disabled={isPending}>
+              <Button variant="ghost" size="icon" className={cn("h-7 w-7 shrink-0", filterValue && "text-primary bg-accent/50")} disabled={isPending}>
                 <Filter className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
@@ -106,6 +108,14 @@ export function DataTableColumnHeader<TData, TValue>({
           </Popover>
         )}
       </div>
+       {onResizeStart && (
+        <div
+          onMouseDown={(e) => onResizeStart(column, e)}
+          className="absolute top-0 right-0 h-full w-2 cursor-col-resize z-10 select-none touch-none opacity-0 group-hover:opacity-100"
+        >
+          <div className="h-full w-px bg-border group-hover:bg-primary transition-colors" />
+        </div>
+       )}
     </th>
   );
 }
