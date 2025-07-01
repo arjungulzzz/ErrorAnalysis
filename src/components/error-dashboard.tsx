@@ -23,7 +23,7 @@ import { ErrorTrendChart } from "./error-trend-chart";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
-import Image from 'next/image';
+import Logo from './logo';
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -274,15 +274,7 @@ export default function ErrorDashboard() {
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center">
-            <Image
-              src="/favicon-32x32.png"
-              alt="Dashboard Logo"
-              width={40}
-              height={40}
-              className="h-full w-full"
-            />
-          </div>
+          <Logo className="h-10 w-10" />
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
