@@ -40,6 +40,7 @@
     "firebase": "^11.9.1",
     "lucide-react": "^0.475.0",
     "next": "14.2.4",
+    "pako": "^2.1.0",
     "patch-package": "^8.0.0",
     "react": "^18.2.0",
     "react-day-picker": "^8.10.1",
@@ -51,6 +52,7 @@
   },
   "devDependencies": {
     "@types/node": "^18",
+    "@types/pako": "^2.0.3",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "postcss": "^8",

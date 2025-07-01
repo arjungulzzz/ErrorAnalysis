@@ -13,7 +13,6 @@ import { type DateRange } from "react-day-picker";
  * Dates are strings.
  */
 export type ApiErrorLog = {
-  id: string; // Add id to ApiErrorLog
   log_date_time: string;
   host_name: string;
   repository_path: string;
@@ -31,9 +30,10 @@ export type ApiErrorLog = {
 
 /**
  * Represents a single error log entry once processed by the frontend.
- * It has Date objects for dates.
+ * It has a unique ID for React keys and Date objects for dates.
  */
 export type ErrorLog = Omit<ApiErrorLog, 'log_date_time' | 'as_start_date_time'> & {
+  id: string;
   log_date_time: Date;
   as_start_date_time: Date;
 };

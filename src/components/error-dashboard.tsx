@@ -23,6 +23,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { ErrorTrendChart } from "./error-trend-chart";
 import { useToast } from "@/hooks/use-toast";
+import pako from "pako";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -185,11 +186,20 @@ export default function ErrorDashboard() {
           throw new Error(errorData.message || `API request failed with status ${response.status}`);
         }
 
-        const data: LogsApiResponse = await response.json();
+        let data: LogsApiResponse;
+        if (response.headers.get("Content-Encoding") === "gzip") {
+            const blob = await response.blob();
+            const compressedData = await new Response(blob).arrayBuffer();
+            const decompressedData = pako.inflate(new Uint8Array(compressedData), { to: 'string' });
+            data = JSON.parse(decompressedData);
+        } else {
+            data = await response.json();
+        }
 
-        // Process API response: convert date strings to Date objects
-        const processedLogs = data.logs.map((log: ApiErrorLog) => ({
+        // Process API response: convert date strings to Date objects and ensure a unique ID
+        const processedLogs: ErrorLog[] = data.logs.map((log: ApiErrorLog, index: number) => ({
           ...log,
+          id: `log-${new Date(log.log_date_time).getTime()}-${index}`,
           log_date_time: new Date(log.log_date_time),
           as_start_date_time: new Date(log.as_start_date_time),
         }));
