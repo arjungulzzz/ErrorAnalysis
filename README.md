@@ -114,15 +114,17 @@ When a user selects "Group By" options, the frontend sends a request with an ord
 #### 4. Fetching Logs: For a Specific Group (Drill-Down)
 When a user expands a final-level group in the UI, the frontend makes a new request to fetch the individual logs for that group. This is an "on-demand" request that reuses the same API endpoint.
 
-To do this, the request must:
+**How does the backend differentiate this from a general log request?**
+The key is the content of the **`filters`** object. The frontend adds the keys of the parent groups to this object. The backend's logic is simple: apply all filters provided in the `filters` object to the `WHERE` clause. This single logic path correctly handles both general requests and specific drill-down requests.
+
+**A drill-down request must:**
 1.  Add the keys of the parent groups to the `filters` object.
 2.  Send an **empty** `groupBy` array (`[]`).
 3.  The `pagination` sent in this request **should be applied** by the backend, as it now applies to the list of individual logs being fetched.
 
-**The response to this request should follow the format for Log List Requests**, including the paginated `logs` array and the `totalCount` of all logs matching the drill-down filters. This `totalCount` is crucial for the sub-table's independent pagination controls.
+**Example Drill-Down Request:** This request fetches page 1 of logs where `host_name` is `'server-alpha-01'` and `error_number` is `'500'`.
 
 ```json
-// This request fetches page 1 of logs where host_name is 'server-alpha-01' and error_number is '500'
 {
   "requestId": "req_1700586300000_g8p9i0f6",
   "interval": "1 day",
@@ -145,7 +147,7 @@ The API must always return a JSON object with the following structure. The conte
 When `groupBy` is an empty array, the response should contain the paginated list of logs and the total count of all matching logs before pagination.
 
 - `logs`: An array of the paginated log objects.
-- `totalCount`: The total number of logs matching the query filters. This is crucial for the UI's pagination controls.
+- `totalCount`: The total number of logs matching the query filters. This is crucial for the UI's pagination controls, **both for the main table and for the drill-down sub-tables**.
 - `groupData`: Must be an empty array `[]`.
 
 ```json

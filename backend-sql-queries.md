@@ -60,7 +60,7 @@ WHERE ali.log_date_time BETWEEN $1 AND $2
 
 #### 2. Applying Column Filters
 
-Append `AND` conditions by iterating through the `filters` object from the request.
+Append `AND` conditions by iterating through the `filters` object from the request. This is the key to handling both general and drill-down queries correctly.
 
 **Example Request: `{ "filters": { "host_name": "server-alpha", "error_number": "500" } }`**
 
@@ -101,10 +101,10 @@ When `groupBy` is an empty array, the API should return a paginated list of indi
 
 **IMPORTANT**: Pagination (`LIMIT` and `OFFSET`) must be applied in this mode.
 
-This mode is used in two contexts:
+This mode is used in two contexts, but the backend's logic is the same: apply all provided filters.
 
-##### 1. General Log Fetch (Main Table)
-This is a standard request for a page of logs. The filters are based on the main UI controls.
+##### **1. General Log Fetch (Main Table)**
+This is a standard request for a page of logs. The `filters` are based on the main UI controls.
 
 ```sql
 -- Combined Query Example (PostgreSQL):
@@ -119,6 +119,7 @@ JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
 WHERE
   -- Apply time and column filters from the main UI here
   -- e.g., ali.log_date_time >= NOW() - CAST($1 AS INTERVAL)
+  -- The filters object may be empty or contain user-defined filters.
 ORDER BY
   -- Apply sorting here
 LIMIT $2 -- pageSize
@@ -126,8 +127,8 @@ OFFSET $3; -- (page - 1) * pageSize
 ```
 The `totalCount` in the response should be populated with the `total_count` value from the query result.
 
-##### 2. Drill-Down Log Fetch (Expanding a Group)
-This request fetches logs for a specific group. The `filters` object will contain additional key-value pairs corresponding to the expanded group's path. The backend **must add these to the `WHERE` clause**.
+##### **2. Drill-Down Log Fetch (Expanding a Group)**
+This request fetches logs for a specific group. The only difference from a general fetch is that the `filters` object will contain **additional key-value pairs** corresponding to the expanded group's path. The backend logic is the same: simply add all provided filters to the `WHERE` clause.
 
 ```sql
 -- Request filters might be: { "host_name": "server-alpha-01", "error_number": "500" }
@@ -143,7 +144,7 @@ JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
 WHERE
   -- Apply time and column filters from the main UI here
   ali.log_date_time >= NOW() - CAST($1 AS INTERVAL)
-  -- AND add the specific drill-down filters
+  -- AND add the specific drill-down filters from the request body
   AND asli.host_name = $2
   AND ali.error_number = CAST($3 AS INTEGER)
 ORDER BY
