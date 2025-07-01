@@ -24,6 +24,7 @@ import { ErrorTrendChart } from "./error-trend-chart";
 import { useToast } from "@/hooks/use-toast";
 import pako from "pako";
 import { Badge } from "./ui/badge";
+import { Label } from "./ui/label";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -90,14 +91,9 @@ export default function ErrorDashboard() {
   const [columnWidths, setColumnWidths] = useState<Record<keyof ErrorLog, number>>({} as Record<keyof ErrorLog, number>);
   
   useEffect(() => {
-    // This effect runs only once on the client after the component mounts.
-    // We set all client-specific initial state here to avoid hydration errors.
-    const now = new Date();
-    const fromDate = subDays(now, 7);
-    
+    // Set isClient to true after mount to handle client-side-only rendering
+    // and avoid hydration mismatches.
     setIsClient(true);
-    setTimePreset('7 days');
-    setDateRange({ from: fromDate, to: now });
   }, []);
 
   // Initialize column widths from local storage or set defaults
@@ -301,118 +297,126 @@ export default function ErrorDashboard() {
       </header>
 
       <Card>
-        <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row items-center gap-2">
-                <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                    <PopoverTrigger asChild>
-                        <Button
-                            id="date"
-                            variant={"outline"}
-                            disabled={isPending || !isClient}
-                            className={cn(
-                                "w-full sm:w-[260px] justify-start text-left font-normal",
-                                timePreset === 'none' && "text-muted-foreground"
-                            )}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {timePreset === 'custom' ? (
-                                dateRange?.from ? (
-                                    dateRange.to ? (
-                                        <>
-                                            {format(dateRange.from, "LLL dd, y")} -{" "}
-                                            {format(dateRange.to, "LLL dd, y")}
-                                        </>
+        <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="date-picker-trigger">Time Range</Label>
+                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                id="date-picker-trigger"
+                                variant={"outline"}
+                                disabled={isPending || !isClient}
+                                className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    timePreset === 'none' && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {timePreset === 'custom' ? (
+                                    dateRange?.from ? (
+                                        dateRange.to ? (
+                                            <>
+                                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                                {format(dateRange.to, "LLL dd, y")}
+                                            </>
+                                        ) : (
+                                            format(dateRange.from, "LLL dd, y")
+                                        )
                                     ) : (
-                                        format(dateRange.from, "LLL dd, y")
+                                        <span>Pick a date</span>
                                     )
                                 ) : (
-                                    <span>Pick a date</span>
-                                )
-                            ) : (
-                                TIME_PRESETS.find(p => p.value === timePreset)?.label || 'Select time range...'
-                            )}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 flex" align="start">
-                        <div className="flex flex-col gap-1 p-2 border-r">
-                            {TIME_PRESETS.map(p => (
-                                <Button 
-                                    key={p.value}
-                                    variant={timePreset === p.value ? "secondary" : "ghost"}
-                                    size="sm"
-                                    className="justify-start"
-                                    onClick={() => handlePresetSelect(p.value)}
-                                    disabled={isPending || !isClient}
-                                >
-                                    {p.label}
-                                </Button>
-                            ))}
-                        </div>
-                        {isClient ? (() => {
-                            const today = new Date();
-                            const defaultMonth = (() => {
-                                if (!dateRange?.from) return subMonths(today, 1);
-                                const isFromInCurrentMonth = dateRange.from.getMonth() === today.getMonth() && dateRange.from.getFullYear() === today.getFullYear();
-                                if (isFromInCurrentMonth) {
-                                    const isToInCurrentMonth = !dateRange.to || (dateRange.to.getMonth() === today.getMonth() && dateRange.to.getFullYear() === today.getFullYear());
-                                    if (isToInCurrentMonth) return subMonths(today, 1);
-                                }
-                                return dateRange.from;
-                            })();
-
-                            return (
-                                <Calendar
-                                    initialFocus
-                                    mode="range"
-                                    defaultMonth={defaultMonth}
-                                    selected={dateRange}
-                                    onSelect={(range) => {
-                                        setDateRange(range);
-                                        setTimePreset('custom');
-                                        if (range?.from && range.to) {
-                                          setDatePickerOpen(false);
-                                        }
-                                    }}
-                                    numberOfMonths={2}
-                                    fromDate={subMonths(today, 1)}
-                                    toDate={today}
-                                    disabled={isPending ? true : (date: Date) => {
-                                        if (date > today) return true;
-                                        if (dateRange?.from && !dateRange.to) {
-                                            const oneMonthFromStart = addMonths(dateRange.from, 1);
-                                            if (date > oneMonthFromStart) return true;
-                                        }
-                                        return false;
-                                    }}
-                                />
-                            );
-                        })() : (
-                            <div className="p-3 w-[574px] h-[352px] flex items-center justify-center">
-                                <RotateCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                                    TIME_PRESETS.find(p => p.value === timePreset)?.label || 'Select time range...'
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 flex" align="start">
+                            <div className="flex flex-col gap-1 p-2 border-r">
+                                {TIME_PRESETS.map(p => (
+                                    <Button 
+                                        key={p.value}
+                                        variant={timePreset === p.value ? "secondary" : "ghost"}
+                                        size="sm"
+                                        className="justify-start"
+                                        onClick={() => handlePresetSelect(p.value)}
+                                        disabled={isPending || !isClient}
+                                    >
+                                        {p.label}
+                                    </Button>
+                                ))}
                             </div>
-                        )}
-                    </PopoverContent>
-                </Popover>
+                            {isClient ? (() => {
+                                const today = new Date();
+                                const defaultMonth = (() => {
+                                    if (!dateRange?.from) return subMonths(today, 1);
+                                    const isFromInCurrentMonth = dateRange.from.getMonth() === today.getMonth() && dateRange.from.getFullYear() === today.getFullYear();
+                                    if (isFromInCurrentMonth) {
+                                        const isToInCurrentMonth = !dateRange.to || (dateRange.to.getMonth() === today.getMonth() && dateRange.to.getFullYear() === today.getFullYear());
+                                        if (isToInCurrentMonth) return subMonths(today, 1);
+                                    }
+                                    return dateRange.from;
+                                })();
 
-                <Select onValueChange={(value) => setGroupBy(value as GroupByOption)} value={groupBy} disabled={isPending}>
-                    <SelectTrigger className="w-full sm:w-[180px]" id="group-by">
-                        <SelectValue placeholder="Group by..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        <SelectItem value="host_name">Host</SelectItem>
-                        <SelectItem value="repository_path">Model Name</SelectItem>
-                        <SelectItem value="error_number">Error Code</SelectItem>
-                        <SelectItem value="user_id">User</SelectItem>
-                        <SelectItem value="version_number">AS Version</SelectItem>
-                    </SelectContent>
-                </Select>
+                                return (
+                                    <Calendar
+                                        initialFocus
+                                        mode="range"
+                                        defaultMonth={defaultMonth}
+                                        selected={dateRange}
+                                        onSelect={(range) => {
+                                            setDateRange(range);
+                                            setTimePreset('custom');
+                                            if (range?.from && range.to) {
+                                              setDatePickerOpen(false);
+                                            }
+                                        }}
+                                        numberOfMonths={2}
+                                        fromDate={subMonths(today, 1)}
+                                        toDate={today}
+                                        disabled={isPending ? true : (date: Date) => {
+                                            if (date > today) return true;
+                                            if (dateRange?.from && !dateRange.to) {
+                                                const oneMonthFromStart = addMonths(dateRange.from, 1);
+                                                if (date > oneMonthFromStart) return true;
+                                            }
+                                            return false;
+                                        }}
+                                    />
+                                );
+                            })() : (
+                                <div className="p-3 w-[574px] h-[352px] flex items-center justify-center">
+                                    <RotateCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                                </div>
+                            )}
+                        </PopoverContent>
+                    </Popover>
+                </div>
+
+                <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="group-by-trigger">Group By</Label>
+                    <Select onValueChange={(value) => setGroupBy(value as GroupByOption)} value={groupBy} disabled={isPending}>
+                        <SelectTrigger className="w-full" id="group-by-trigger">
+                            <SelectValue placeholder="Group by..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="host_name">Host</SelectItem>
+                            <SelectItem value="repository_path">Model Name</SelectItem>
+                            <SelectItem value="error_number">Error Code</SelectItem>
+                            <SelectItem value="user_id">User</SelectItem>
+                            <SelectItem value="version_number">AS Version</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
                 
-                <div className="w-full sm:w-auto sm:ml-auto">
+                <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="view-options-trigger">View Options</Label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full" disabled={isPending}>
-                          View <ChevronDown className="ml-2 h-4 w-4" />
+                        <Button variant="outline" className="w-full justify-between" disabled={isPending} id="view-options-trigger">
+                          <span>Toggle columns</span>
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56 max-h-72 overflow-y-auto">
@@ -450,7 +454,7 @@ export default function ErrorDashboard() {
                 </div>
             </div>
             {activeFilters.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-dashed">
+                <div className="pt-4 border-t border-dashed">
                     <div className="flex items-center gap-2 mb-2">
                         <h4 className="text-sm font-medium">Active Filters</h4>
                         <Button 
