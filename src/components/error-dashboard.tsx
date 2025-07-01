@@ -23,6 +23,7 @@ import { ErrorTrendChart } from "./error-trend-chart";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
+import Image from 'next/image';
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -273,14 +274,14 @@ export default function ErrorDashboard() {
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
-          <div className="flex h-8 w-8 items-center justify-center">
-            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
-              <ellipse cx="40" cy="50" rx="30" ry="48" fill="none" stroke="#6A2B8B" strokeWidth="5"/>
-              <ellipse cx="45" cy="50" rx="30" ry="48" fill="none" stroke="#8A3187" strokeWidth="5"/>
-              <ellipse cx="50" cy="50" rx="30" ry="48" fill="none" stroke="#AC3883" strokeWidth="5"/>
-              <ellipse cx="55" cy="50" rx="30" ry="48" fill="none" stroke="#CA447F" strokeWidth="5"/>
-              <ellipse cx="60" cy="50" rx="30" ry="48" fill="none" stroke="#E15A6F" strokeWidth="5"/>
-            </svg>
+          <div className="flex h-10 w-10 items-center justify-center">
+            <Image
+              src="/logo.png"
+              alt="Dashboard Logo"
+              width={40}
+              height={40}
+              className="h-full w-full"
+            />
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
         </div>
