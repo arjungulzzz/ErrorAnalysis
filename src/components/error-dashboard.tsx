@@ -195,7 +195,13 @@ export default function ErrorDashboard() {
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
   
   const availableGroupByOptions = allColumns.filter(
-    (col) => columnVisibility[col.id]
+    (col) => {
+      // Exclude columns that are not practical for grouping, but ensure 'log_message' is included if visible.
+      if (col.id === 'log_date_time' || col.id === 'as_start_date_time') {
+        return false;
+      }
+      return columnVisibility[col.id];
+    }
   );
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
