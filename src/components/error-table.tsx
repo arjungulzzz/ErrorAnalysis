@@ -74,13 +74,19 @@ const columnConfig: {
     { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg" },
 ];
 
-const GroupedRow = ({ item, level, allColumns }: { item: GroupDataPoint; level: number; allColumns: { id: keyof ErrorLog; name: string }[] }) => {
+const GroupedRow = ({ item, level }: { item: GroupDataPoint; level: number; }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
     const hasSubgroups = item.subgroups && item.subgroups.length > 0;
 
+    const handleToggle = () => {
+        if (hasSubgroups) {
+            setIsExpanded(!isExpanded);
+        }
+    };
+
     return (
         <React.Fragment>
-            <TableRow onClick={() => hasSubgroups && setIsExpanded(!isExpanded)} className={cn(hasSubgroups && "cursor-pointer hover:bg-muted/50")}>
+            <TableRow onClick={handleToggle} className={cn(hasSubgroups && "cursor-pointer hover:bg-muted/50")}>
                 <TableCell style={{ paddingLeft: `${1 + level * 1.5}rem` }}>
                     <div className="flex items-center gap-2">
                        {hasSubgroups ? (
@@ -95,7 +101,7 @@ const GroupedRow = ({ item, level, allColumns }: { item: GroupDataPoint; level: 
             </TableRow>
             {isExpanded && hasSubgroups && (
                 item.subgroups.map(subItem => (
-                    <GroupedRow key={`${level}-${subItem.key}`} item={subItem} level={level + 1} allColumns={allColumns} />
+                    <GroupedRow key={`${level}-${subItem.key}`} item={subItem} level={level + 1} />
                 ))
             )}
         </React.Fragment>
@@ -122,7 +128,7 @@ export function ErrorTable({
   setColumnWidths,
 }: ErrorTableProps) {
   const [expandedRowId, setExpandedRowId] = React.useState<string | null>(null);
-  const visibleColumns = React.useMemo(() => columnConfig.filter(c => columnVisibility[c.id]), [columnVisibility]);
+  const visibleColumns = React.useMemo(() => allColumns.filter(c => columnVisibility[c.id]), [allColumns, columnVisibility]);
   const visibleColumnCount = visibleColumns.length;
   const { toast } = useToast();
 
@@ -178,15 +184,16 @@ export function ErrorTable({
     }
 
     let success = false;
-
     try {
+        // Modern async clipboard API
         if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(textToCopy);
-          success = true;
+            await navigator.clipboard.writeText(textToCopy);
+            success = true;
         } else {
+            // Fallback for older browsers
             const textArea = document.createElement("textarea");
             textArea.value = textToCopy;
-            textArea.style.position = "fixed";
+            textArea.style.position = "fixed"; // Stay out of view
             textArea.style.top = "-9999px";
             textArea.style.left = "-9999px";
             document.body.appendChild(textArea);
@@ -308,7 +315,7 @@ export function ErrorTable({
                 <TableBody>
                   {isLoading ? renderGroupedSkeleton() : groupData && groupData.length > 0 ? (
                     groupData.map((item) => (
-                      <GroupedRow key={item.key} item={item} level={0} allColumns={allColumns} />
+                      <GroupedRow key={item.key} item={item} level={0} />
                     ))
                   ) : (
                     <TableRow>
@@ -339,7 +346,7 @@ export function ErrorTable({
           <div className="rounded-md border overflow-auto">
             <Table style={{ tableLayout: 'fixed', width: '100%' }}>
               <colgroup>
-                  {columnConfig.map(column => (
+                  {allColumns.map(column => (
                     columnVisibility[column.id] && (
                         <col key={column.id} style={{ width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : undefined }} />
                     )
@@ -347,21 +354,22 @@ export function ErrorTable({
               </colgroup>
               <TableHeader>
                 <TableRow>
-                  {columnConfig.map(column => (
-                      columnVisibility[column.id] && (
+                  {allColumns.map(column => {
+                      const config = columnConfig.find(c => c.id === column.id);
+                      return columnVisibility[column.id] && (
                         <DataTableColumnHeader 
                           key={column.id}
                           column={column.id} 
                           title={column.name} 
                           sortDescriptor={sortDescriptor} 
                           setSortDescriptor={setSortDescriptor} 
-                          columnFilters={column.isFilterable ? columnFilters : undefined} 
-                          setColumnFilters={column.isFilterable ? setColumnFilters : undefined}
+                          columnFilters={config?.isFilterable ? columnFilters : undefined} 
+                          setColumnFilters={config?.isFilterable ? setColumnFilters : undefined}
                           isPending={isLoading}
                           onResizeStart={handleResizeStart}
                         />
                       )
-                  ))}
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -375,11 +383,14 @@ export function ErrorTable({
                             className="cursor-pointer"
                             onClick={() => setExpandedRowId(prev => (prev === log.id ? null : log.id))}
                           >
-                            {visibleColumns.map(column => (
-                              <TableCell key={column.id} className={cn("truncate", column.cellClassName)}>
-                                {renderCellContent(log, column.id)}
-                              </TableCell>
-                            ))}
+                            {visibleColumns.map(column => {
+                              const config = columnConfig.find(c => c.id === column.id);
+                              return (
+                                <TableCell key={column.id} className={cn("truncate", config?.cellClassName)}>
+                                  {renderCellContent(log, column.id)}
+                                </TableCell>
+                              )
+                            })}
                           </TableRow>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -392,9 +403,7 @@ export function ErrorTable({
                             <div className="p-4 bg-muted/50 rounded-md space-y-3">
                               <h4 className="text-sm font-semibold">Full Log Details</h4>
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
-                                {allColumns
-                                .filter(col => columnVisibility[col.id])
-                                .map(col => {
+                                {visibleColumns.map(col => {
                                   const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
                                   const detailValue = renderExpandedDetail(log, col.id);
                                   return (

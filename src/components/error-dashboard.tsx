@@ -331,7 +331,7 @@ export default function ErrorDashboard() {
   );
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
-    if (!value && groupBy.includes(columnId)) {
+    if (!value && groupBy.includes(columnId as GroupByOption)) {
         setGroupBy(prev => prev.filter(g => g !== columnId));
     }
     setColumnVisibility(prev => ({
@@ -340,7 +340,7 @@ export default function ErrorDashboard() {
     }));
   };
 
-  const handleDeselectAll = () => {
+  const handleDeselectAllColumns = () => {
     setColumnVisibility(
       Object.fromEntries(allColumns.map(col => [col.id, false]))
     );
@@ -352,26 +352,26 @@ export default function ErrorDashboard() {
        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <div className="flex h-8 w-8 items-center justify-center">
-             <svg viewBox='0 0 190 200' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' fill='currentColor'>
+            <svg viewBox='0 0 190 200' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' fill='currentColor'>
                 <defs>
-                  <linearGradient id='logo-gradient-header' x1='0%' y1='0%' x2='100%' y2='0%'>
-                    <stop offset='0%' stop-color='hsl(var(--accent))' />
-                    <stop offset='100%' stop-color='hsl(var(--primary))' />
-                  </linearGradient>
-                  <mask id='logo-mask-header'>
-                    <g stroke='white' stroke-width='10' fill='none'>
-                      <ellipse cx='45' cy='100' rx='40' ry='95' />
-                      <ellipse cx='60' cy='100' rx='40' ry='95' />
-                      <ellipse cx='75' cy='100' rx='40' ry='95' />
-                      <ellipse cx='90' cy='100' rx='40' ry='95' />
-                      <ellipse cx='105' cy='100' rx='40' ry='95' />
-                      <ellipse cx='120' cy='100' rx='40' ry='95' />
-                      <ellipse cx='135' cy='100' rx='40' ry='95' />
-                    </g>
-                  </mask>
+                    <linearGradient id='logo-gradient-header' x1='0%' y1='0%' x2='100%' y2='0%'>
+                        <stop offset='0%' stop-color='hsl(var(--accent))' />
+                        <stop offset='100%' stop-color='hsl(var(--primary))' />
+                    </linearGradient>
+                    <mask id='logo-mask-header'>
+                        <g stroke='white' stroke-width='10' fill='none'>
+                            <ellipse cx='45' cy='100' rx='40' ry='95' />
+                            <ellipse cx='60' cy='100' rx='40' ry='95' />
+                            <ellipse cx='75' cy='100' rx='40' ry='95' />
+                            <ellipse cx='90' cy='100' rx='40' ry='95' />
+                            <ellipse cx='105' cy='100' rx='40' ry='95' />
+                            <ellipse cx='120' cy='100' rx='40' ry='95' />
+                            <ellipse cx='135' cy='100' rx='40' ry='95' />
+                        </g>
+                    </mask>
                 </defs>
                 <rect x='0' y='0' width='190' height='200' fill='url(#logo-gradient-header)' mask='url(#logo-mask-header)' />
-              </svg>
+            </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
         </div>
@@ -492,6 +492,10 @@ export default function ErrorDashboard() {
                       <DropdownMenuContent align="end" className="w-56">
                           <DropdownMenuLabel>Group by columns</DropdownMenuLabel>
                           <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={() => setGroupBy([])} disabled={groupBy.length === 0}>
+                            Clear grouping
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           {availableGroupByOptions.map((option) => (
                               <DropdownMenuCheckboxItem
                                   key={option.id}
@@ -529,7 +533,7 @@ export default function ErrorDashboard() {
                             )}>
                               Select All
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handleDeselectAll}>
+                            <DropdownMenuItem onSelect={handleDeselectAllColumns}>
                               Deselect All
                             </DropdownMenuItem>
                           <DropdownMenuSeparator />
