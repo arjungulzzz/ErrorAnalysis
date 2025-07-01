@@ -8,6 +8,7 @@
 
 import React from "react";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type GroupDataPoint } from "@/types";
+import { Copy } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -30,6 +31,8 @@ import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTablePagination } from "./data-table-pagination";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Button } from "./ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface ErrorTableProps {
   logs: ErrorLog[];
@@ -101,6 +104,25 @@ export function ErrorTable({
   const [expandedRowId, setExpandedRowId] = React.useState<string | null>(null);
   const visibleColumns = React.useMemo(() => columnConfig.filter(c => columnVisibility[c.id]), [columnVisibility]);
   const visibleColumnCount = visibleColumns.length;
+  const { toast } = useToast();
+
+  const handleCopy = (textToCopy: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        toast({
+          title: "Copied to clipboard",
+          description: "The log message has been copied.",
+        });
+      }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        toast({
+          variant: "destructive",
+          title: "Copy Failed",
+          description: "Could not copy the message to your clipboard.",
+        });
+      });
+    }
+  };
 
   const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog) => {
     const value = log[columnId];
@@ -286,11 +308,32 @@ export function ErrorTable({
                             <div className="p-4 bg-muted/50 rounded-md space-y-3">
                               <h4 className="text-sm font-semibold">Full Log Details</h4>
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
-                                {allColumns.map(col => (
+                                {visibleColumns.map(col => (
                                   <div key={col.id} className="flex flex-col gap-1">
                                     <dt className="font-medium text-muted-foreground">{col.name}</dt>
-                                    <dd className="font-mono whitespace-pre-wrap break-words">
-                                      {renderExpandedDetail(log, col.id)}
+                                    <dd className="font-mono whitespace-pre-wrap break-words flex items-start justify-between">
+                                      <span>{renderExpandedDetail(log, col.id)}</span>
+                                      {col.id === 'log_message' && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6 ml-2 shrink-0"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleCopy(renderExpandedDetail(log, 'log_message'));
+                                              }}
+                                            >
+                                              <Copy className="h-3 w-3" />
+                                              <span className="sr-only">Copy message</span>
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>Copy message</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      )}
                                     </dd>
                                   </div>
                                 ))}
