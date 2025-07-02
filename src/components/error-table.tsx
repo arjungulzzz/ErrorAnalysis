@@ -61,18 +61,18 @@ const columnConfig: {
   cellClassName?: string;
 }[] = [
     { id: 'log_date_time', name: 'Timestamp', isFilterable: false, cellClassName: "font-mono text-xs" },
-    { id: 'repository_path', name: 'Model Name', isFilterable: true, cellClassName: "max-w-40" },
     { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "max-w-40" },
+    { id: 'repository_path', name: 'Model Name', isFilterable: true, cellClassName: "max-w-40" },
+    { id: 'user_id', name: 'User', isFilterable: true, cellClassName: "max-w-32" },
+    { id: 'report_id_name', name: 'Report Name', isFilterable: true, cellClassName: "max-w-48" },
+    { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg" },
     { id: 'port_number', name: 'Port', isFilterable: true },
-    { id: 'version_number', name: 'AS Version', isFilterable: true },
     { id: 'as_server_mode', name: 'Server Mode', isFilterable: true },
     { id: 'as_start_date_time', name: 'Server Start Time', isFilterable: false, cellClassName: "font-mono text-xs" },
     { id: 'as_server_config', name: 'Server Config', isFilterable: true, cellClassName: "max-w-32" },
-    { id: 'user_id', name: 'User', isFilterable: true, cellClassName: "max-w-32" },
-    { id: 'report_id_name', name: 'Report Name', isFilterable: true, cellClassName: "max-w-48" },
     { id: 'error_number', name: 'Error Code', isFilterable: true },
+    { id: 'version_number', name: 'AS Version', isFilterable: true },
     { id: 'xql_query_id', name: 'Query ID', isFilterable: true, cellClassName: "font-mono text-xs max-w-32" },
-    { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg" },
 ];
 
 const GroupedRow = ({

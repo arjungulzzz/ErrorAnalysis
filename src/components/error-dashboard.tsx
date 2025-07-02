@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
+import { useState, useEffect, useCallback, useTransition } from "react";
 import type { DateRange } from "react-day-picker";
 import { format, subDays, subHours, subMonths } from "date-fns";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint } from "@/types";
@@ -29,16 +29,16 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
     { id: 'host_name', name: 'Host' },
     { id: 'repository_path', name: 'Model Name' },
+    { id: 'user_id', name: 'User' },
+    { id: 'report_id_name', name: 'Report Name' },
+    { id: 'log_message', name: 'Message' },
     { id: 'port_number', name: 'Port' },
     { id: 'as_server_mode', name: 'Server Mode' },
     { id: 'as_start_date_time', name: 'Server Start Time' },
     { id: 'as_server_config', name: 'Server Config' },
-    { id: 'user_id', name: 'User' },
-    { id: 'report_id_name', name: 'Report Name' },
     { id: 'error_number', name: 'Error Code' },
     { id: 'version_number', name: 'AS Version' },
     { id: 'xql_query_id', name: 'Query ID' },
-    { id: 'log_message', name: 'Message' },
 ];
 
 const timePresets = [
@@ -354,17 +354,6 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   const today = new Date();
   const oneMonthAgo = subMonths(today, 1);
 
-  const sortedViewOptions = useMemo(() => {
-    return [...allColumns].sort((a, b) => {
-      const isAVisible = columnVisibility[a.id] ?? false;
-      const isBVisible = columnVisibility[b.id] ?? false;
-      if (isAVisible === isBVisible) {
-        return 0; // maintain original relative order if visibility is the same
-      }
-      return isAVisible ? -1 : 1; // visible items first
-    });
-  }, [columnVisibility]);
-
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
@@ -490,7 +479,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                               Deselect All
                             </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {sortedViewOptions.map((column) => (
+                          {allColumns.map((column) => (
                               <DropdownMenuCheckboxItem
                                   key={column.id}
                                   className="capitalize"
