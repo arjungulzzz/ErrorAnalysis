@@ -170,6 +170,7 @@ const GroupedRow = ({
                                             <Table className="bg-background">
                                                 <TableHeader>
                                                     <TableRow className="hover:bg-transparent">
+                                                        <TableHead className="h-10 w-12 text-center">#</TableHead>
                                                         {visibleColumns.map(col => (
                                                             <TableHead key={col.id} className="h-10">
                                                                 {col.name}
@@ -178,7 +179,7 @@ const GroupedRow = ({
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {logsData.logs.map(log => (
+                                                    {logsData.logs.map((log, index) => (
                                                         <React.Fragment key={log.id}>
                                                             <Tooltip>
                                                               <TooltipTrigger asChild>
@@ -187,6 +188,9 @@ const GroupedRow = ({
                                                                       className="cursor-pointer"
                                                                       data-state={expandedRowId === log.id ? "selected" : undefined}
                                                                   >
+                                                                      <TableCell className="text-center text-muted-foreground">
+                                                                          {(logsData.page - 1) * pageSize + index + 1}
+                                                                      </TableCell>
                                                                       {visibleColumns.map(col => (
                                                                           <TableCell key={col.id} className={cn("truncate", columnConfig.find(c => c.id === col.id)?.cellClassName)}>
                                                                               {renderCellContent(log, col.id)}
@@ -201,7 +205,7 @@ const GroupedRow = ({
             
                                                             {expandedRowId === log.id && (
                                                                 <TableRow>
-                                                                    <TableCell colSpan={visibleColumns.length}>
+                                                                    <TableCell colSpan={visibleColumns.length + 1}>
                                                                         <div className="p-4 bg-muted rounded-md space-y-3">
                                                                             <h4 className="text-sm font-semibold">Full Log Details</h4>
                                                                             <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
@@ -453,6 +457,9 @@ export function ErrorTable({
   const renderSkeleton = () => (
     Array.from({ length: 10 }).map((_, i) => (
       <TableRow key={`skeleton-${i}`}>
+        <TableCell>
+            <Skeleton className="h-6 w-8 mx-auto" />
+        </TableCell>
         {visibleColumns.map(c => (
            <TableCell key={c.id}>
              <Skeleton className="h-6 w-full" />
@@ -544,6 +551,7 @@ export function ErrorTable({
           <div className="rounded-md border overflow-auto">
             <Table style={{ tableLayout: 'fixed', width: '100%' }}>
               <colgroup>
+                  <col style={{ width: "4rem" }} />
                   {allColumns.map(column => (
                     columnVisibility[column.id] && (
                         <col key={column.id} style={{ width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : undefined }} />
@@ -552,6 +560,7 @@ export function ErrorTable({
               </colgroup>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="text-center">#</TableHead>
                   {allColumns.map(column => {
                       const config = columnConfig.find(c => c.id === column.id);
                       return columnVisibility[column.id] && (
@@ -572,7 +581,7 @@ export function ErrorTable({
               </TableHeader>
               <TableBody>
                 {isLoading ? renderSkeleton() : logs.length > 0 ? (
-                  logs.map((log) => (
+                  logs.map((log, index) => (
                     <React.Fragment key={log.id}>
                       <Tooltip delayDuration={300}>
                         <TooltipTrigger asChild>
@@ -581,6 +590,7 @@ export function ErrorTable({
                             className="cursor-pointer"
                             onClick={() => setExpandedRowId(prev => (prev === log.id ? null : log.id))}
                           >
+                            <TableCell className="text-center text-muted-foreground">{(page - 1) * pageSize + index + 1}</TableCell>
                             {visibleColumns.map(column => {
                               const config = columnConfig.find(c => c.id === column.id);
                               return (
@@ -597,7 +607,7 @@ export function ErrorTable({
                       </Tooltip>
                       {expandedRowId === log.id && (
                         <TableRow>
-                          <TableCell colSpan={visibleColumnCount}>
+                          <TableCell colSpan={visibleColumnCount + 1}>
                             <div className="p-4 bg-muted/50 rounded-md space-y-3">
                               <h4 className="text-sm font-semibold">Full Log Details</h4>
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
@@ -651,7 +661,7 @@ export function ErrorTable({
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={visibleColumnCount || 1} className="h-24 text-center">
+                    <TableCell colSpan={visibleColumnCount + 1} className="h-24 text-center">
                       No results found.
                     </TableCell>
                   </TableRow>
