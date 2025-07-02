@@ -62,6 +62,7 @@ export default function ErrorDashboard() {
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [selectedPreset, setSelectedPreset] = useState<string | null>('none');
+  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
@@ -297,11 +298,15 @@ export default function ErrorDashboard() {
             setDateRange({ from: subMonths(now, 1), to: now });
             break;
     }
+    setIsDatePopoverOpen(false);
   };
 
   const handleCalendarSelect = (range: DateRange | undefined) => {
       setDateRange(range);
       setSelectedPreset(null);
+      if (range?.from && range.to) {
+        setIsDatePopoverOpen(false);
+      }
   };
   
   const displayDateText = () => {
@@ -342,7 +347,7 @@ export default function ErrorDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                 <div className="grid w-full items-center gap-1.5">
                   <Label htmlFor="date-range-trigger">Time Range</Label>
-                  <Popover>
+                  <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         id="date-range-trigger"
@@ -376,7 +381,7 @@ export default function ErrorDashboard() {
                         key={calendarKey}
                         initialFocus
                         mode="range"
-                        defaultMonth={subMonths(dateRange?.to || new Date(), 1)}
+                        defaultMonth={subMonths(dateRange?.from || new Date(), 1)}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
