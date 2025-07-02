@@ -63,6 +63,9 @@ export default function ErrorDashboard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [selectedPreset, setSelectedPreset] = useState<string | null>('none');
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
+  const [month, setMonth] = useState<Date | undefined>(
+    subMonths(new Date(), 1)
+  );
   
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
@@ -324,7 +327,15 @@ export default function ErrorDashboard() {
   };
   
   const today = new Date();
-  const lastMonth = subMonths(today, 1);
+  const fromMonth = subMonths(today, 1);
+
+  useEffect(() => {
+    if (dateRange?.from) {
+      setMonth(dateRange.from);
+    } else {
+      setMonth(subMonths(new Date(), 1));
+    }
+  }, [dateRange]);
 
   return (
     <div className="space-y-6">
@@ -379,13 +390,14 @@ export default function ErrorDashboard() {
                       <Calendar
                         initialFocus
                         mode="range"
-                        defaultMonth={lastMonth}
+                        month={month}
+                        onMonthChange={setMonth}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
-                        fromMonth={lastMonth}
-                        toMonth={today}
-                        disabled={{ before: lastMonth, after: today }}
+                        fromDate={fromMonth}
+                        toDate={today}
+                        disabled={{ before: fromMonth, after: today }}
                       />
                     </PopoverContent>
                   </Popover>
@@ -396,7 +408,7 @@ export default function ErrorDashboard() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-full justify-between" disabled={isPending} id="group-by-trigger">
-                          <span>Group By {groupBy.length > 0 && `(${groupBy.length})`}</span>
+                          <span>{groupBy.length > 0 ? `Group By (${groupBy.length})` : 'Group By: None'}</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -404,7 +416,7 @@ export default function ErrorDashboard() {
                           <DropdownMenuLabel>Group by columns</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onSelect={() => setGroupBy([])} disabled={groupBy.length === 0}>
-                            Clear grouping
+                            None (clear selection)
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {allColumns
@@ -519,7 +531,7 @@ export default function ErrorDashboard() {
                                     onClick={() => setGroupBy([])}
                                     disabled={isPending}
                                 >
-                                    Clear grouping
+                                    Clear
                                 </Button>
                             </div>
                             <div className="flex flex-wrap gap-2">
