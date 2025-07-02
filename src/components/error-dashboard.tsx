@@ -415,7 +415,7 @@ export default function ErrorDashboard() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-full justify-between" disabled={isPending} id="group-by-trigger">
-                          <span>{groupBy.length > 0 ? `Group By (${groupBy.length})` : 'None'}</span>
+                          <span>{groupBy.length > 0 ? `Group By (${groupBy.length})` : 'Group By: None'}</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
                       </DropdownMenuTrigger>
