@@ -323,9 +323,8 @@ export default function ErrorDashboard() {
     return "None";
   };
   
-  // By changing the key, we force the Calendar to re-mount when the date range changes,
-  // which ensures the correct defaultMonth is applied.
-  const calendarKey = `${dateRange?.from?.toISOString() ?? 's'}-${dateRange?.to?.toISOString() ?? 'e'}`;
+  const today = new Date();
+  const lastMonth = subMonths(today, 1);
 
   return (
     <div className="space-y-6">
@@ -378,14 +377,15 @@ export default function ErrorDashboard() {
                         </div>
                       </div>
                       <Calendar
-                        key={calendarKey}
                         initialFocus
                         mode="range"
-                        defaultMonth={subMonths(dateRange?.from || new Date(), 1)}
+                        defaultMonth={lastMonth}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
-                        disabled={{ before: subMonths(new Date(), 1), after: new Date() }}
+                        fromMonth={lastMonth}
+                        toMonth={today}
+                        disabled={{ before: lastMonth, after: today }}
                       />
                     </PopoverContent>
                   </Popover>
