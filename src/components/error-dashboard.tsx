@@ -324,8 +324,8 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   };
   
   const today = new Date();
-  
-  const month = dateRange?.from || subMonths(new Date(), 1);
+  const oneMonthAgo = subMonths(today, 1);
+  const month = dateRange?.from || oneMonthAgo;
 
   return (
     <div className="space-y-6">
@@ -384,9 +384,9 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
-                        fromMonth={subMonths(today, 1)}
+                        fromMonth={oneMonthAgo}
                         toMonth={today}
-                        disabled={{ after: today }}
+                        disabled={{ before: oneMonthAgo, after: today }}
                       />
                     </PopoverContent>
                   </Popover>
