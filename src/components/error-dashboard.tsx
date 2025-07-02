@@ -96,7 +96,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   );
 
   const getPresetDisplay = (preset: (typeof timePresets)[number]) => {
-    if (!preset.interval || ['1h', '4h', '8h'].includes(preset.key)) {
+    if (!preset.interval || ['none', '1h', '4h', '8h'].includes(preset.key)) {
       return preset.label;
     }
 
@@ -340,7 +340,9 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   const displayDateText = () => {
     if (selectedPreset) {
       const preset = timePresets.find(p => p.key === selectedPreset);
-      return preset?.label;
+      if (preset) {
+        return getPresetDisplay(preset);
+      }
     }
     if (dateRange?.from) {
       if (dateRange.to) {
@@ -412,7 +414,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
-                        fromMonth={subMonths(today, 1)}
+                        fromMonth={oneMonthAgo}
                         toMonth={today}
                         disabled={{ after: today, before: subMonths(today, 1) }}
                       />
