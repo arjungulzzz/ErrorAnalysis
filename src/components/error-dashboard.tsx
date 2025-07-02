@@ -355,7 +355,6 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   
   const today = new Date();
   const oneMonthAgo = subMonths(today, 1);
-  const initialMonth = dateRange?.from ? dateRange.from : oneMonthAgo;
 
   return (
     <div className="space-y-6">
@@ -410,13 +409,13 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                       <Calendar
                         initialFocus
                         mode="range"
-                        month={initialMonth}
+                        defaultMonth={oneMonthAgo}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
                         fromMonth={oneMonthAgo}
                         toMonth={today}
-                        disabled={{ after: today, before: subMonths(today, 1) }}
+                        disabled={{ after: today, before: oneMonthAgo }}
                       />
                     </PopoverContent>
                   </Popover>
