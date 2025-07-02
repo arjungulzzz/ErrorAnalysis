@@ -330,12 +330,19 @@ export default function ErrorDashboard() {
   const fromMonth = subMonths(today, 1);
 
   useEffect(() => {
+    // Keep the calendar view stable unless the selected range is out of view
     if (dateRange?.from) {
-      setMonth(dateRange.from);
+      const newMonth = dateRange.from;
+      if (newMonth < fromMonth) {
+        setMonth(fromMonth);
+      } else {
+        setMonth(newMonth);
+      }
     } else {
-      setMonth(subMonths(new Date(), 1));
+      setMonth(fromMonth);
     }
-  }, [dateRange]);
+  }, [dateRange, fromMonth]);
+
 
   return (
     <div className="space-y-6">
@@ -395,9 +402,9 @@ export default function ErrorDashboard() {
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
-                        fromDate={fromMonth}
-                        toDate={today}
-                        disabled={{ before: fromMonth, after: today }}
+                        fromDate={subMonths(new Date(), 1)}
+                        toDate={new Date()}
+                        disabled={{ after: new Date(), before: subMonths(new Date(), 1) }}
                       />
                     </PopoverContent>
                   </Popover>
@@ -408,7 +415,7 @@ export default function ErrorDashboard() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-full justify-between" disabled={isPending} id="group-by-trigger">
-                          <span>{groupBy.length > 0 ? `Group By (${groupBy.length})` : 'Group By: None'}</span>
+                          <span>{groupBy.length > 0 ? `Group By (${groupBy.length})` : 'None'}</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
                       </DropdownMenuTrigger>
