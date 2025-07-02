@@ -314,6 +314,12 @@ export function ErrorTable({
       isLoading: boolean;
   }>>({});
   
+  React.useEffect(() => {
+    // When the grouping keys change, we must reset the state
+    // of the expanded groups to avoid stale data and pagination.
+    setGroupLogsData({});
+  }, [groupBy]);
+
   const handleFetchGroupLogs = React.useCallback(async (path: Record<string, string>, page = 1) => {
     const groupKey = Object.values(path).join(':');
     setGroupLogsData(prev => ({ ...prev, [groupKey]: { ...(prev[groupKey] || { logs: [], total: 0 }), isLoading: true, page } }));
