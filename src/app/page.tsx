@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 
 export default function Home() {
   const logoSrc = '/favicon.ico';
-  const fallbackSrc = '/favicon-32x32.png';
+  const fallbackSrc = 'https://placehold.co/40x40.png';
 
   return (
     <main className="min-h-screen w-full bg-background p-4 sm:p-6 lg:p-8">
