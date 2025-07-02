@@ -45,7 +45,7 @@ const timePresets = [
     { key: 'none', label: 'None', interval: null },
     { key: '1h', label: 'Last 1 hour', interval: '1 hour' },
     { key: '4h', label: 'Last 4 hours', interval: '4 hours' },
-    { id: '8h', label: 'Last 8 hours', interval: '8 hours' },
+    { key: '8h', label: 'Last 8 hours', interval: '8 hours' },
     { key: '1d', label: 'Last 1 day', interval: '1 day' },
     { key: '7d', label: 'Last 7 days', interval: '7 days' },
     { key: '15d', label: 'Last 15 days', interval: '15 days' },
