@@ -325,7 +325,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   
   const today = new Date();
   const oneMonthAgo = subMonths(today, 1);
-  const month = dateRange?.from || oneMonthAgo;
+  const month = oneMonthAgo;
 
   return (
     <div className="space-y-6">
