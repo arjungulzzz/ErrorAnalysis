@@ -1,9 +1,9 @@
 import Image from 'next/image';
 import * as React from 'react';
 
-const Logo = (props: { className?: string }) => (
+const Logo = ({ src, ...props }: { src: string, className?: string }) => (
   <Image
-    src="/favicon.ico"
+    src={src}
     alt="Application Logo"
     width={40}
     height={40}

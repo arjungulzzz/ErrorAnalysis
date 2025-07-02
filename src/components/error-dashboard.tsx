@@ -52,7 +52,7 @@ const timePresets = [
     { key: '1m', label: 'Last 1 month', interval: '1 month' },
 ];
 
-export default function ErrorDashboard() {
+export default function ErrorDashboard({ logoSrc }: { logoSrc: string }) {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
   const [chartData, setChartData] = useState<ErrorTrendDataPoint[]>([]);
@@ -330,7 +330,7 @@ export default function ErrorDashboard() {
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
-          <Logo className="h-10 w-10" />
+          <Logo src={logoSrc} className="h-10 w-10" />
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
