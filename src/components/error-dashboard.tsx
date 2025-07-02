@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
 import type { DateRange } from "react-day-picker";
 import { format, subDays, subHours, subMonths } from "date-fns";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint } from "@/types";
@@ -62,6 +62,8 @@ export default function ErrorDashboard() {
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [selectedPreset, setSelectedPreset] = useState<string | null>('none');
+  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
+  const [month, setMonth] = useState<Date>(subMonths(new Date(), 1));
   
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
@@ -297,11 +299,15 @@ export default function ErrorDashboard() {
             setDateRange({ from: subMonths(now, 1), to: now });
             break;
     }
+    setIsDatePopoverOpen(false);
   };
 
   const handleCalendarSelect = (range: DateRange | undefined) => {
       setDateRange(range);
       setSelectedPreset(null);
+      if (range?.from && range.to) {
+        setIsDatePopoverOpen(false);
+      }
   };
   
   const displayDateText = () => {
@@ -318,6 +324,8 @@ export default function ErrorDashboard() {
     return "None";
   };
   
+  const today = new Date();
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
@@ -338,7 +346,7 @@ export default function ErrorDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                 <div className="grid w-full items-center gap-1.5">
                   <Label htmlFor="date-range-trigger">Time Range</Label>
-                  <Popover>
+                  <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         id="date-range-trigger"
@@ -371,11 +379,14 @@ export default function ErrorDashboard() {
                       <Calendar
                         initialFocus
                         mode="range"
-                        defaultMonth={dateRange?.from}
+                        month={month}
+                        onMonthChange={setMonth}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
-                        numberOfMonths={1}
-                        disabled={{ after: new Date() }}
+                        numberOfMonths={2}
+                        fromMonth={subMonths(today, 1)}
+                        toMonth={today}
+                        disabled={{ after: today, before: subMonths(today, 1) }}
                       />
                     </PopoverContent>
                   </Popover>
@@ -386,7 +397,7 @@ export default function ErrorDashboard() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-full justify-between" disabled={isPending} id="group-by-trigger">
-                          <span>Group By {groupBy.length > 0 && `(${groupBy.length})`}</span>
+                          <span>{groupBy.length > 0 ? `Group By (${groupBy.length})` : 'None'}</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -394,7 +405,7 @@ export default function ErrorDashboard() {
                           <DropdownMenuLabel>Group by columns</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onSelect={() => setGroupBy([])} disabled={groupBy.length === 0}>
-                            Clear grouping
+                            None (clear selection)
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {allColumns
@@ -509,7 +520,7 @@ export default function ErrorDashboard() {
                                     onClick={() => setGroupBy([])}
                                     disabled={isPending}
                                 >
-                                    Clear grouping
+                                    Clear
                                 </Button>
                             </div>
                             <div className="flex flex-wrap gap-2">
