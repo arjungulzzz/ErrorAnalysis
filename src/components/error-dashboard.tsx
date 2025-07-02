@@ -318,6 +318,10 @@ export default function ErrorDashboard() {
     return "None";
   };
   
+  // By changing the key, we force the Calendar to re-mount when the date range changes,
+  // which ensures the correct defaultMonth is applied.
+  const calendarKey = `${dateRange?.from?.toISOString() ?? 's'}-${dateRange?.to?.toISOString() ?? 'e'}`;
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
@@ -369,9 +373,10 @@ export default function ErrorDashboard() {
                         </div>
                       </div>
                       <Calendar
+                        key={calendarKey}
                         initialFocus
                         mode="range"
-                        defaultMonth={dateRange?.from}
+                        defaultMonth={subMonths(dateRange?.to || new Date(), 1)}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
