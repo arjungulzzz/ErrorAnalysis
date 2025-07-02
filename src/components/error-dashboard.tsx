@@ -94,6 +94,34 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       return acc;
     }, {} as Record<keyof ErrorLog, number>)
   );
+
+  const getPresetDisplay = (preset: (typeof timePresets)[number]) => {
+    if (!preset.interval || ['1h', '4h', '8h'].includes(preset.key)) {
+      return preset.label;
+    }
+
+    const now = new Date();
+    let fromDate: Date;
+
+    switch (preset.key) {
+      case '1d':
+        fromDate = subDays(now, 1);
+        break;
+      case '7d':
+        fromDate = subDays(now, 6);
+        break;
+      case '15d':
+        fromDate = subDays(now, 14);
+        break;
+      case '1m':
+        fromDate = subMonths(now, 1);
+        break;
+      default:
+        return preset.label;
+    }
+    
+    return `${preset.label} (${format(fromDate, 'MMM d')} - ${format(now, 'MMM d')})`;
+  };
   
   const fetchData = useCallback(() => {
     startTransition(async () => {
@@ -325,7 +353,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   
   const today = new Date();
   const oneMonthAgo = subMonths(today, 1);
-  const month = oneMonthAgo;
+  const initialMonth = dateRange?.from ? dateRange.from : oneMonthAgo;
 
   return (
     <div className="space-y-6">
@@ -372,7 +400,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                                     className="justify-start"
                                     onClick={() => handlePresetClick(preset.key)}
                                 >
-                                    {preset.label}
+                                    {getPresetDisplay(preset)}
                                 </Button>
                             ))}
                         </div>
@@ -380,13 +408,13 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                       <Calendar
                         initialFocus
                         mode="range"
-                        month={month}
+                        month={initialMonth}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
-                        fromMonth={oneMonthAgo}
+                        fromMonth={subMonths(today, 1)}
                         toMonth={today}
-                        disabled={{ before: oneMonthAgo, after: today }}
+                        disabled={{ after: today, before: subMonths(today, 1) }}
                       />
                     </PopoverContent>
                   </Popover>
