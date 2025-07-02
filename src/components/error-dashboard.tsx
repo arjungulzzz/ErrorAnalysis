@@ -63,9 +63,7 @@ export default function ErrorDashboard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [selectedPreset, setSelectedPreset] = useState<string | null>('none');
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
-  const [month, setMonth] = useState<Date | undefined>(
-    subMonths(new Date(), 1)
-  );
+  const [month, setMonth] = useState<Date>(subMonths(new Date(), 1));
   
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
@@ -328,22 +326,6 @@ export default function ErrorDashboard() {
   
   const today = new Date();
 
-  useEffect(() => {
-    const fromMonth = subMonths(new Date(), 1);
-    // Keep the calendar view stable unless the selected range is out of view
-    if (dateRange?.from) {
-      const newMonth = dateRange.from;
-      if (newMonth < fromMonth) {
-        setMonth(fromMonth);
-      } else {
-        setMonth(newMonth);
-      }
-    } else {
-      setMonth(fromMonth);
-    }
-  }, [dateRange]);
-
-
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
@@ -402,8 +384,8 @@ export default function ErrorDashboard() {
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
-                        fromDate={subMonths(today, 1)}
-                        toDate={today}
+                        fromMonth={subMonths(today, 1)}
+                        toMonth={today}
                         disabled={{ after: today, before: subMonths(today, 1) }}
                       />
                     </PopoverContent>
