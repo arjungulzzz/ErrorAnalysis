@@ -76,6 +76,15 @@ This is the simplest request, fetching the first page of logs for the last 7 day
 }
 ```
 
+**Note:** When using `interval`, the backend will receive one of the following string values, which are compatible with PostgreSQL's interval type:
+- `'1 hour'`
+- `'4 hours'`
+- `'8 hours'`
+- `'1 day'`
+- `'7 days'`
+- `'15 days'`
+- `'1 month'`
+
 #### 2. Fetching Logs: Request with Custom Date Range
 Here, we're requesting a specific date range.
 

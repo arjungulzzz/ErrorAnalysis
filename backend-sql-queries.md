@@ -47,6 +47,7 @@ WHERE ali.log_date_time >= NOW() - CAST($1 AS INTERVAL)
 
 -- Parameter $1 would be: '7 days'
 ```
+The parameter `$1` will be one of the following string values: `'1 hour'`, `'4 hours'`, `'8 hours'`, `'1 day'`, `'7 days'`, `'15 days'`, or `'1 month'`.
 
 **B) By `dateRange` (e.g., `{ "dateRange": { "from": "...", "to": "..." } }`)**
 
