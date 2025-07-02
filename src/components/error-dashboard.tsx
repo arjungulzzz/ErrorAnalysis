@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
 import type { DateRange } from "react-day-picker";
 import { format, subDays, subHours, subMonths } from "date-fns";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint } from "@/types";
@@ -327,9 +327,9 @@ export default function ErrorDashboard() {
   };
   
   const today = new Date();
-  const fromMonth = subMonths(today, 1);
 
   useEffect(() => {
+    const fromMonth = subMonths(new Date(), 1);
     // Keep the calendar view stable unless the selected range is out of view
     if (dateRange?.from) {
       const newMonth = dateRange.from;
@@ -341,7 +341,7 @@ export default function ErrorDashboard() {
     } else {
       setMonth(fromMonth);
     }
-  }, [dateRange, fromMonth]);
+  }, [dateRange]);
 
 
   return (
@@ -402,9 +402,9 @@ export default function ErrorDashboard() {
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
-                        fromDate={subMonths(new Date(), 1)}
-                        toDate={new Date()}
-                        disabled={{ after: new Date(), before: subMonths(new Date(), 1) }}
+                        fromDate={subMonths(today, 1)}
+                        toDate={today}
+                        disabled={{ after: today, before: subMonths(today, 1) }}
                       />
                     </PopoverContent>
                   </Popover>
@@ -415,7 +415,7 @@ export default function ErrorDashboard() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-full justify-between" disabled={isPending} id="group-by-trigger">
-                          <span>{groupBy.length > 0 ? `Group By (${groupBy.length})` : 'Group By: None'}</span>
+                          <span>{groupBy.length > 0 ? `Group By (${groupBy.length})` : 'None'}</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
                       </DropdownMenuTrigger>
