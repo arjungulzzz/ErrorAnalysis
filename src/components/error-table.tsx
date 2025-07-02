@@ -415,7 +415,7 @@ export function ErrorTable({
         case 'log_date_time':
         case 'as_start_date_time':
             if (value instanceof Date) {
-              return value.toISOString().slice(0, 19).replace('T', ' ');
+              return value.toISOString().slice(0, 23).replace('T', ' ');
             }
             return String(value);
         case 'repository_path':
