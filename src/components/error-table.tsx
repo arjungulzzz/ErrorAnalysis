@@ -61,8 +61,8 @@ const columnConfig: {
   cellClassName?: string;
 }[] = [
     { id: 'log_date_time', name: 'Timestamp', isFilterable: false, cellClassName: "font-mono text-xs" },
-    { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "max-w-40" },
     { id: 'repository_path', name: 'Model Name', isFilterable: true, cellClassName: "max-w-40" },
+    { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "max-w-40" },
     { id: 'user_id', name: 'User', isFilterable: true, cellClassName: "max-w-32" },
     { id: 'report_id_name', name: 'Report Name', isFilterable: true, cellClassName: "max-w-48" },
     { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg" },
@@ -217,7 +217,7 @@ const GroupedRow = ({
                                                                                             key={col.id}
                                                                                             className={cn(
                                                                                                 "flex flex-col gap-1", 
-                                                                                                col.id === 'log_message' && 'md:col-span-2 lg:col-span-3'
+                                                                                                (col.id === 'log_message' || col.id === 'report_id_name') && 'md:col-span-2 lg:col-span-3'
                                                                                             )}
                                                                                         >
                                                                                             <dt className="font-medium text-muted-foreground">{col.name}</dt>
@@ -619,7 +619,7 @@ export function ErrorTable({
                                       key={col.id}
                                       className={cn(
                                         "flex flex-col gap-1", 
-                                        col.id === 'log_message' && 'md:col-span-2 lg:col-span-3'
+                                        (col.id === 'log_message' || col.id === 'report_id_name') && 'md:col-span-2 lg:col-span-3'
                                       )}
                                     >
                                       <dt className="font-medium text-muted-foreground">{col.name}</dt>
