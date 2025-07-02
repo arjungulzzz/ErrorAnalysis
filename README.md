@@ -62,7 +62,7 @@ The API has two primary modes of operation, determined by the `groupBy` paramete
 ### Request Body Scenarios
 
 #### 1. Fetching Logs: Basic Request (First Page, Default Sort)
-This is the simplest request, fetching the first page of logs for the last 7 days. `groupBy` is an empty array for a flat list of logs. Pagination should be applied.
+This is the simplest request, fetching the first page of logs for the last 7 days using a preset `interval`. `groupBy` is an empty array for a flat list of logs. Pagination should be applied.
 
 ```json
 {
@@ -86,7 +86,7 @@ This is the simplest request, fetching the first page of logs for the last 7 day
 - `'1 month'`
 
 #### 2. Fetching Logs: Request with Custom Date Range
-Here, we're requesting a specific date range.
+When a user selects a custom date range from the calendar, the `dateRange` object is sent instead of `interval`. The `from` and `to` values are in ISO 8601 format.
 
 ```json
 {
@@ -241,3 +241,5 @@ The `log_date_time` and `as_start_date_time` fields should be in ISO 8601 format
 *   **Interactive Table**: Sort, filter, and view detailed log data.
 *   **Multi-Column Data Grouping**: Group logs by multiple attributes like Host, Repository, or Error Code in a nested view.
 *   **Error Trend Visualization**: A chart that displays the frequency of errors over time.
+
+    

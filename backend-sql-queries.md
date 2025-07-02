@@ -37,7 +37,7 @@ These clauses should be applied to all queries to ensure the data is consistent 
 
 #### 1. Applying Time Filters
 
-Add a `WHERE` clause based on the `interval` or `dateRange` provided in the request body.
+Add a `WHERE` clause based on the `interval` or `dateRange` provided in the request body. The API will provide one or the other, but not both.
 
 **A) By `interval` (e.g., `{ "interval": "7 days" }`)**
 
@@ -230,3 +230,5 @@ FROM TimeBuckets
 GROUP BY date
 ORDER BY date;
 ```
+
+    
