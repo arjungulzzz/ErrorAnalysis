@@ -52,7 +52,7 @@ const timePresets = [
     { key: '1m', label: 'Last 1 month', interval: '1 month' },
 ];
 
-export default function ErrorDashboard({ logoSrc }: { logoSrc: string }) {
+export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: string; fallbackSrc: string }) {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
   const [chartData, setChartData] = useState<ErrorTrendDataPoint[]>([]);
@@ -63,7 +63,6 @@ export default function ErrorDashboard({ logoSrc }: { logoSrc: string }) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [selectedPreset, setSelectedPreset] = useState<string | null>('none');
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
-  const [month, setMonth] = useState<Date>(subMonths(new Date(), 1));
   
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
@@ -325,12 +324,14 @@ export default function ErrorDashboard({ logoSrc }: { logoSrc: string }) {
   };
   
   const today = new Date();
+  
+  const month = dateRange?.from || subMonths(new Date(), 1);
 
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
-          <Logo src={logoSrc} className="h-10 w-10" />
+          <Logo src={logoSrc} fallbackSrc={fallbackSrc} className="h-10 w-10" />
           <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -380,13 +381,12 @@ export default function ErrorDashboard({ logoSrc }: { logoSrc: string }) {
                         initialFocus
                         mode="range"
                         month={month}
-                        onMonthChange={setMonth}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
                         fromMonth={subMonths(today, 1)}
                         toMonth={today}
-                        disabled={{ after: today, before: subMonths(today, 1) }}
+                        disabled={{ after: today }}
                       />
                     </PopoverContent>
                   </Popover>
@@ -397,7 +397,7 @@ export default function ErrorDashboard({ logoSrc }: { logoSrc: string }) {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-full justify-between" disabled={isPending} id="group-by-trigger">
-                          <span>{groupBy.length > 0 ? `Group By (${groupBy.length})` : 'None'}</span>
+                          <span>{groupBy.length > 0 ? `Grouped by ${groupBy.length} column(s)` : 'None'}</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -405,7 +405,7 @@ export default function ErrorDashboard({ logoSrc }: { logoSrc: string }) {
                           <DropdownMenuLabel>Group by columns</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onSelect={() => setGroupBy([])} disabled={groupBy.length === 0}>
-                            None (clear selection)
+                            Clear selection
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {allColumns
