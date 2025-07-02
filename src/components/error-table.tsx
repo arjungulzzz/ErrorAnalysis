@@ -61,8 +61,8 @@ const columnConfig: {
   cellClassName?: string;
 }[] = [
     { id: 'log_date_time', name: 'Timestamp', isFilterable: false, cellClassName: "font-mono text-xs" },
-    { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "max-w-40" },
     { id: 'repository_path', name: 'Model Name', isFilterable: true, cellClassName: "max-w-40" },
+    { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "max-w-40" },
     { id: 'port_number', name: 'Port', isFilterable: true },
     { id: 'version_number', name: 'AS Version', isFilterable: true },
     { id: 'as_server_mode', name: 'Server Mode', isFilterable: true },

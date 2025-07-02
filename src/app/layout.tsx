@@ -5,8 +5,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Circana | AS Errors Dashboard',
-  description: 'Errors from AS Logs DB',
+  title: 'Circana | AnalyticServer Errors Dashboard',
+  description: 'Errors from AnalyticServer Logs DB',
   icons: {
     icon: [
       { url: '/favicon.ico' },

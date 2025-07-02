@@ -27,8 +27,8 @@ import Logo from './logo';
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
-    { id: 'host_name', name: 'Host' },
     { id: 'repository_path', name: 'Model Name' },
+    { id: 'host_name', name: 'Host' },
     { id: 'port_number', name: 'Port' },
     { id: 'version_number', name: 'AS Version' },
     { id: 'as_server_mode', name: 'Server Mode' },
@@ -69,15 +69,15 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   const [groupBy, setGroupBy] = useState<GroupByOption[]>([]);
   const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
     log_date_time: true,
-    host_name: true,
     repository_path: true,
+    host_name: true,
     port_number: false,
-    version_number: true,
+    version_number: false,
     as_server_mode: false,
     as_start_date_time: false,
     as_server_config: false,
     user_id: true,
-    report_id_name: false,
+    report_id_name: true,
     error_number: false,
     xql_query_id: false,
     log_message: true,
@@ -361,7 +361,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
         <div className="flex items-center gap-4">
           <Logo src={logoSrc} fallbackSrc={fallbackSrc} className="h-10 w-10" />
-          <h1 className="text-3xl font-bold tracking-tight">AS Errors Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">AnalyticServer Errors Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={handleRefresh} disabled={isPending} variant="outline" className="bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground">
