@@ -66,6 +66,14 @@ const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
     const breakdownTitle = breakdownOptions.find(o => o.value === breakdownBy)?.label || 'Breakdown';
     const breakdownEntries = Object.entries(data.breakdown).sort(([, a], [, b]) => b - a);
 
+    const formatBreakdownKey = (key: string) => {
+        if (breakdownBy === 'repository_path') {
+            const lastSlashIndex = key.lastIndexOf('/');
+            return lastSlashIndex !== -1 ? key.substring(lastSlashIndex + 1) : key;
+        }
+        return key;
+    };
+
     return (
       <div className="min-w-[12rem] rounded-lg border bg-background p-2 text-xs shadow-lg">
         <div className="mb-2">
@@ -76,12 +84,15 @@ const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
           <div className="pt-2 border-t">
             <p className="font-semibold mb-1">By {breakdownTitle}</p>
             <div className="space-y-1">
-              {breakdownEntries.slice(0, 5).map(([key, count]) => (
-                <div key={key} className="flex justify-between items-center text-muted-foreground">
-                  <span className="truncate" title={key}>{key}</span>
-                  <span className="font-medium text-foreground ml-2">{count}</span>
-                </div>
-              ))}
+              {breakdownEntries.slice(0, 5).map(([key, count]) => {
+                const formattedKey = formatBreakdownKey(key);
+                return (
+                    <div key={key} className="flex justify-between items-center text-muted-foreground">
+                        <span className="truncate" title={key}>{formattedKey}</span>
+                        <span className="font-medium text-foreground ml-2">{count}</span>
+                    </div>
+                );
+              })}
             </div>
           </div>
         )}

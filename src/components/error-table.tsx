@@ -447,7 +447,8 @@ export function ErrorTable({
             return String(value);
         case 'repository_path': {
             const path = String(value);
-            return path;
+            const lastSlashIndex = path.lastIndexOf('/');
+            return lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
         }
         default:
             return String(value);
