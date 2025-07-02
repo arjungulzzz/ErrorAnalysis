@@ -374,8 +374,8 @@ export default function ErrorDashboard() {
                         defaultMonth={dateRange?.from}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
-                        numberOfMonths={1}
-                        disabled={{ after: new Date() }}
+                        numberOfMonths={2}
+                        disabled={{ before: subMonths(new Date(), 1), after: new Date() }}
                       />
                     </PopoverContent>
                   </Popover>
