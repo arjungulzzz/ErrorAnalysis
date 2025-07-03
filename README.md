@@ -64,6 +64,8 @@ The API has two primary modes of operation, determined by the `groupBy` paramete
 #### 1. Fetching Logs: Basic Request (First Page, Default Sort)
 This is the simplest request, fetching the first page of logs for the last 7 days using a preset `interval`. `groupBy` is an empty array for a flat list of logs. Pagination should be applied.
 
+The `chartBucket` parameter suggests the desired time granularity for the `chartData` response. For longer time ranges (e.g., 7 days or more), it will be `'day'`. For shorter ranges (e.g., 24 hours), it will be `'hour'`. The backend should use this to group chart data accordingly.
+
 ```json
 {
   "requestId": "req_1700586000000_b3k4d5a1",
@@ -72,7 +74,8 @@ This is the simplest request, fetching the first page of logs for the last 7 day
   "sort": { "column": "log_date_time", "direction": "descending" },
   "filters": {},
   "groupBy": [],
-  "chartBreakdownBy": "host_name"
+  "chartBreakdownBy": "host_name",
+  "chartBucket": "day"
 }
 ```
 
@@ -99,7 +102,8 @@ When a user selects a custom date range from the calendar, the `dateRange` objec
   "sort": { "column": "log_date_time", "direction": "descending" },
   "filters": {},
   "groupBy": [],
-  "chartBreakdownBy": "host_name"
+  "chartBreakdownBy": "host_name",
+  "chartBucket": "day"
 }
 ```
 
@@ -116,7 +120,8 @@ When a user selects "Group By" options, the frontend sends a request with an ord
   "sort": { "column": "log_date_time", "direction": "descending" },
   "filters": {},
   "groupBy": ["host_name", "error_number"],
-  "chartBreakdownBy": "host_name"
+  "chartBreakdownBy": "host_name",
+  "chartBucket": "hour"
 }
 ```
 
@@ -130,6 +135,7 @@ The key is the content of the **`filters`** object. The frontend adds the keys o
 1.  Add the keys of the parent groups to the `filters` object.
 2.  Send an **empty** `groupBy` array (`[]`).
 3.  The `pagination` sent in this request **should be applied** by the backend, as it now applies to the list of individual logs being fetched.
+4. The `chartBucket` parameter is not relevant here and will not be sent.
 
 **Example Drill-Down Request:** This request fetches page 1 of logs where `host_name` is `'server-alpha-01'` and `error_number` is `'500'`.
 

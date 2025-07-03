@@ -122,6 +122,11 @@ export type ApiDateRange = {
 }
 
 /**
+ * The suggested granularity for time buckets in the chart data.
+ */
+export type ChartBucket = 'day' | 'hour';
+
+/**
  * Defines the structure of the request body sent to the logs API.
  */
 export type LogsApiRequest = {
@@ -133,4 +138,5 @@ export type LogsApiRequest = {
   filters: ColumnFilters;
   groupBy: GroupByOption[];
   chartBreakdownBy: ChartBreakdownByOption;
+  chartBucket?: ChartBucket;
 };

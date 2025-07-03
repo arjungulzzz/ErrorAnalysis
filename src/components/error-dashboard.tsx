@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
 import type { DateRange } from "react-day-picker";
 import { format, subDays, subHours, subMonths } from "date-fns";
-import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint } from "@/types";
+import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint, type ChartBucket } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ErrorTable } from "@/components/error-table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,8 +27,8 @@ import Logo from './logo';
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
-    { id: 'host_name', name: 'Host' },
     { id: 'repository_path', name: 'Model Name' },
+    { id: 'host_name', name: 'Host' },
     { id: 'user_id', name: 'User' },
     { id: 'report_id_name', name: 'Report Name' },
     { id: 'log_message', name: 'Message' },
@@ -69,8 +69,8 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   const [groupBy, setGroupBy] = useState<GroupByOption[]>([]);
   const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
     log_date_time: true,
-    host_name: true,
     repository_path: true,
+    host_name: true,
     port_number: false,
     as_server_mode: false,
     as_start_date_time: false,
@@ -144,6 +144,22 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
         return;
       }
 
+      const getChartBucket = (): ChartBucket => {
+          if (selectedPreset) {
+              if (['1h', '4h', '8h', '1d'].includes(selectedPreset)) {
+                  return 'hour';
+              }
+          }
+          if (dateRange?.from && dateRange?.to) {
+              const diffInHours = (dateRange.to.getTime() - dateRange.from.getTime()) / 36e5;
+              if (diffInHours <= 48) { // 2 days or less
+                  return 'hour';
+              }
+          }
+          return 'day'; // Default for longer ranges
+      };
+      
+      const chartBucket = getChartBucket();
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
       const requestBody: LogsApiRequest = {
         requestId,
@@ -152,6 +168,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
         filters: columnFilters,
         groupBy,
         chartBreakdownBy,
+        chartBucket,
       };
       
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -225,7 +242,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       }
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
 
-      const requestBody: Omit<LogsApiRequest, 'groupBy'> & { groupBy: [] } = {
+      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket'> & { groupBy: [] } = {
           requestId,
           pagination: { page, pageSize },
           sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
@@ -304,7 +321,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
         groupBy: [],
-        chartBreakdownBy: chartBreakdownBy,
+        chartBreakdownBy: 'host_name',
       };
 
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -386,7 +403,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
     } finally {
       setIsExporting(false);
     }
-  }, [totalLogs, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, selectedPreset, toast, columnVisibility]);
+  }, [totalLogs, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility]);
 
   useEffect(() => {
     setPage(1);
@@ -476,8 +493,10 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   const today = new Date();
   const oneMonthAgo = subMonths(today, 1);
   const visibleColOrder = useMemo(() => {
-    return allColumns;
-  }, []);
+    const visible = allColumns.filter(c => columnVisibility[c.id]);
+    const notVisible = allColumns.filter(c => !columnVisibility[c.id]);
+    return [...visible, ...notVisible];
+  }, [columnVisibility]);
 
   return (
     <div className="space-y-6">
@@ -536,7 +555,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                       <Calendar
                         initialFocus
                         mode="range"
-                        defaultMonth={oneMonthAgo}
+                        defaultMonth={dateRange?.from || oneMonthAgo}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
@@ -565,7 +584,6 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {allColumns
-                            .filter(col => columnVisibility[col.id])
                             .map((option) => (
                              !['log_date_time', 'as_start_date_time'].includes(option.id) &&
                               <DropdownMenuCheckboxItem
@@ -608,7 +626,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                               Deselect All
                             </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {visibleColOrder.map((column) => (
+                          {allColumns.map((column) => (
                               <DropdownMenuCheckboxItem
                                   key={column.id}
                                   className="capitalize"

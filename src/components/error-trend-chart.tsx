@@ -87,8 +87,8 @@ const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
               {breakdownEntries.slice(0, 5).map(([key, count]) => {
                 const formattedKey = formatBreakdownKey(key);
                 return (
-                    <div key={key} className="flex justify-between items-center text-muted-foreground">
-                        <span className="truncate" title={key}>{formattedKey}</span>
+                    <div key={key} className="flex justify-between items-center text-muted-foreground" title={key}>
+                        <span className="truncate">{formattedKey}</span>
                         <span className="font-medium text-foreground ml-2">{count}</span>
                     </div>
                 );
@@ -143,7 +143,7 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }
         <div>
             <CardTitle>Error Trend</CardTitle>
             <CardDescription>
-            The frequency of errors over the entire dataset.
+            The frequency of errors over the selected time period.
             </CardDescription>
         </div>
         <div className="flex items-center gap-2">

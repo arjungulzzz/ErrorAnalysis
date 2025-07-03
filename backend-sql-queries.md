@@ -207,11 +207,12 @@ In your backend service (e.g., in Node.js, Python, Go), process the flattened re
 Groups data into time buckets and creates a JSON object for the breakdown.
 
 ```sql
--- Example Request: { "chartBreakdownBy": "error_number" } (assuming hourly buckets)
+-- Example Request: { "chartBreakdownBy": "error_number", "chartBucket": "hour" }
 WITH TimeBuckets AS (
   SELECT
-    -- Dynamically truncate based on the time range: 'day', 'hour', or '30 minute'
-    date_trunc('hour', ali.log_date_time AT TIME ZONE 'UTC') as date,
+    -- Use the `chartBucket` parameter to dynamically set the truncation level.
+    -- The parameter will be either 'day' or 'hour'. You must validate this value.
+    date_trunc($1, ali.log_date_time AT TIME ZONE 'UTC') as date,
     -- This is the dynamic breakdown key, whitelisted
     ali.error_number::text as breakdown_key,
     COUNT(*) as error_count
@@ -229,6 +230,6 @@ SELECT
 FROM TimeBuckets
 GROUP BY date
 ORDER BY date;
-```
 
-    
+-- Parameter $1 would be: 'hour'
+```
