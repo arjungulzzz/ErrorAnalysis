@@ -167,8 +167,7 @@ When `groupBy` is an empty array, the response should contain the paginated list
 - `logs`: An array of the paginated log objects.
 - `totalCount`: The total number of logs matching the query filters. This is crucial for the UI's pagination controls, **both for the main table and for the drill-down sub-tables**.
 - `groupData`: Must be an empty array `[]`.
-
-The `chartData` property now contains pre-aggregated breakdowns for the fields requested in `chartBreakdownFields`.
+- `chartData`: The `breakdown` object within each `chartData` item will contain pre-aggregated data for every field requested in the `chartBreakdownFields` array.
 
 ```json
 {
@@ -187,6 +186,10 @@ The `chartData` property now contains pre-aggregated breakdowns for the fields r
         "host_name": {
           "server-alpha-01": 25,
           "server-beta-02": 25
+        },
+        "repository_path": {
+          "/models/model_a.xql": 10,
+          "/models/model_b.xql": 40
         },
         "error_number": {
           "500": 30,
@@ -218,6 +221,9 @@ The `groupData` array contains a nested structure when `groupBy` is used. Each o
         "host_name": {
           "server-alpha-01": 25,
           "server-beta-02": 25
+        },
+        "repository_path": {
+          "/models/model_a.xql": 50
         },
         "error_number": {
           "503": 50
