@@ -158,6 +158,8 @@ The key is the content of the **`filters`** object. The frontend adds the keys o
 
 The API must always return a JSON object with the following structure. The contents of the `logs` and `groupData` fields depend on whether the `groupBy` parameter was provided in the request.
 
+**Important Note on Timestamps:** The frontend does **not** perform any time conversion or formatting. The backend service is the single source of truth for time. All timestamp fields (`log_date_time`, `as_start_date_time`, and all fields in `chartData`) must be sent as **pre-formatted strings** in a consistent timezone (UTC is recommended).
+
 #### Response for Log List Requests (`groupBy: []`)
 When `groupBy` is an empty array, the response should contain the paginated list of logs and the total count of all matching logs before pagination.
 
@@ -168,13 +170,14 @@ When `groupBy` is an empty array, the response should contain the paginated list
 ```json
 {
   "logs": [
-    { "log_date_time": "2023-11-21T10:30:00.000Z", "host_name": "server-alpha-01", "repository_path": "/models/model_a.xql", ... },
-    { "log_date_time": "2023-11-21T10:28:00.000Z", "host_name": "server-beta-02", "repository_path": "/models/model_b.xql", ... }
+    { "log_date_time": "2023-11-21 10:30:00.123", "host_name": "server-alpha-01", "repository_path": "/models/model_a.xql", ... },
+    { "log_date_time": "2023-11-21 10:28:00.456", "host_name": "server-beta-02", "repository_path": "/models/model_b.xql", ... }
   ],
   "totalCount": 5432,
   "chartData": [
     {
       "date": "2023-11-21T10:00:00.000Z",
+      "fullDate": "November 21, 2023, 10:00 UTC",
       "count": 50,
       "formattedDate": "Nov 21",
       "breakdown": {
@@ -199,6 +202,7 @@ The `groupData` array contains a nested structure when `groupBy` is used. Each o
   "chartData": [
     {
       "date": "2023-11-21T10:00:00.000Z",
+      "fullDate": "November 21, 2023, 10:00 UTC",
       "count": 50,
       "formattedDate": "Nov 21",
       "breakdown": {
@@ -238,7 +242,7 @@ The `groupData` array contains a nested structure when `groupBy` is used. Each o
   ]
 }
 ```
-The `log_date_time` and `as_start_date_time` fields should be in ISO 8601 format, which is the standard output for timestamp data types in most database libraries.
+The `log_date_time` and `as_start_date_time` fields should be sent as pre-formatted strings, as the frontend will display them as-is.
 
 ## Core Features
 

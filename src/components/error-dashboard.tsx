@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
 import type { DateRange } from "react-day-picker";
 import { format, subDays, subHours, subMonths } from "date-fns";
-import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint, type ChartBucket } from "@/types";
+import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint, type ChartBucket, GroupByOptionsList } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ErrorTable } from "@/components/error-table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,18 +27,18 @@ import Logo from './logo';
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
-    { id: 'repository_path', name: 'Model Name' },
     { id: 'host_name', name: 'Host' },
-    { id: 'user_id', name: 'User' },
-    { id: 'report_id_name', name: 'Report Name' },
-    { id: 'log_message', name: 'Message' },
+    { id: 'repository_path', name: 'Model Name' },
     { id: 'port_number', name: 'Port' },
     { id: 'as_server_mode', name: 'Server Mode' },
     { id: 'as_start_date_time', name: 'Server Start Time' },
     { id: 'as_server_config', name: 'Server Config' },
+    { id: 'user_id', name: 'User' },
+    { id: 'report_id_name', name: 'Report Name' },
     { id: 'error_number', name: 'Error Code' },
     { id: 'version_number', name: 'AS Version' },
     { id: 'xql_query_id', name: 'Query ID' },
+    { id: 'log_message', name: 'Message' },
 ];
 
 const timePresets = [
@@ -195,11 +195,9 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
         const data: LogsApiResponse = await response.json();
 
         const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
-            return logs.map((log: ApiErrorLog, index: number) => ({
+            return logs.map((log, index) => ({
                 ...log,
-                id: `log-${new Date(log.log_date_time).getTime()}-${index}`,
-                log_date_time: new Date(log.log_date_time),
-                as_start_date_time: new Date(log.as_start_date_time),
+                id: `log-${log.log_date_time}-${index}`,
             }));
         };
 
@@ -276,9 +274,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
           return logs.map((log: ApiErrorLog, index: number) => ({
               ...log,
-              id: `log-drilldown-${new Date(log.log_date_time).getTime()}-${index}`,
-              log_date_time: new Date(log.log_date_time),
-              as_start_date_time: new Date(log.as_start_date_time),
+              id: `log-drilldown-${log.log_date_time}-${index}`,
           }));
       };
       return { logs: processLogs(data.logs), totalCount: data.totalCount };
@@ -315,7 +311,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       }
 
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-      const requestBody: Omit<LogsApiRequest, 'groupBy'> & { groupBy: [] } = {
+      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'pagination'> & { groupBy: [], pagination: {page: number, pageSize: number} } = {
         requestId,
         pagination: { page: 1, pageSize: totalLogs }, // Fetch all logs
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
@@ -359,12 +355,6 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
           if (colId === 'repository_path' && typeof value === 'string') {
             const lastSlashIndex = value.lastIndexOf('/');
             value = lastSlashIndex !== -1 ? value.substring(lastSlashIndex + 1) : value;
-          }
-
-          if ((colId === 'log_date_time' || colId === 'as_start_date_time') && typeof value === 'string') {
-            try {
-              value = new Date(value).toISOString();
-            } catch (e) { /* keep original string if invalid */ }
           }
           
           let stringValue = String(value ?? '');
@@ -492,7 +482,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   
   const today = new Date();
   const oneMonthAgo = subMonths(today, 1);
-  const visibleColOrder = useMemo(() => {
+  const orderedColumns = useMemo(() => {
     const visible = allColumns.filter(c => columnVisibility[c.id]);
     const notVisible = allColumns.filter(c => !columnVisibility[c.id]);
     return [...visible, ...notVisible];
@@ -556,12 +546,12 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                         initialFocus
                         mode="range"
                         defaultMonth={dateRange?.from || oneMonthAgo}
+                        fromMonth={oneMonthAgo}
+                        toMonth={today}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
-                        fromMonth={oneMonthAgo}
-                        toMonth={today}
-                        disabled={{ after: today, before: oneMonthAgo }}
+                        disabled={{ after: today }}
                       />
                     </PopoverContent>
                   </Popover>
@@ -583,9 +573,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                             Clear selection
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {allColumns
-                            .map((option) => (
-                             !['log_date_time', 'as_start_date_time'].includes(option.id) &&
+                          {GroupByOptionsList.map((option) => (
                               <DropdownMenuCheckboxItem
                                   key={option.id}
                                   checked={groupBy.includes(option.id as GroupByOption)}
@@ -626,7 +614,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                               Deselect All
                             </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {allColumns.map((column) => (
+                          {orderedColumns.map((column) => (
                               <DropdownMenuCheckboxItem
                                   key={column.id}
                                   className="capitalize"

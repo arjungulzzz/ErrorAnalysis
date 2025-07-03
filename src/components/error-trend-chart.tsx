@@ -42,27 +42,9 @@ const breakdownOptions: { value: ChartBreakdownByOption; label: string }[] = [
   { value: 'log_message', label: 'Message' },
 ];
 
-const CustomTooltip = ({ active, payload, breakdownBy, isHourly }: any) => {
+const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as ErrorTrendDataPoint;
-
-    const fullDate = isHourly
-      ? new Date(data.date).toLocaleString('en-US', {
-          timeZone: 'UTC',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-        })
-      : new Date(data.date).toLocaleDateString('en-US', {
-          timeZone: 'UTC',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        });
-
     const breakdownTitle = breakdownOptions.find(o => o.value === breakdownBy)?.label || 'Breakdown';
     const breakdownEntries = Object.entries(data.breakdown).sort(([, a], [, b]) => b - a);
 
@@ -77,7 +59,7 @@ const CustomTooltip = ({ active, payload, breakdownBy, isHourly }: any) => {
     return (
       <div className="min-w-[12rem] rounded-lg border bg-background p-2 text-xs shadow-lg">
         <div className="mb-2">
-          <p className="font-bold text-sm">{fullDate}</p>
+          <p className="font-bold text-sm">{data.fullDate}</p>
           <p className="text-muted-foreground">{`Total Errors: ${data.count}`}</p>
         </div>
         {breakdownEntries.length > 0 && (
@@ -137,38 +119,6 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }
     )
   }
 
-  const isHourly = React.useMemo(() => {
-    if (data.length < 2) {
-      return data.length > 0 && data[0].formattedDate.includes(":");
-    }
-    const date1 = new Date(data[0].date).getTime();
-    const date2 = new Date(data[1].date).getTime();
-    const diffHours = (date2 - date1) / 36e5;
-    return diffHours > 0 && diffHours <= 1.1;
-  }, [data]);
-
-  const xAxisTickFormatter = (date: string) => {
-    try {
-      const d = new Date(date);
-      if (isHourly) {
-        return d.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-          timeZone: 'UTC',
-        });
-      }
-      return d.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        timeZone: 'UTC',
-      });
-    } catch (e) {
-      return date;
-    }
-  };
-
-
   return (
     <Card>
       <CardHeader className="flex-row items-start justify-between">
@@ -208,11 +158,10 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }
           >
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
             <XAxis
-              dataKey="date"
+              dataKey="formattedDate"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={xAxisTickFormatter}
             />
             <YAxis
               tickLine={false}
@@ -222,7 +171,7 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }
             />
             <ChartTooltip
               cursor={false}
-              content={<CustomTooltip breakdownBy={breakdownBy} isHourly={isHourly} />}
+              content={<CustomTooltip breakdownBy={breakdownBy} />}
             />
             <defs>
               <linearGradient id="fillErrors" x1="0" y1="0" x2="0" y2="1">

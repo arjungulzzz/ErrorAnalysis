@@ -61,8 +61,8 @@ const columnConfig: {
   cellClassName?: string;
 }[] = [
     { id: 'log_date_time', name: 'Timestamp', isFilterable: false, cellClassName: "font-mono text-xs" },
-    { id: 'repository_path', name: 'Model Name', isFilterable: true, cellClassName: "max-w-40" },
     { id: 'host_name', name: 'Host', isFilterable: true, cellClassName: "max-w-40" },
+    { id: 'repository_path', name: 'Model Name', isFilterable: true, cellClassName: "max-w-40" },
     { id: 'user_id', name: 'User', isFilterable: true, cellClassName: "max-w-32" },
     { id: 'report_id_name', name: 'Report Name', isFilterable: true, cellClassName: "max-w-48" },
     { id: 'log_message', name: 'Message', isFilterable: true, cellClassName: "max-w-lg" },
@@ -212,14 +212,9 @@ const GroupedRow = ({
                                                                                 {visibleColumns.map(col => {
                                                                                     const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
                                                                                     const detailValue = renderExpandedDetail(log, col.id);
-                                                                                    return (
-                                                                                        <div 
-                                                                                            key={col.id}
-                                                                                            className={cn(
-                                                                                                "flex flex-col gap-1", 
-                                                                                                (col.id === 'log_message' || col.id === 'report_id_name') && 'md:col-span-2 lg:col-span-3'
-                                                                                            )}
-                                                                                        >
+                                                                                    if (col.id === 'report_id_name' || col.id === 'log_message') {
+                                                                                      return (
+                                                                                        <div key={col.id} className="flex flex-col gap-1 md:col-span-3">
                                                                                             <dt className="font-medium text-muted-foreground">{col.name}</dt>
                                                                                             <dd className="flex items-start justify-between gap-2 font-mono">
                                                                                                 <span className="whitespace-pre-wrap break-all pt-1">
@@ -246,6 +241,17 @@ const GroupedRow = ({
                                                                                                         </TooltipContent>
                                                                                                     </Tooltip>
                                                                                                 )}
+                                                                                            </dd>
+                                                                                        </div>
+                                                                                      );
+                                                                                    }
+                                                                                    return (
+                                                                                        <div key={col.id} className="flex flex-col gap-1">
+                                                                                            <dt className="font-medium text-muted-foreground">{col.name}</dt>
+                                                                                            <dd className="flex items-start justify-between gap-2 font-mono">
+                                                                                                <span className="whitespace-pre-wrap break-all pt-1">
+                                                                                                    {detailValue}
+                                                                                                </span>
                                                                                             </dd>
                                                                                         </div>
                                                                                     );
@@ -414,9 +420,6 @@ export function ErrorTable({
     switch (columnId) {
         case 'log_date_time':
         case 'as_start_date_time':
-            if (value instanceof Date) {
-              return value.toISOString().slice(0, 23).replace('T', ' ');
-            }
             return String(value);
         case 'repository_path':
             const path = String(value);
@@ -439,17 +442,13 @@ export function ErrorTable({
       return '—';
     }
     switch (columnId) {
-        case 'log_date_time':
-        case 'as_start_date_time':
-            if (value instanceof Date) {
-              return value.toISOString();
-            }
-            return String(value);
         case 'repository_path': {
             const path = String(value);
             const lastSlashIndex = path.lastIndexOf('/');
             return lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
         }
+        case 'log_date_time':
+        case 'as_start_date_time':
         default:
             return String(value);
     }
@@ -615,40 +614,46 @@ export function ErrorTable({
                                 {visibleColumns.map(col => {
                                   const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
                                   const detailValue = renderExpandedDetail(log, col.id);
+                                  if (col.id === 'report_id_name' || col.id === 'log_message') {
+                                    return (
+                                      <div key={col.id} className="flex flex-col gap-1 md:col-span-3">
+                                          <dt className="font-medium text-muted-foreground">{col.name}</dt>
+                                          <dd className="flex items-start justify-between gap-2 font-mono">
+                                              <span className="whitespace-pre-wrap break-all pt-1">
+                                                  {detailValue}
+                                              </span>
+                                              {isCopyable && (
+                                                  <Tooltip>
+                                                      <TooltipTrigger asChild>
+                                                          <Button
+                                                              variant="ghost"
+                                                              size="icon"
+                                                              className="h-7 w-7 shrink-0"
+                                                              onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  handleCopy(String(detailValue), col.name);
+                                                              }}
+                                                          >
+                                                              <Copy className="h-4 w-4" />
+                                                              <span className="sr-only">Copy {col.name}</span>
+                                                          </Button>
+                                                      </TooltipTrigger>
+                                                      <TooltipContent>
+                                                          <p>Copy {col.name}</p>
+                                                      </TooltipContent>
+                                                  </Tooltip>
+                                              )}
+                                          </dd>
+                                      </div>
+                                    );
+                                  }
                                   return (
-                                    <div 
-                                      key={col.id}
-                                      className={cn(
-                                        "flex flex-col gap-1", 
-                                        (col.id === 'log_message' || col.id === 'report_id_name') && 'md:col-span-2 lg:col-span-3'
-                                      )}
-                                    >
+                                    <div key={col.id} className="flex flex-col gap-1">
                                       <dt className="font-medium text-muted-foreground">{col.name}</dt>
                                       <dd className="flex items-start justify-between gap-2 font-mono">
                                         <span className="whitespace-pre-wrap break-all pt-1">
                                           {detailValue}
                                         </span>
-                                        {isCopyable && (
-                                           <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="icon"
-                                                  className="h-7 w-7 shrink-0"
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleCopy(String(detailValue), col.name);
-                                                  }}
-                                                >
-                                                  <Copy className="h-4 w-4" />
-                                                  <span className="sr-only">Copy {col.name}</span>
-                                                </Button>
-                                              </TooltipTrigger>
-                                              <TooltipContent>
-                                                <p>Copy {col.name}</p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                        )}
                                       </dd>
                                     </div>
                                   );

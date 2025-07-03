@@ -8,7 +8,7 @@
 
 /**
  * Represents the raw error log entry as it comes from the API.
- * Dates are strings.
+ * Dates are strings, expected to be pre-formatted by the backend.
  */
 export type ApiErrorLog = {
   log_date_time: string;
@@ -27,13 +27,11 @@ export type ApiErrorLog = {
 };
 
 /**
- * Represents a single error log entry once processed by the frontend.
- * It has a unique ID for React keys and Date objects for dates.
+ * Represents a single error log entry used by the frontend.
+ * It includes a unique ID for React keys. Timestamps are strings.
  */
-export type ErrorLog = Omit<ApiErrorLog, 'log_date_time' | 'as_start_date_time'> & {
+export type ErrorLog = ApiErrorLog & {
   id: string;
-  log_date_time: Date;
-  as_start_date_time: Date;
 };
 
 /**
@@ -74,6 +72,20 @@ export type ColumnFilters = Partial<Record<keyof ErrorLog, string>>;
 /**
  * Defines the available options for grouping logs in the table.
  */
+export const GroupByOptionsList: { id: GroupByOption; name: string }[] = [
+    { id: 'host_name', name: 'Host' },
+    { id: 'repository_path', name: 'Model Name' },
+    { id: 'error_number', name: 'Error Code' },
+    { id: 'user_id', name: 'User' },
+    { id: 'report_id_name', name: 'Report Name' },
+    { id: 'port_number', name: 'Port' },
+    { id: 'version_number', name: 'AS Version' },
+    { id: 'as_server_mode', name: 'Server Mode' },
+    { id: 'as_server_config', name: 'Server Config' },
+    { id: 'xql_query_id', name: 'Query ID' },
+    { id: 'log_message', name: 'Message' },
+];
+
 export type GroupByOption =
   | 'host_name'
   | 'repository_path'
@@ -104,14 +116,21 @@ export type ChartBreakdownByOption = GroupByOption;
 
 /**
  * Defines the data structure for a single point in the error trend chart.
+ * All date/time fields are strings, expected to be pre-formatted by the backend.
  */
 export type ErrorTrendDataPoint = {
-  date: string; // The specific date for the data point (e.g., "2023-11-21T10:30:00.000Z")
-  count: number; // Total number of errors on this date
-  formattedDate: string; // A user-friendly formatted date for the chart's x-axis (e.g., "Nov 21" or "10:30")
+  /** The full ISO 8601 timestamp for the start of the time bucket. */
+  date: string;
+  /** A complete, user-friendly formatted date for the tooltip (e.g., "November 21, 2023, 10:30 UTC"). */
+  fullDate: string;
+  /** Total number of errors on this date. */
+  count: number;
+  /** A user-friendly formatted date for the chart's x-axis (e.g., "Nov 21" or "10:30"). */
+  formattedDate: string;
   /** A breakdown of error counts by a secondary key (e.g., hostname, error code). The key is dynamic. */
-  breakdown: Record<string, number>; 
+  breakdown: Record<string, number>;
 };
+
 
 /**
  * The shape of a date range sent to the API. Dates must be ISO strings.

@@ -6,19 +6,31 @@ This document outlines the SQL patterns required for the backend service to supp
 
 ---
 
+### A Note on Timestamps and Timezones
+
+The frontend application **does not perform any time conversion or formatting**. It displays the timestamp strings it receives directly from the API.
+
+Therefore, the backend service is the **single source of truth** for time. It is critical that the service performs all time-related calculations and formatting consistently.
+
+-   **All timestamp fields** (`log_date_time`, `as_start_date_time`, and all date fields within `chartData`) must be sent as **pre-formatted strings**.
+-   It is highly recommended to perform all date truncation and formatting operations in a **consistent timezone (e.g., UTC)** to avoid ambiguity and ensure data is displayed correctly for all users. The examples below use UTC.
+
+---
+
 ### Base Query
 
-All subsequent modifications will build upon this base `JOIN` query.
+All subsequent modifications will build upon this base `JOIN` query. The `log_date_time` and `as_start_date_time` columns should be cast to a text format that is suitable for direct display in the UI.
 
 ```sql
 SELECT
-  ali.log_date_time,
+  -- Cast timestamps to a user-friendly string format
+  to_char(ali.log_date_time AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS.MS') as log_date_time,
   asli.host_name,
   asli.repository_path,
   asli.port_number,
   asli.version_number,
   asli.as_server_mode,
-  asli.as_start_date_time,
+  to_char(asli.as_start_date_time AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS.MS') as as_start_date_time,
   asli.as_server_config,
   ali.user_id,
   ali.report_id_name,
@@ -110,7 +122,7 @@ This is a standard request for a page of logs. The `filters` are based on the ma
 ```sql
 -- Combined Query Example (PostgreSQL):
 SELECT
-  ali.log_date_time,
+  to_char(ali.log_date_time AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS.MS') as log_date_time,
   asli.host_name,
   -- ... other columns
   ali.log_message,
@@ -135,7 +147,7 @@ This request fetches logs for a specific group. The only difference from a gener
 -- Request filters might be: { "host_name": "server-alpha-01", "error_number": "500" }
 -- This results in an extended WHERE clause:
 SELECT
-  ali.log_date_time,
+  to_char(ali.log_date_time AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS.MS') as log_date_time,
   asli.host_name,
   -- ... other columns
   ali.log_message,
@@ -222,15 +234,18 @@ WITH TimeBuckets AS (
   GROUP BY 1, 2
 )
 SELECT
-  -- Cast to text to ensure consistent ISO 8601 format
+  -- The raw ISO 8601 timestamp for the bucket
   date::text,
+  -- The full, formatted string for the chart tooltip
+  to_char(date, 'FMMonth FMDD, YYYY, HH24:MI "UTC"') as "fullDate",
+  -- The total count for the bucket
   SUM(error_count)::integer as count,
-  -- Generate the formatted date string based on the bucket size
+  -- The formatted string for the chart's x-axis label
   CASE
     WHEN $1 = 'hour' THEN to_char(date, 'HH24:MI')
     ELSE to_char(date, 'Mon DD')
   END as "formattedDate",
-  -- Aggregate the breakdowns into a JSONB object, ordered by count descending
+  -- The JSON object containing the breakdown by the specified key
   jsonb_object_agg(breakdown_key, error_count ORDER BY error_count DESC) as breakdown
 FROM TimeBuckets
 GROUP BY date
