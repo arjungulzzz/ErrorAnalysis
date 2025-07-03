@@ -77,7 +77,7 @@ The `chartBreakdownFields` parameter is an array of column names. The backend sh
   "filters": {},
   "groupBy": [],
   "chartBucket": "day",
-  "chartBreakdownFields": ["host_name", "repository_path", "error_number"]
+  "chartBreakdownFields": ["host_name", "error_number"]
 }
 ```
 
@@ -186,10 +186,6 @@ When `groupBy` is an empty array, the response should contain the paginated list
         "host_name": {
           "server-alpha-01": 25,
           "server-beta-02": 25
-        },
-        "repository_path": {
-          "/models/model_a.xql": 10,
-          "/models/model_b.xql": 40
         },
         "error_number": {
           "500": 30,
