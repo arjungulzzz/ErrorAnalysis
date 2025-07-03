@@ -127,8 +127,11 @@ export type ErrorTrendDataPoint = {
   count: number;
   /** A user-friendly formatted date for the chart's x-axis (e.g., "Nov 21" or "10:30"). */
   formattedDate: string;
-  /** A breakdown of error counts by a secondary key (e.g., hostname, error code). The key is dynamic. */
-  breakdown: Record<string, number>;
+  /** 
+   * A pre-fetched object containing breakdowns for all possible fields.
+   * The frontend selects which breakdown to display without a new API call.
+   */
+  breakdown: Partial<Record<ChartBreakdownByOption, Record<string, number>>>;
 };
 
 
@@ -156,6 +159,6 @@ export type LogsApiRequest = {
   sort: SortDescriptor;
   filters: ColumnFilters;
   groupBy: GroupByOption[];
-  chartBreakdownBy: ChartBreakdownByOption;
+  chartBreakdownBy?: ChartBreakdownByOption; // No longer sent by the frontend, but kept for type safety.
   chartBucket?: ChartBucket;
 };

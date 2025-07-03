@@ -214,24 +214,28 @@ ORDER BY
 
 In your backend service (e.g., in Node.js, Python, Go), process the flattened results from Step 1 into the required nested JSON format. The final structure must be an array of objects, where each object has a `key`, `count`, and `subgroups`. The `logs` property should not be included.
 
-**3. `chartData` Query:**
+**3. `chartData` Query (Optimized for Frontend):**
 
-Groups data into time buckets and creates a JSON object for the breakdown.
+To optimize performance, the API should pre-aggregate chart breakdowns for all relevant fields in a single query. This avoids the need for the frontend to make multiple requests when changing the chart's "Breakdown By" view.
+
+The following query creates a JSON object containing breakdowns for all specified columns. This is more efficient than running separate queries for each breakdown type. Note that this query uses correlated subqueries, which may be slow on very large datasets; a backend service might achieve better performance by fetching the raw `TimeBuckets` data and performing the final aggregation in code.
 
 ```sql
--- Example Request: { "chartBreakdownBy": "error_number", "chartBucket": "hour" }
+-- Example Request: { "chartBucket": "hour" }
+-- Note: The `chartBreakdownBy` parameter is no longer used by the frontend.
 WITH TimeBuckets AS (
   SELECT
     -- Use the `chartBucket` parameter to dynamically set the truncation level.
     -- The parameter will be either 'day' or 'hour'. You must validate this value.
     date_trunc($1, ali.log_date_time AT TIME ZONE 'UTC') as date,
-    -- This is the dynamic breakdown key, whitelisted
-    ali.error_number::text as breakdown_key,
-    COUNT(*) as error_count
+    -- Select all columns that can be used for breakdown
+    asli.host_name,
+    ali.error_number::text as error_number,
+    asli.repository_path
+    -- ... and so on for all other breakdown-able columns
   FROM as_log_info ali
   JOIN as_start_log_info asli ON ali.as_instance_id = asli.as_instance_id
   WHERE ... -- (Same WHERE clauses from filters)
-  GROUP BY 1, 2
 )
 SELECT
   -- The raw ISO 8601 timestamp for the bucket
@@ -239,17 +243,22 @@ SELECT
   -- The full, formatted string for the chart tooltip
   to_char(date, 'FMMonth FMDD, YYYY, HH24:MI "UTC"') as "fullDate",
   -- The total count for the bucket
-  SUM(error_count)::integer as count,
+  COUNT(*)::integer as count,
   -- The formatted string for the chart's x-axis label
   CASE
     WHEN $1 = 'hour' THEN to_char(date, 'HH24:MI')
     ELSE to_char(date, 'Mon DD')
   END as "formattedDate",
-  -- The JSON object containing the breakdown by the specified key
-  jsonb_object_agg(breakdown_key, error_count ORDER BY error_count DESC) as breakdown
-FROM TimeBuckets
+  -- The JSON object containing all possible breakdowns
+  jsonb_build_object(
+      'host_name', (SELECT jsonb_object_agg(t.host_name, t.count) FROM (SELECT host_name, COUNT(*) FROM TimeBuckets WHERE date = Buckets.date GROUP BY host_name) as t(host_name, count)),
+      'error_number', (SELECT jsonb_object_agg(t.error_number, t.count) FROM (SELECT error_number, COUNT(*) FROM TimeBuckets WHERE date = Buckets.date GROUP BY error_number) as t(error_number, count)),
+      'repository_path', (SELECT jsonb_object_agg(t.repository_path, t.count) FROM (SELECT repository_path, COUNT(*) FROM TimeBuckets WHERE date = Buckets.date GROUP BY repository_path) as t(repository_path, count))
+      -- ... continue this pattern for all other breakdown fields ...
+  ) as breakdown
+FROM TimeBuckets as Buckets
 GROUP BY date
 ORDER BY date;
 
--- Parameter $1 would be: 'hour'
+-- Parameter $1 would be: 'hour' or 'day'
 ```

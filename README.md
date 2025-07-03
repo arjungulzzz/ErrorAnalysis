@@ -64,7 +64,7 @@ The API has two primary modes of operation, determined by the `groupBy` paramete
 #### 1. Fetching Logs: Basic Request (First Page, Default Sort)
 This is the simplest request, fetching the first page of logs for the last 7 days using a preset `interval`. `groupBy` is an empty array for a flat list of logs. Pagination should be applied.
 
-The `chartBucket` parameter suggests the desired time granularity for the `chartData` response. For longer time ranges (e.g., 7 days or more), it will be `'day'`. For shorter ranges (e.g., 24 hours), it will be `'hour'`. The backend should use this to group chart data accordingly.
+The `chartBucket` parameter suggests the desired time granularity for the `chartData` response. For longer time ranges (e.g., 7 days or more), it will be `'day'`. For shorter ranges (e.g., 24 hours), it will be `'hour'`. The backend should use this to group chart data accordingly. The `chartBreakdownBy` parameter is no longer sent by the frontend but is left in the documentation for reference.
 
 ```json
 {
@@ -74,7 +74,6 @@ The `chartBucket` parameter suggests the desired time granularity for the `chart
   "sort": { "column": "log_date_time", "direction": "descending" },
   "filters": {},
   "groupBy": [],
-  "chartBreakdownBy": "host_name",
   "chartBucket": "day"
 }
 ```
@@ -102,7 +101,6 @@ When a user selects a custom date range from the calendar, the `dateRange` objec
   "sort": { "column": "log_date_time", "direction": "descending" },
   "filters": {},
   "groupBy": [],
-  "chartBreakdownBy": "host_name",
   "chartBucket": "day"
 }
 ```
@@ -120,7 +118,6 @@ When a user selects "Group By" options, the frontend sends a request with an ord
   "sort": { "column": "log_date_time", "direction": "descending" },
   "filters": {},
   "groupBy": ["host_name", "error_number"],
-  "chartBreakdownBy": "host_name",
   "chartBucket": "hour"
 }
 ```
@@ -149,8 +146,7 @@ The key is the content of the **`filters`** object. The frontend adds the keys o
     "host_name": "server-alpha-01",
     "error_number": "500"
   },
-  "groupBy": [], // Empty array is crucial
-  "chartBreakdownBy": "host_name"
+  "groupBy": []
 }
 ```
 
@@ -167,6 +163,8 @@ When `groupBy` is an empty array, the response should contain the paginated list
 - `totalCount`: The total number of logs matching the query filters. This is crucial for the UI's pagination controls, **both for the main table and for the drill-down sub-tables**.
 - `groupData`: Must be an empty array `[]`.
 
+To optimize performance, the `chartData` property now contains pre-aggregated breakdowns for all possible fields. The frontend will no longer request a specific breakdown; it will receive all of them and switch between them locally.
+
 ```json
 {
   "logs": [
@@ -181,8 +179,14 @@ When `groupBy` is an empty array, the response should contain the paginated list
       "count": 50,
       "formattedDate": "Nov 21",
       "breakdown": {
-        "server-alpha-01": 25,
-        "server-beta-02": 25
+        "host_name": {
+          "server-alpha-01": 25,
+          "server-beta-02": 25
+        },
+        "error_number": {
+          "500": 30,
+          "404": 20
+        }
       }
     }
   ],
@@ -206,8 +210,13 @@ The `groupData` array contains a nested structure when `groupBy` is used. Each o
       "count": 50,
       "formattedDate": "Nov 21",
       "breakdown": {
-        "server-alpha-01": 25,
-        "server-beta-02": 25
+        "host_name": {
+          "server-alpha-01": 25,
+          "server-beta-02": 25
+        },
+        "error_number": {
+          "503": 50
+        }
       }
     }
   ],

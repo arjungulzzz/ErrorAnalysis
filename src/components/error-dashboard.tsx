@@ -27,15 +27,15 @@ import Logo from './logo';
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
-    { id: 'host_name', name: 'Host' },
     { id: 'repository_path', name: 'Model Name' },
+    { id: 'host_name', name: 'Host' },
     { id: 'port_number', name: 'Port' },
+    { id: 'report_id_name', name: 'Report Name' },
+    { id: 'error_number', name: 'Error Code' },
+    { id: 'user_id', name: 'User' },
     { id: 'as_server_mode', name: 'Server Mode' },
     { id: 'as_start_date_time', name: 'Server Start Time' },
     { id: 'as_server_config', name: 'Server Config' },
-    { id: 'user_id', name: 'User' },
-    { id: 'report_id_name', name: 'Report Name' },
-    { id: 'error_number', name: 'Error Code' },
     { id: 'version_number', name: 'AS Version' },
     { id: 'xql_query_id', name: 'Query ID' },
     { id: 'log_message', name: 'Message' },
@@ -72,12 +72,12 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
     repository_path: true,
     host_name: true,
     port_number: false,
+    report_id_name: true,
+    error_number: false,
+    user_id: true,
     as_server_mode: false,
     as_start_date_time: false,
     as_server_config: false,
-    user_id: true,
-    report_id_name: true,
-    error_number: false,
     version_number: false,
     xql_query_id: false,
     log_message: true,
@@ -161,13 +161,12 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       
       const chartBucket = getChartBucket();
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-      const requestBody: LogsApiRequest = {
+      const requestBody: Omit<LogsApiRequest, 'chartBreakdownBy'> = {
         requestId,
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
         groupBy,
-        chartBreakdownBy,
         chartBucket,
       };
       
@@ -226,7 +225,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, selectedPreset, toast]);
+  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
   
   const fetchLogsForDrilldown = useCallback(async (drilldownFilters: ColumnFilters, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -240,13 +239,12 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       }
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
 
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket'> & { groupBy: [] } = {
+      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'chartBreakdownBy'> & { groupBy: [] } = {
           requestId,
           pagination: { page, pageSize },
           sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
           filters: { ...columnFilters, ...drilldownFilters },
           groupBy: [],
-          chartBreakdownBy: 'host_name', // Not used for this query, but required
       };
 
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -311,13 +309,12 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       }
 
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'pagination'> & { groupBy: [], pagination: {page: number, pageSize: number} } = {
+      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'pagination' | 'chartBreakdownBy'> & { groupBy: [], pagination: {page: number, pageSize: number} } = {
         requestId,
         pagination: { page: 1, pageSize: totalLogs }, // Fetch all logs
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
         groupBy: [],
-        chartBreakdownBy: 'host_name',
       };
 
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -483,10 +480,8 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   const today = new Date();
   const oneMonthAgo = subMonths(today, 1);
   const orderedColumns = useMemo(() => {
-    const visible = allColumns.filter(c => columnVisibility[c.id]);
-    const notVisible = allColumns.filter(c => !columnVisibility[c.id]);
-    return [...visible, ...notVisible];
-  }, [columnVisibility]);
+    return allColumns;
+  }, []);
 
   return (
     <div className="space-y-6">
