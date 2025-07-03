@@ -1,73 +1,147 @@
-# Firebase Studio Error Insights Dashboard
+# Error Insights Dashboard
 
-This is a Next.js application that provides a dashboard for viewing, filtering, and analyzing application error logs. It is designed to connect to an external logging service for its data.
+The Error Insights Dashboard is a comprehensive, web-based tool designed for viewing, filtering, and analyzing application error logs. Built with Next.js, it provides a highly interactive and performant interface that connects to an external logging service for its data.
+
+## Core Features
+
+- **Dynamic Data Fetching**: Retrieves and displays error logs from a configurable backend service.
+- **Advanced Time-Based Filtering**: Filter logs by convenient presets (e.g., "Last 4 hours") or select a custom date range with a dual-calendar picker.
+- **Interactive Data Table**: A feature-rich table that supports multi-column sorting, per-column filtering, and dynamic column visibility. Column widths are also user-resizable.
+- **Multi-Column Data Grouping**: Aggregate logs by multiple attributes like Host, Model Name, or Error Code, presented in a nested, drill-down view.
+- **On-Demand Loading**: For grouped data, individual logs are fetched on-demand when a group is expanded, ensuring fast initial load times.
+- **Error Trend Visualization**: An interactive chart displays the frequency of errors over the selected time period, with tooltips that provide detailed breakdowns by any visible column.
+- **Optimized Charting**: The chart intelligently requests data in daily or hourly buckets based on the time range and only fetches breakdown data for currently visible columns, minimizing payload size.
+- **CSV Export**: Export the currently filtered and visible log data to a CSV file for offline analysis.
+
+## Technology Stack
+
+- **Framework**: [Next.js 14](https://nextjs.org/) (App Router, React Server Components)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **UI Library**: [React](https://react.dev/)
+- **Component Library**: [ShadCN UI](https://ui.shadcn.com/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Charting**: [Recharts](https://recharts.org/)
+- **State Management**: Client-side state managed with React Hooks (`useState`, `useEffect`, `useCallback`, `useTransition`).
+
+## Project Structure
+
+The project follows a standard Next.js App Router structure:
+
+```
+src
+├── app/                  # Next.js App Router pages, layout, and API routes
+├── components/           # Reusable React components
+│   ├── ui/               # Core ShadCN UI components
+│   ├── error-dashboard.tsx # Main stateful component managing the dashboard
+│   ├── error-table.tsx     # Data table, grouping, and drill-down logic
+│   └── error-trend-chart.tsx # Chart visualization component
+├── hooks/                # Custom React hooks (e.g., useToast)
+├── lib/                  # Utility functions (e.g., cn for classnames)
+└── types/                # TypeScript type definitions for the application
+```
 
 ## Getting Started
 
-To run this project locally, follow these steps:
+### Prerequisites
 
-### 1. Install Dependencies
+- Node.js (v18 or later recommended)
+- npm or a compatible package manager
+- A running instance of the backend logging service.
 
-First, install the necessary Node.js packages using npm:
+### 1. Installation
+
+Clone the repository and install the dependencies:
 
 ```bash
 npm install
 ```
 
-### 2. Configure Environment Variables
+### 2. Environment Configuration
 
-The application uses environment variables for configuration. To get started, copy the example file:
+The application requires an environment file to connect to the backend.
 
-```bash
-cp .env.example .env
-```
-
-Then, open the newly created `.env` file and update the variables to match your local setup.
-
-1.  **API URL (Required)**: Add the URL for your external logging service.
-
-    ```env
-    NEXT_PUBLIC_API_URL=http://localhost:8000/v1/logs
+1.  Copy the example file:
+    ```bash
+    cp .env.example .env
     ```
+2.  Edit the `.env` file and set the following variables:
 
-2.  **Development Port (Optional)**: You can specify the port for the local development server. If you don't set this, it will default to port `3000`.
+    -   `NEXT_PUBLIC_API_URL` (Required): The full URL of your backend logging service endpoint.
+        ```env
+        NEXT_PUBLIC_API_URL=http://localhost:8000/v1/logs
+        ```
+    -   `PORT` (Optional): The port for the local development server. Defaults to `3000`.
+        ```env
+        PORT=4000
+        ```
 
-    ```env
-    PORT=4000
-    ```
+### 3. Running the Development Server
 
-### 3. Run the Development Server
-
-With the dependencies installed and environment variables set, you can start the application:
+Start the Next.js development server:
 
 ```bash
 npm run dev
 ```
 
-This will launch the Next.js development server. If you set the `PORT` variable, it will use that port; otherwise, it will default to `3000`. Open the corresponding URL in your web browser to view the dashboard.
+The application will be available at `http://localhost:3000` (or your specified `PORT`).
 
-**Note:** This application is the frontend component. You must have your backend logging service running concurrently at the URL specified in your `.env` file for the dashboard to fetch and display data.
+## Architecture and Code Analysis
 
-## API Interaction
+### Centralized State Management
 
-The dashboard communicates with the backend service via a `POST` request to the URL specified in `NEXT_PUBLIC_API_URL`. The request body is a JSON object that can include parameters for time filtering, pagination, sorting, filtering, and data aggregation.
+The core of the application's state is managed within the `src/components/error-dashboard.tsx` component. This component acts as the "single source of truth" for:
 
-The `requestId` is a unique identifier generated for each request in the format `req_{epoch_timestamp}_{random_string}` to aid in server-side logging and tracking. The timestamp is the Unix epoch time in milliseconds.
+-   Filters (date range, column filters, grouping)
+-   Sorting and pagination state
+-   Fetched data (`logs`, `groupData`, `chartData`, `totalLogs`)
+-   UI state (column visibility, column widths)
 
-The API has two primary modes of operation, determined by the `groupBy` parameter:
+This centralized approach simplifies data flow, as all data modifications are triggered from this component, which then passes down the necessary data and callbacks to its children (`ErrorTable`, `ErrorTrendChart`).
 
-1.  **Fetching a List of Logs** (when `groupBy` is `[]`): This mode is for retrieving individual log rows. The backend **must apply pagination**.
-2.  **Fetching Aggregated Data** (when `groupBy` is `["host_name", ...]`): This mode is for generating the nested `groupData` summary. The backend **must ignore pagination** for the grouping query.
+### Efficient Data Fetching with `useTransition`
 
-### Request Body Scenarios
+All data fetching operations are wrapped in a `startTransition` call from React's `useTransition` hook. This prevents the UI from blocking while new data is being loaded. The `isPending` state returned by the hook is used to show loading indicators (skeletons, spinners) across the application, providing a responsive user experience.
 
-#### 1. Fetching Logs: Basic Request (First Page, Default Sort)
-This is the simplest request, fetching the first page of logs for the last 7 days using a preset `interval`. `groupBy` is an empty array for a flat list of logs. Pagination should be applied.
+### Component Responsibilities
 
-The `chartBucket` parameter suggests the desired time granularity for the `chartData` response. For longer time ranges (e.g., 7 days or more), it will be `'day'`. For shorter ranges (e.g., 24 hours), it will be `'hour'`. The backend should use this to group chart data accordingly.
+-   **`ErrorDashboard`**: Manages all state and triggers data fetches. Renders the layout, filter controls, and passes data to child components.
+-   **`ErrorTable`**: A versatile component that can render either a flat list of logs or a nested, grouped view. It handles its own internal state for expanded groups and makes on-demand requests for drill-down data via a callback function provided by `ErrorDashboard`.
+-   **`ErrorTrendChart`**: A presentational component that visualizes the `chartData`. It receives all possible breakdowns from its parent and uses its own state to manage which breakdown is currently displayed in the tooltip, making the interaction instantaneous.
 
-The `chartBreakdownFields` parameter is an array of column names. The backend should compute and return breakdown data only for the fields specified in this array.
+---
 
+## API Contract
+
+The frontend communicates with a single backend endpoint defined by `NEXT_PUBLIC_API_URL`.
+
+-   **Method**: `POST`
+-   **Content-Type**: `application/json`
+
+### A Note on Timestamps and Timezones
+
+The frontend application **does not perform any time conversion or formatting**. It displays the timestamp strings it receives directly from the API. The backend service is the **single source of truth** for time and is responsible for all time-related calculations and formatting.
+
+### Request Body Parameters
+
+| Parameter               | Type                                | Description                                                                                                                                                                                                  |
+| ----------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `requestId`             | `string`                            | A unique ID for tracking the request (`req_{timestamp}_{random}`).                                                                                                                                           |
+| `interval`              | `string` (Optional)                 | A time interval string (e.g., `'7 days'`, `'4 hours'`). Used when a preset is selected.                                                                                                                      |
+| `dateRange`             | `object` (Optional)                 | An object with `from` and `to` ISO 8601 date strings. Used when a custom range is selected.                                                                                                                  |
+| `pagination`            | `{ page: number, pageSize: number }`| Specifies the page and number of items to return. **The backend must ignore this for `groupData` queries.**                                                                                                  |
+| `sort`                  | `{ column: string, direction: string }`| The column to sort by and the direction (`ascending` or `descending`).                                                                                                                                       |
+| `filters`               | `object`                            | A key-value map for filtering columns (e.g., `{ "host_name": "server-alpha" }`).                                                                                                                             |
+| `groupBy`               | `string[]`                          | An array of column names to group by. If empty, a flat list of logs is returned.                                                                                                                             |
+| `chartBucket`           | `'day' \| 'hour'`                   | The desired granularity for the chart's x-axis.                                                                                                                                                              |
+| `chartBreakdownFields`  | `string[]`                          | An array of column names for which the backend should pre-calculate breakdown data for the chart.                                                                                                            |
+
+### Request & Response Scenarios
+
+#### 1. Fetching a List of Logs (Flat View)
+
+This is the standard request for a paginated list of logs. `groupBy` is empty.
+
+**Request (`/v1/logs`)**:
 ```json
 {
   "requestId": "req_1700586000000_b3k4d5a1",
@@ -81,39 +155,37 @@ The `chartBreakdownFields` parameter is an array of column names. The backend sh
 }
 ```
 
-**Note:** When using `interval`, the backend will receive one of the following string values, which are compatible with PostgreSQL's interval type:
-- `'1 hour'`
-- `'4 hours'`
-- `'8 hours'`
-- `'1 day'`
-- `'7 days'`
-- `'15 days'`
-- `'1 month'`
-
-#### 2. Fetching Logs: Request with Custom Date Range
-When a user selects a custom date range from the calendar, the `dateRange` object is sent instead of `interval`. The `from` and `to` values are in ISO 8601 format.
+**Response**:
+The response contains paginated `logs`, the `totalCount` before pagination, the `chartData` with requested breakdowns, and an empty `groupData` array.
 
 ```json
 {
-  "requestId": "req_1700586060000_c4l5e6b2",
-  "dateRange": {
-    "from": "2023-10-26T00:00:00.000Z",
-    "to": "2023-11-25T23:59:59.999Z"
-  },
-  "pagination": { "page": 1, "pageSize": 100 },
-  "sort": { "column": "log_date_time", "direction": "descending" },
-  "filters": {},
-  "groupBy": [],
-  "chartBucket": "day",
-  "chartBreakdownFields": ["host_name", "repository_path", "error_number"]
+  "logs": [
+    { "log_date_time": "2023-11-21 10:30:00.123", "host_name": "server-alpha-01", ... },
+    { "log_date_time": "2023-11-21 10:28:00.456", "host_name": "server-beta-02", ... }
+  ],
+  "totalCount": 5432,
+  "chartData": [
+    {
+      "date": "2023-11-21T10:00:00.000Z",
+      "fullDate": "November 21, 2023, 10:00 UTC",
+      "count": 50,
+      "formattedDate": "Nov 21",
+      "breakdown": {
+        "host_name": { "server-alpha-01": 25, "server-beta-02": 25 },
+        "error_number": { "500": 30, "404": 20 }
+      }
+    }
+  ],
+  "groupData": []
 }
 ```
 
-#### 3. Fetching Aggregated Data: Multi-Column Grouping
-When a user selects "Group By" options, the frontend sends a request with an ordered array of column names in the `groupBy` parameter.
+#### 2. Fetching Aggregated Data (Grouped View)
 
-**IMPORTANT:** When the `groupBy` array is not empty, the backend service **must ignore** the `pagination` parameters for the query that generates `groupData`. The grouped summary must be calculated over the entire filtered dataset, not just one page. The response for a grouped request should **not** include individual logs inside the `groupData` structure.
+When `groupBy` is used, the backend returns a nested `groupData` structure and must ignore `pagination` for this part of the query.
 
+**Request (`/v1/logs`)**:
 ```json
 {
   "requestId": "req_1700586240000_f7o8h9e5",
@@ -123,24 +195,37 @@ When a user selects "Group By" options, the frontend sends a request with an ord
   "filters": {},
   "groupBy": ["host_name", "error_number"],
   "chartBucket": "hour",
-  "chartBreakdownFields": ["host_name", "repository_path", "error_number"]
+  "chartBreakdownFields": ["host_name", "repository_path"]
 }
 ```
 
-#### 4. Fetching Logs: For a Specific Group (Drill-Down)
-When a user expands a final-level group in the UI, the frontend makes a new request to fetch the individual logs for that group. This is an "on-demand" request that reuses the same API endpoint.
+**Response**:
+The response contains the nested `groupData`. The `logs` array must be empty, as logs will be fetched on demand.
 
-**How does the backend differentiate this from a general log request?**
-The key is the content of the **`filters`** object. The frontend adds the keys of the parent groups to this object. The backend's logic is simple: apply all filters provided in the `filters` object to the `WHERE` clause. This single logic path correctly handles both general requests and specific drill-down requests.
+```json
+{
+  "logs": [],
+  "totalCount": 12345,
+  "chartData": [ ... ],
+  "groupData": [
+    {
+      "key": "server-alpha-01",
+      "count": 1500,
+      "subgroups": [
+        { "key": "500", "count": 800, "subgroups": [] },
+        { "key": "404", "count": 700, "subgroups": [] }
+      ]
+    },
+    { "key": "server-beta-02", "count": 980, "subgroups": [ ... ] }
+  ]
+}
+```
 
-**A drill-down request must:**
-1.  Add the keys of the parent groups to the `filters` object.
-2.  Send an **empty** `groupBy` array (`[]`).
-3.  The `pagination` sent in this request **should be applied** by the backend, as it now applies to the list of individual logs being fetched.
-4. The `chartBucket` and `chartBreakdownFields` parameters are not relevant here and will not be sent.
+#### 3. Fetching Logs for a Specific Group (Drill-Down)
 
-**Example Drill-Down Request:** This request fetches page 1 of logs where `host_name` is `'server-alpha-01'` and `error_number` is `'500'`.
+When a user expands a final-level group, the frontend makes a new request to fetch the logs for just that group. This is achieved by adding the group's path to the `filters` object and sending an empty `groupBy` array.
 
+**Request (`/v1/logs`)**:
 ```json
 {
   "requestId": "req_1700586300000_g8p9i0f6",
@@ -154,118 +239,56 @@ The key is the content of the **`filters`** object. The frontend adds the keys o
   "groupBy": []
 }
 ```
+**Note**: `chartBreakdownFields` and `chartBucket` are not sent for drill-down requests. The response for this request follows the same structure as Scenario 1.
 
-### Expected Response Structure
+---
 
-The API must always return a JSON object with the following structure. The contents of the `logs` and `groupData` fields depend on whether the `groupBy` parameter was provided in the request.
+## Backend Implementation Guide
 
-**Important Note on Timestamps:** The frontend does **not** perform any time conversion or formatting. The backend service is the single source of truth for time. All timestamp fields (`log_date_time`, `as_start_date_time`, and all fields in `chartData`) must be sent as **pre-formatted strings** in a consistent timezone (UTC is recommended).
+A successful implementation of the backend service is critical for the dashboard to function correctly. Please refer to the detailed SQL patterns and logic described in:
 
-#### Response for Log List Requests (`groupBy: []`)
-When `groupBy` is an empty array, the response should contain the paginated list of logs and the total count of all matching logs before pagination.
+**[backend-sql-queries.md](./backend-sql-queries.md)**
 
-- `logs`: An array of the paginated log objects.
-- `totalCount`: The total number of logs matching the query filters. This is crucial for the UI's pagination controls, **both for the main table and for the drill-down sub-tables**.
-- `groupData`: Must be an empty array `[]`.
-- `chartData`: The `breakdown` object within each `chartData` item will contain pre-aggregated data for every field requested in the `chartBreakdownFields` array.
+This guide contains detailed information on:
+-   **Time Formatting**: How to correctly format timestamps for direct display.
+-   **Filtering and Sorting**: Applying filters from the request body.
+-   **Pagination vs. Aggregation**: The logic for handling `groupBy` requests.
+-   **Dynamic Chart Queries**: A guide with pseudocode on how to dynamically build the `chartData` query based on the `chartBreakdownFields` parameter.
 
-```json
-{
-  "logs": [
-    { "log_date_time": "2023-11-21 10:30:00.123", "host_name": "server-alpha-01", "repository_path": "/models/model_a.xql", ... },
-    { "log_date_time": "2023-11-21 10:28:00.456", "host_name": "server-beta-02", "repository_path": "/models/model_b.xql", ... }
-  ],
-  "totalCount": 5432,
-  "chartData": [
-    {
-      "date": "2023-11-21T10:00:00.000Z",
-      "fullDate": "November 21, 2023, 10:00 UTC",
-      "count": 50,
-      "formattedDate": "Nov 21",
-      "breakdown": {
-        "host_name": {
-          "server-alpha-01": 25,
-          "server-beta-02": 25
-        },
-        "error_number": {
-          "500": 30,
-          "404": 20
-        }
-      }
-    }
-  ],
-  "groupData": []
-}
-```
+## Deployment
 
-#### Response for Grouped Requests (`groupBy: ["host_name", ...]`)
-The `groupData` array contains a nested structure when `groupBy` is used. Each object contains a `key`, `count`, and a `subgroups` array for the next level of grouping.
-- The `logs` property should **not** be included. It will be fetched on demand.
-- For data consistency, `subgroups` should always be returned as an array, even if empty.
+This Next.js application is configured for deployment on **Firebase App Hosting**.
 
-```json
-{
-  "logs": [],
-  "totalCount": 12345,
-  "chartData": [
-    {
-      "date": "2023-11-21T10:00:00.000Z",
-      "fullDate": "November 21, 2023, 10:00 UTC",
-      "count": 50,
-      "formattedDate": "Nov 21",
-      "breakdown": {
-        "host_name": {
-          "server-alpha-01": 25,
-          "server-beta-02": 25
-        },
-        "repository_path": {
-          "/models/model_a.xql": 50
-        },
-        "error_number": {
-          "503": 50
-        }
-      }
-    }
-  ],
-  "groupData": [
-    {
-      "key": "server-alpha-01",
-      "count": 1500,
-      "subgroups": [
-        {
-          "key": "500",
-          "count": 800,
-          "subgroups": []
-        },
-        {
-          "key": "404",
-          "count": 700,
-          "subgroups": []
-        }
-      ]
-    },
-    {
-      "key": "server-beta-02",
-      "count": 980,
-      "subgroups": [
-        {
-          "key": "503",
-          "count": 980,
-          "subgroups": []
-        }
-      ]
-    }
-  ]
-}
-```
-The `log_date_time` and `as_start_date_time` fields should be sent as pre-formatted strings, as the frontend will display them as-is.
+The `apphosting.yaml` file contains the basic configuration for the service.
 
-## Core Features
+### To Deploy:
 
-*   **Dynamic Data Fetching**: Retrieves error logs from a configurable backend service.
-*   **Time-Based Filtering**: Filter logs by preset time ranges (e.g., "Last 4 hours") or a custom date range.
-*   **Interactive Table**: Sort, filter, and view detailed log data.
-*   **Multi-Column Data Grouping**: Group logs by multiple attributes like Host, Repository, or Error Code in a nested view.
-*   **Error Trend Visualization**: A chart that displays the frequency of errors over time.
+1.  Ensure you have the [Firebase CLI](https://firebase.google.com/docs/cli) installed and are logged in.
+2.  Set up a Firebase project and connect it to your local repository.
+3.  Deploy using the following command:
+    ```bash
+    firebase deploy --only apphosting
+    ```
+4.  Remember to configure the necessary environment variables (like `NEXT_PUBLIC_API_URL`) in the Firebase console for your App Hosting backend.
 
-    
+## Available Scripts
+
+-   `npm run dev`: Starts the development server.
+-   `npm run build`: Creates a production build of the application.
+-   `npm run start`: Starts the production server.
+-   `npm run lint`: Runs the Next.js linter.
+
+## Known Caveats & Future Scope
+
+### Caveats
+
+-   **Single API Endpoint**: The use of a single API endpoint to return different data shapes (logs vs. grouped data) can make the backend logic more complex.
+-   **Initial Load Performance**: If a user makes many columns visible, the initial API call to fetch all their breakdowns could become large and slow.
+
+### Future Scope
+
+-   **Dedicated API Endpoints**: Refactor the backend to use separate, dedicated endpoints (e.g., `/logs`, `/groups`, `/chart`) for better separation of concerns and simpler logic.
+-   **Backend Caching**: Implement a caching layer (e.g., Redis) on the backend to cache frequent queries, especially for chart and group data.
+-   **Real-time Updates**: Integrate WebSockets to push new error logs to the client in real-time.
+-   **User Preferences**: Allow users to save their filter, column visibility, and layout configurations.
+-   **Advanced Analytics**: Introduce more complex visualizations and statistical analysis of error patterns.
