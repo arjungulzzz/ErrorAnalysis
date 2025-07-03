@@ -6,6 +6,7 @@
  */
 "use client"
 
+import * as React from "react"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
@@ -41,12 +42,11 @@ const breakdownOptions: { value: ChartBreakdownByOption; label: string }[] = [
   { value: 'log_message', label: 'Message' },
 ];
 
-const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
+const CustomTooltip = ({ active, payload, breakdownBy, isHourly }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as ErrorTrendDataPoint;
 
-    const isTimeBased = data.formattedDate.includes(":");
-    const fullDate = isTimeBased
+    const fullDate = isHourly
       ? new Date(data.date).toLocaleString('en-US', {
           timeZone: 'UTC',
           year: 'numeric',
@@ -137,6 +137,38 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }
     )
   }
 
+  const isHourly = React.useMemo(() => {
+    if (data.length < 2) {
+      return data.length > 0 && data[0].formattedDate.includes(":");
+    }
+    const date1 = new Date(data[0].date).getTime();
+    const date2 = new Date(data[1].date).getTime();
+    const diffHours = (date2 - date1) / 36e5;
+    return diffHours > 0 && diffHours <= 1.1;
+  }, [data]);
+
+  const xAxisTickFormatter = (date: string) => {
+    try {
+      const d = new Date(date);
+      if (isHourly) {
+        return d.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: 'UTC',
+        });
+      }
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'UTC',
+      });
+    } catch (e) {
+      return date;
+    }
+  };
+
+
   return (
     <Card>
       <CardHeader className="flex-row items-start justify-between">
@@ -176,11 +208,11 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }
           >
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
             <XAxis
-              dataKey="formattedDate"
+              dataKey="date"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => value}
+              tickFormatter={xAxisTickFormatter}
             />
             <YAxis
               tickLine={false}
@@ -190,7 +222,7 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }
             />
             <ChartTooltip
               cursor={false}
-              content={<CustomTooltip breakdownBy={breakdownBy} />}
+              content={<CustomTooltip breakdownBy={breakdownBy} isHourly={isHourly} />}
             />
             <defs>
               <linearGradient id="fillErrors" x1="0" y1="0" x2="0" y2="1">
