@@ -7,14 +7,14 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
 import type { DateRange } from "react-day-picker";
 import { format, subDays, subHours, subMonths } from "date-fns";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ErrorTable } from "@/components/error-table";
 import { Card, CardContent } from "@/components/ui/card";
-import { RotateCw, ChevronDown, X, Calendar as CalendarIcon } from "lucide-react";
+import { RotateCw, ChevronDown, X, Calendar as CalendarIcon, Download } from "lucide-react";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -84,13 +84,14 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   });
   
   const [isPending, startTransition] = useTransition();
+  const [isExporting, setIsExporting] = useState(false);
   const [chartBreakdownBy, setChartBreakdownBy] = useState<ChartBreakdownByOption>('host_name');
   
   const { toast } = useToast();
   
   const [columnWidths, setColumnWidths] = useState<Record<keyof ErrorLog, number>>(
     allColumns.reduce((acc, col) => {
-      acc[col.id] = col.id === 'log_message' ? 400 : col.id === 'log_date_time' ? 180 : 150;
+      acc[col.id] = col.id === 'log_message' ? 400 : col.id === 'log_date_time' ? 210 : 150;
       return acc;
     }, {} as Record<keyof ErrorLog, number>)
   );
@@ -266,6 +267,127 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       return { logs: processLogs(data.logs), totalCount: data.totalCount };
   }, [columnFilters, dateRange, pageSize, selectedPreset, sort, toast]);
 
+  const handleExport = useCallback(async () => {
+    if (groupBy.length > 0) {
+      toast({
+        variant: "destructive",
+        title: "Export Not Available",
+        description: "Cannot export when data is grouped. Please clear grouping first.",
+      });
+      return;
+    }
+
+    if (totalLogs === 0) {
+      toast({
+        title: "No Data to Export",
+        description: "There are no logs matching the current filters.",
+      });
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) {
+        toast({
+          variant: "destructive",
+          title: "API URL Not Configured",
+          description: "Please set NEXT_PUBLIC_API_URL in your environment.",
+        });
+        return;
+      }
+
+      const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
+      const requestBody: Omit<LogsApiRequest, 'groupBy'> & { groupBy: [] } = {
+        requestId,
+        pagination: { page: 1, pageSize: totalLogs }, // Fetch all logs
+        sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
+        filters: columnFilters,
+        groupBy: [],
+        chartBreakdownBy: chartBreakdownBy,
+      };
+
+      const preset = timePresets.find(p => p.key === selectedPreset);
+      if (preset?.interval) {
+        requestBody.interval = preset.interval;
+      } else if (dateRange?.from) {
+        requestBody.dateRange = {
+          from: dateRange.from?.toISOString(),
+          to: dateRange.to?.toISOString()
+        };
+      }
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || `API request failed with status ${response.status}`);
+      }
+      const data: LogsApiResponse = await response.json();
+
+      const visibleColumnDefs = allColumns.filter(c => columnVisibility[c.id]);
+      const headers = visibleColumnDefs.map(c => c.name);
+      const csvRows = [headers.join(',')];
+      const logsToExport: ApiErrorLog[] = data.logs;
+
+      logsToExport.forEach(log => {
+        const row = visibleColumnDefs.map(colDef => {
+          const colId = colDef.id;
+          let value = log[colId as keyof ApiErrorLog];
+
+          if (colId === 'repository_path' && typeof value === 'string') {
+            const lastSlashIndex = value.lastIndexOf('/');
+            value = lastSlashIndex !== -1 ? value.substring(lastSlashIndex + 1) : value;
+          }
+
+          if ((colId === 'log_date_time' || colId === 'as_start_date_time') && typeof value === 'string') {
+            try {
+              value = new Date(value).toISOString();
+            } catch (e) { /* keep original string if invalid */ }
+          }
+          
+          let stringValue = String(value ?? '');
+
+          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+            stringValue = `"${stringValue.replace(/"/g, '""')}"`;
+          }
+          return stringValue;
+        });
+        csvRows.push(row.join(','));
+      });
+
+      const csvString = csvRows.join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `error_logs_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Export Successful",
+        description: `${logsToExport.length} rows have been exported.`,
+      });
+
+    } catch (error) {
+      console.error("Failed to export logs:", error);
+      toast({
+        variant: "destructive",
+        title: "Export Failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred.",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [totalLogs, sort, columnFilters, groupBy, chartBreakdownBy, dateRange, selectedPreset, toast, columnVisibility]);
+
   useEffect(() => {
     setPage(1);
   }, [columnFilters, groupBy, sort, dateRange, selectedPreset]);
@@ -353,6 +475,9 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   
   const today = new Date();
   const oneMonthAgo = subMonths(today, 1);
+  const visibleColOrder = useMemo(() => {
+    return allColumns;
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -365,6 +490,10 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
           <Button onClick={handleRefresh} disabled={isPending} variant="outline" className="bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground">
             <RotateCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
             Refresh
+          </Button>
+          <Button onClick={handleExport} disabled={isPending || isExporting || groupBy.length > 0} variant="outline" className="bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground">
+            <Download className={`mr-2 h-4 w-4 ${isExporting ? 'animate-spin' : ''}`} />
+            Export CSV
           </Button>
         </div>
       </header>
@@ -407,7 +536,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                       <Calendar
                         initialFocus
                         mode="range"
-                        defaultMonth={dateRange?.from || oneMonthAgo}
+                        defaultMonth={oneMonthAgo}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
@@ -479,7 +608,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                               Deselect All
                             </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {allColumns.map((column) => (
+                          {visibleColOrder.map((column) => (
                               <DropdownMenuCheckboxItem
                                   key={column.id}
                                   className="capitalize"
