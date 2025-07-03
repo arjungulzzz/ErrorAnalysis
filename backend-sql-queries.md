@@ -225,6 +225,11 @@ SELECT
   -- Cast to text to ensure consistent ISO 8601 format
   date::text,
   SUM(error_count)::integer as count,
+  -- Generate the formatted date string based on the bucket size
+  CASE
+    WHEN $1 = 'hour' THEN to_char(date, 'HH24:MI')
+    ELSE to_char(date, 'Mon DD')
+  END as "formattedDate",
   -- Aggregate the breakdowns into a JSONB object, ordered by count descending
   jsonb_object_agg(breakdown_key, error_count ORDER BY error_count DESC) as breakdown
 FROM TimeBuckets

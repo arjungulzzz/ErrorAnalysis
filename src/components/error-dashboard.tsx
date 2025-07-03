@@ -382,7 +382,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
-      link.setAttribute("download", `error_logs_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.setAttribute("download", `as_error_logs_${format(new Date(), 'yyyy-MM-dd')}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
