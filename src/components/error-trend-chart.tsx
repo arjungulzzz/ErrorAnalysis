@@ -19,6 +19,7 @@ interface ErrorTrendChartProps {
   isLoading: boolean;
   breakdownBy: ChartBreakdownByOption;
   setBreakdownBy: (value: ChartBreakdownByOption) => void;
+  breakdownOptions: { value: ChartBreakdownByOption; label: string }[];
 }
 
 const chartConfig = {
@@ -28,24 +29,10 @@ const chartConfig = {
   },
 }
 
-const breakdownOptions: { value: ChartBreakdownByOption; label: string }[] = [
-    { value: 'host_name', label: 'Host' },
-    { value: 'repository_path', label: 'Model Name' },
-    { value: 'error_number', label: 'Error Code' },
-    { value: 'user_id', label: 'User' },
-    { value: 'report_id_name', label: 'Report Name' },
-    { value: 'port_number', label: 'Port' },
-    { value: 'version_number', label: 'AS Version' },
-    { value: 'as_server_mode', label: 'Server Mode' },
-    { value: 'as_server_config', label: 'Server Config' },
-    { value: 'xql_query_id', label: 'Query ID' },
-    { value: 'log_message', label: 'Message' },
-];
-
-const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
+const CustomTooltip = ({ active, payload, breakdownBy, breakdownOptions }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as ErrorTrendDataPoint;
-    const breakdownTitle = breakdownOptions.find(o => o.value === breakdownBy)?.label || 'Breakdown';
+    const breakdownTitle = breakdownOptions.find((o: any) => o.value === breakdownBy)?.label || 'Breakdown';
     
     const specificBreakdown = data.breakdown?.[breakdownBy];
     const breakdownEntries = specificBreakdown ? Object.entries(specificBreakdown).sort(([, a], [, b]) => b - a) : [];
@@ -88,7 +75,7 @@ const CustomTooltip = ({ active, payload, breakdownBy }: any) => {
 };
 
 
-export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }: ErrorTrendChartProps) {
+export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, breakdownOptions }: ErrorTrendChartProps) {
   if (isLoading) {
     return (
       <Card>
@@ -132,7 +119,7 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }
         </div>
         <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Breakdown By</span>
-            <Select value={breakdownBy} onValueChange={(value) => setBreakdownBy(value as ChartBreakdownByOption)} disabled={isLoading}>
+            <Select value={breakdownBy} onValueChange={(value) => setBreakdownBy(value as ChartBreakdownByOption)} disabled={isLoading || breakdownOptions.length === 0}>
                 <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Breakdown by..." />
                 </SelectTrigger>
@@ -173,7 +160,7 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy }
             />
             <ChartTooltip
               cursor={false}
-              content={<CustomTooltip breakdownBy={breakdownBy} />}
+              content={<CustomTooltip breakdownBy={breakdownBy} breakdownOptions={breakdownOptions} />}
             />
             <defs>
               <linearGradient id="fillErrors" x1="0" y1="0" x2="0" y2="1">

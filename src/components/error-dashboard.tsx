@@ -52,6 +52,8 @@ const timePresets = [
     { key: '1m', label: 'Last 1 month', interval: '1 month' },
 ];
 
+const breakDownableColumns: (keyof ErrorLog)[] = GroupByOptionsList.map(o => o.id).filter(id => id !== 'log_message');
+
 export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: string; fallbackSrc: string }) {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
@@ -95,6 +97,19 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       return acc;
     }, {} as Record<keyof ErrorLog, number>)
   );
+
+  const visibleBreakdownOptions = useMemo(() => {
+    return allColumns
+      .filter(col => columnVisibility[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
+      .map(col => ({ value: col.id as ChartBreakdownByOption, label: col.name }));
+  }, [columnVisibility]);
+
+  useEffect(() => {
+    if (!visibleBreakdownOptions.some(opt => opt.value === chartBreakdownBy)) {
+      const defaultOption = visibleBreakdownOptions.find(opt => opt.value === 'host_name');
+      setChartBreakdownBy(defaultOption ? defaultOption.value : (visibleBreakdownOptions[0]?.value || 'host_name'));
+    }
+  }, [visibleBreakdownOptions, chartBreakdownBy]);
 
   const getPresetDisplay = (preset: (typeof timePresets)[number]) => {
     if (!preset.interval || ['none', '1h', '4h', '8h'].includes(preset.key)) {
@@ -161,13 +176,16 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       
       const chartBucket = getChartBucket();
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-      const requestBody: Omit<LogsApiRequest, 'chartBreakdownBy'> = {
+      const chartBreakdownFields = visibleBreakdownOptions.map(opt => opt.value);
+      
+      const requestBody: LogsApiRequest = {
         requestId,
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
         groupBy,
         chartBucket,
+        chartBreakdownFields,
       };
       
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -225,7 +243,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
+  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, visibleBreakdownOptions]);
   
   const fetchLogsForDrilldown = useCallback(async (drilldownFilters: ColumnFilters, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -239,7 +257,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       }
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
 
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'chartBreakdownBy'> & { groupBy: [] } = {
+      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'chartBreakdownFields'> & { groupBy: [] } = {
           requestId,
           pagination: { page, pageSize },
           sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
@@ -309,7 +327,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
       }
 
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'pagination' | 'chartBreakdownBy'> & { groupBy: [], pagination: {page: number, pageSize: number} } = {
+      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'pagination' | 'chartBreakdownFields'> & { groupBy: [], pagination: {page: number, pageSize: number} } = {
         requestId,
         pagination: { page: 1, pageSize: totalLogs }, // Fetch all logs
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
@@ -730,6 +748,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
           isLoading={isPending}
           breakdownBy={chartBreakdownBy}
           setBreakdownBy={setChartBreakdownBy}
+          breakdownOptions={visibleBreakdownOptions}
         />
       </div>
     </div>

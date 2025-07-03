@@ -159,6 +159,6 @@ export type LogsApiRequest = {
   sort: SortDescriptor;
   filters: ColumnFilters;
   groupBy: GroupByOption[];
-  chartBreakdownBy?: ChartBreakdownByOption; // No longer sent by the frontend, but kept for type safety.
+  chartBreakdownFields?: GroupByOption[];
   chartBucket?: ChartBucket;
 };

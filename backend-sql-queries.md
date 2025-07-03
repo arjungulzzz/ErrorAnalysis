@@ -214,21 +214,66 @@ ORDER BY
 
 In your backend service (e.g., in Node.js, Python, Go), process the flattened results from Step 1 into the required nested JSON format. The final structure must be an array of objects, where each object has a `key`, `count`, and `subgroups`. The `logs` property should not be included.
 
-**3. `chartData` Query (Optimized for Frontend):**
+**3. `chartData` Query (Dynamic Breakdowns):**
 
-To optimize performance, the API should pre-aggregate chart breakdowns for all relevant fields in a single query. This avoids the need for the frontend to make multiple requests when changing the chart's "Breakdown By" view.
+To support dynamic breakdowns based on visible columns in the UI, the backend service must now dynamically construct the `chartData` query. The static query with all possible breakdowns is no longer sufficient.
 
-The following query creates a JSON object containing breakdowns for all specified columns. This is more efficient than running separate queries for each breakdown type. Note that this query uses correlated subqueries, which may be slow on very large datasets; a backend service might achieve better performance by fetching the raw `TimeBuckets` data and performing the final aggregation in code.
+The frontend will send a `chartBreakdownFields` array in the request body (e.g., `["host_name", "error_number"]`).
+
+**Backend Logic:**
+1.  **Receive** the `chartBreakdownFields` array.
+2.  **IMPORTANT: Validate** every string in the array against a whitelist of permissible, index-backed column names to prevent SQL injection.
+3.  **Dynamically construct** the `jsonb_build_object(...)` part of the SQL query. For each validated field, generate the corresponding `(SELECT jsonb_object_agg(...) ...)` clause.
+
+**Example Pseudocode (e.g., in Node.js):**
+```javascript
+const { chartBreakdownFields } = request.body;
+// Map frontend names to actual DB column names and validate
+const allowedColumns = {
+  host_name: 'asli.host_name',
+  error_number: 'ali.error_number::text',
+  repository_path: 'asli.repository_path'
+  // ... add all other valid columns
+};
+
+const breakdownClauses = (chartBreakdownFields || [])
+  .map(field => {
+    if (allowedColumns[field]) {
+      // Important to use the mapped and validated column name
+      const dbColumn = allowedColumns[field];
+      return `'${field}', (SELECT jsonb_object_agg(t.key, t.count) FROM (SELECT ${dbColumn} as key, COUNT(*) as count FROM TimeBuckets WHERE date = Buckets.date GROUP BY key) as t)`;
+    }
+    return null;
+  })
+  .filter(Boolean) // Remove any invalid fields
+  .join(', ');
+
+const breakdownObject = breakdownClauses ? `jsonb_build_object(${breakdownClauses})` : `'{}'::jsonb`;
+
+// The final query string would incorporate `breakdownObject`
+const finalQuery = `
+  WITH TimeBuckets AS (...)
+  SELECT
+    ...,
+    ${breakdownObject} as breakdown
+  FROM TimeBuckets as Buckets
+  GROUP BY date
+  ORDER BY date;
+`;
+
+// Execute the dynamically generated query
+```
+
+**Full SQL Query Structure:**
 
 ```sql
--- Example Request: { "chartBucket": "hour" }
--- Note: The `chartBreakdownBy` parameter is no longer used by the frontend.
+-- Request may include: { "chartBucket": "hour", "chartBreakdownFields": ["host_name", "error_number"] }
 WITH TimeBuckets AS (
   SELECT
     -- Use the `chartBucket` parameter to dynamically set the truncation level.
     -- The parameter will be either 'day' or 'hour'. You must validate this value.
     date_trunc($1, ali.log_date_time AT TIME ZONE 'UTC') as date,
-    -- Select all columns that can be used for breakdown
+    -- Select all columns that could be used for breakdown
     asli.host_name,
     ali.error_number::text as error_number,
     asli.repository_path
@@ -249,12 +294,12 @@ SELECT
     WHEN $1 = 'hour' THEN to_char(date, 'HH24:MI')
     ELSE to_char(date, 'Mon DD')
   END as "formattedDate",
-  -- The JSON object containing all possible breakdowns
+  -- The JSON object containing the requested breakdowns, built dynamically in the application layer
+  -- as described in the pseudocode above.
+  -- Example of dynamically generated SQL part:
   jsonb_build_object(
       'host_name', (SELECT jsonb_object_agg(t.host_name, t.count) FROM (SELECT host_name, COUNT(*) FROM TimeBuckets WHERE date = Buckets.date GROUP BY host_name) as t(host_name, count)),
-      'error_number', (SELECT jsonb_object_agg(t.error_number, t.count) FROM (SELECT error_number, COUNT(*) FROM TimeBuckets WHERE date = Buckets.date GROUP BY error_number) as t(error_number, count)),
-      'repository_path', (SELECT jsonb_object_agg(t.repository_path, t.count) FROM (SELECT repository_path, COUNT(*) FROM TimeBuckets WHERE date = Buckets.date GROUP BY repository_path) as t(repository_path, count))
-      -- ... continue this pattern for all other breakdown fields ...
+      'error_number', (SELECT jsonb_object_agg(t.error_number, t.count) FROM (SELECT error_number, COUNT(*) FROM TimeBuckets WHERE date = Buckets.date GROUP BY error_number) as t(error_number, count))
   ) as breakdown
 FROM TimeBuckets as Buckets
 GROUP BY date
