@@ -74,7 +74,7 @@ export type ColumnFilters = Partial<Record<keyof ErrorLog, string>>;
  */
 export const GroupByOptionsList: { id: GroupByOption; name: string }[] = [
     { id: 'host_name', name: 'Host' },
-    { id: 'repository_path', name: 'Model Name' },
+    { id: 'repository_path', name: 'Model' },
     { id: 'error_number', name: 'Error Code' },
     { id: 'user_id', name: 'User' },
     { id: 'report_id_name', name: 'Report Name' },

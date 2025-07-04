@@ -7,7 +7,7 @@ The Error Insights Dashboard is a comprehensive, web-based tool designed for vie
 - **Dynamic Data Fetching**: Retrieves and displays error logs from a configurable backend service.
 - **Advanced Time-Based Filtering**: Filter logs by convenient presets (e.g., "Last 4 hours") or select a custom date range with a dual-calendar picker.
 - **Interactive Data Table**: A feature-rich table that supports multi-column sorting, per-column filtering, and dynamic column visibility. Column widths are also user-resizable.
-- **Multi-Column Data Grouping**: Aggregate logs by multiple attributes like Host, Model Name, or Error Code, presented in a nested, drill-down view.
+- **Multi-Column Data Grouping**: Aggregate logs by multiple attributes like Host, Model, or Error Code, presented in a nested, drill-down view.
 - **On-Demand Loading**: For grouped data, individual logs are fetched on-demand when a group is expanded, ensuring fast initial load times.
 - **Error Trend Visualization**: An interactive chart displays the frequency of errors over the selected time period, with tooltips that provide detailed breakdowns by any visible column.
 - **Optimized Charting**: The chart intelligently requests data in daily or hourly buckets based on the time range and only fetches breakdown data for currently visible columns, minimizing payload size.
