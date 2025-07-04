@@ -133,7 +133,7 @@ The frontend communicates with a single backend endpoint defined by `NEXT_PUBLIC
 | `filters`               | `object`                            | A key-value map for filtering columns (e.g., `{ "host_name": "server-alpha" }`).                                                                                                                             |
 | `groupBy`               | `string[]`                          | An array of column names to group by. If empty, a flat list of logs is returned.                                                                                                                             |
 | `chartBucket`           | `'day' \| 'hour'`                   | The desired granularity for the chart's x-axis.                                                                                                                                                              |
-| `chartBreakdownFields`  | `string[]`                          | An array of column names for which the backend should pre-calculate breakdown data for the chart.                                                                                                            |
+| `chartBreakdownFields`  | `string[]`                          | An array of column names for which the backend should pre-calculate breakdown data for the chart. **This is not needed for drill-down requests.**                                                               |
 
 ### Request & Response Scenarios
 
