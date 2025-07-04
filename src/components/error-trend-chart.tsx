@@ -42,6 +42,9 @@ const CustomTooltip = ({ active, payload, breakdownBy, breakdownOptions }: any) 
             const lastSlashIndex = key.lastIndexOf('/');
             return lastSlashIndex !== -1 ? key.substring(lastSlashIndex + 1) : key;
         }
+        if (breakdownBy === 'report_id_name' && key === '') {
+            return '<empty>';
+        }
         return key;
     };
 
@@ -57,8 +60,9 @@ const CustomTooltip = ({ active, payload, breakdownBy, breakdownOptions }: any) 
             <div className="space-y-1">
               {breakdownEntries.slice(0, 5).map(([key, count]) => {
                 const formattedKey = formatBreakdownKey(key);
+                const titleText = (breakdownBy === 'report_id_name' && key === '') ? '<empty>' : key;
                 return (
-                    <div key={key} className="flex justify-between items-center text-muted-foreground" title={key}>
+                    <div key={key} className="flex justify-between items-center text-muted-foreground" title={titleText}>
                         <span className="truncate">{formattedKey}</span>
                         <span className="font-medium text-foreground ml-2">{count}</span>
                     </div>
@@ -78,7 +82,7 @@ const CustomTooltip = ({ active, payload, breakdownBy, breakdownOptions }: any) 
 export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, breakdownOptions }: ErrorTrendChartProps) {
   return (
     <Card>
-      <CardHeader className="flex-row items-start justify-between">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
             <CardTitle>Error Trend</CardTitle>
             <CardDescription>
@@ -88,7 +92,7 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, 
         <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Breakdown By</span>
             <Select value={breakdownBy} onValueChange={(value) => setBreakdownBy(value as ChartBreakdownByOption)} disabled={isLoading || breakdownOptions.length === 0}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Breakdown by..." />
                 </SelectTrigger>
                 <SelectContent>
