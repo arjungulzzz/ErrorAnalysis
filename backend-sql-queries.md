@@ -8,12 +8,12 @@ This document outlines the SQL patterns required for the backend service to supp
 
 ### A Note on Timestamps and Timezones
 
-The frontend application **does not perform any time conversion or formatting**. It displays the timestamp strings it receives directly from the API.
-
-Therefore, the backend service is the **single source of truth** for time. It is critical that the service performs all time-related calculations and formatting consistently.
-
--   **All timestamp fields** (`log_date_time`, `as_start_date_time`, and all date fields within `chartData`) must be sent as **pre-formatted strings**.
--   It is highly recommended to perform all date truncation and formatting operations in a **consistent timezone (e.g., UTC)** to avoid ambiguity and ensure data is displayed correctly for all users. The examples below use UTC.
+> **Important**: The frontend application **does not perform any time conversion or formatting**. It displays the timestamp strings it receives directly from the API.
+>
+> Therefore, the backend service is the **single source of truth** for time. It is critical that the service performs all time-related calculations and formatting consistently.
+>
+> -   **All timestamp fields** (`log_date_time`, `as_start_date_time`, and all date fields within `chartData`) must be sent as **pre-formatted strings**.
+> -   It is highly recommended to perform all date truncation and formatting operations in a **consistent timezone (e.g., UTC)** to avoid ambiguity and ensure data is displayed correctly for all users. The examples below use UTC.
 
 ---
 

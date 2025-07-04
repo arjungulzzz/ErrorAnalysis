@@ -119,7 +119,7 @@ The frontend communicates with a single backend endpoint defined by `NEXT_PUBLIC
 
 ### A Note on Timestamps and Timezones
 
-The frontend application **does not perform any time conversion or formatting**. It displays the timestamp strings it receives directly from the API. The backend service is the **single source of truth** for time and is responsible for all time-related calculations and formatting.
+> **Important**: The frontend application **does not perform any time conversion or formatting**. It displays the timestamp strings it receives directly from the API. The backend service is the **single source of truth** for time and is responsible for all time-related calculations and formatting.
 
 ### Request Body Parameters
 
