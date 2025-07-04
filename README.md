@@ -139,7 +139,7 @@ The frontend application **does not perform any time conversion or formatting**.
 
 #### 1. Fetching a List of Logs (Flat View)
 
-This is the standard request for a paginated list of logs. `groupBy` is empty.
+This is the standard request for a paginated list of logs. `groupBy` is empty. The `chartBreakdownFields` array tells the backend which breakdowns to calculate.
 
 **Request (`/v1/logs`)**:
 ```json
@@ -156,7 +156,7 @@ This is the standard request for a paginated list of logs. `groupBy` is empty.
 ```
 
 **Response**:
-The response contains paginated `logs`, the `totalCount` before pagination, the `chartData` with requested breakdowns, and an empty `groupData` array.
+The response contains paginated `logs`, the `totalCount` before pagination, and `chartData` with the requested breakdowns. `groupData` is empty.
 
 ```json
 {
@@ -200,7 +200,7 @@ When `groupBy` is used, the backend returns a nested `groupData` structure and m
 ```
 
 **Response**:
-The response contains the nested `groupData`. The `logs` array must be empty, as logs will be fetched on demand.
+The response contains the nested `groupData`. The `logs` array must be empty, as logs will be fetched on demand. `totalCount` still reflects the total logs before grouping.
 
 ```json
 {
@@ -239,7 +239,7 @@ When a user expands a final-level group, the frontend makes a new request to fet
   "groupBy": []
 }
 ```
-**Note**: `chartBreakdownFields` and `chartBucket` are not sent for drill-down requests. The response for this request follows the same structure as Scenario 1.
+**Note**: `chartBreakdownFields` and `chartBucket` are not sent for drill-down requests. The response for this request follows the same structure as Scenario 1, but `chartData` and `groupData` will be empty.
 
 ---
 
