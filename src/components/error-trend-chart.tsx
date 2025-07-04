@@ -76,38 +76,6 @@ const CustomTooltip = ({ active, payload, breakdownBy, breakdownOptions }: any) 
 
 
 export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, breakdownOptions }: ErrorTrendChartProps) {
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-4 w-64 mt-1" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-[300px] w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
-  
-  if (!data || data.length === 0) {
-    return (
-       <Card>
-        <CardHeader>
-          <CardTitle>Error Trend</CardTitle>
-          <CardDescription>
-            The frequency of errors over the selected time period.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div className="h-[300px] w-full flex items-center justify-center text-muted-foreground">
-                No data available to display.
-            </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
     <Card>
       <CardHeader className="flex-row items-start justify-between">
@@ -134,60 +102,68 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, 
         </div>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <AreaChart
-            accessibilityLayer
-            data={data}
-            margin={{
-              top: 5,
-              right: 20,
-              left: 10,
-              bottom: 5,
-            }}
-          >
-            <CartesianGrid vertical={false} strokeDasharray="3 3" />
-            <XAxis
-              dataKey="formattedDate"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              allowDecimals={false}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={<CustomTooltip breakdownBy={breakdownBy} breakdownOptions={breakdownOptions} />}
-            />
-            <defs>
-              <linearGradient id="fillErrors" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-errors)"
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-errors)"
-                  stopOpacity={0.1}
-                />
-              </linearGradient>
-            </defs>
-            <Area
-              dataKey="count"
-              type="monotone"
-              fill="url(#fillErrors)"
-              fillOpacity={1}
-              stroke="var(--color-errors)"
-              strokeWidth={2}
-              dot={true}
-              name="errors"
-            />
-          </AreaChart>
-        </ChartContainer>
+        {isLoading ? (
+          <Skeleton className="h-[300px] w-full" />
+        ) : !data || data.length === 0 ? (
+          <div className="h-[300px] w-full flex items-center justify-center text-muted-foreground">
+              No data available to display. Select a time range to start.
+          </div>
+        ) : (
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <AreaChart
+              accessibilityLayer
+              data={data}
+              margin={{
+                top: 5,
+                right: 20,
+                left: 10,
+                bottom: 5,
+              }}
+            >
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis
+                dataKey="formattedDate"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                allowDecimals={false}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={<CustomTooltip breakdownBy={breakdownBy} breakdownOptions={breakdownOptions} />}
+              />
+              <defs>
+                <linearGradient id="fillErrors" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor="var(--color-errors)"
+                    stopOpacity={0.8}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="var(--color-errors)"
+                    stopOpacity={0.1}
+                  />
+                </linearGradient>
+              </defs>
+              <Area
+                dataKey="count"
+                type="monotone"
+                fill="url(#fillErrors)"
+                fillOpacity={1}
+                stroke="var(--color-errors)"
+                strokeWidth={2}
+                dot={true}
+                name="errors"
+              />
+            </AreaChart>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   )
