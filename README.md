@@ -161,8 +161,8 @@ The response contains paginated `logs`, the `totalCount` before pagination, the 
 ```json
 {
   "logs": [
-    { "log_date_time": "2023-11-21 10:30:00.123", "host_name": "server-alpha-01", ... },
-    { "log_date_time": "2023-11-21 10:28:00.456", "host_name": "server-beta-02", ... }
+    { "log_date_time": "2023-11-21 10:30:00.123", "host_name": "server-alpha-01", "error_number": 500, "log_message": "...", ... },
+    { "log_date_time": "2023-11-21 10:28:00.456", "host_name": "server-beta-02", "error_number": 404, "log_message": "...", ... }
   ],
   "totalCount": 5432,
   "chartData": [
