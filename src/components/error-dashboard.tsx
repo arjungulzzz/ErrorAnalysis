@@ -27,18 +27,22 @@ import Logo from './logo';
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
-    { id: 'repository_path', name: 'Model Name' },
     { id: 'host_name', name: 'Host' },
-    { id: 'port_number', name: 'Port' },
-    { id: 'report_id_name', name: 'Report Name' },
-    { id: 'error_number', name: 'Error Code' },
+    { id: 'repository_path', name: 'Model Name' },
     { id: 'user_id', name: 'User' },
+    { id: 'report_id_name', name: 'Report Name' },
+    { id: 'log_message', name: 'Message' },
+    { id: 'error_number', name: 'Error Code' },
+    { id: 'port_number', name: 'Port' },
     { id: 'as_server_mode', name: 'Server Mode' },
     { id: 'as_start_date_time', name: 'Server Start Time' },
     { id: 'as_server_config', name: 'Server Config' },
     { id: 'version_number', name: 'AS Version' },
     { id: 'xql_query_id', name: 'Query ID' },
-    { id: 'log_message', name: 'Message' },
+];
+
+const defaultVisibleColumns: (keyof ErrorLog)[] = [
+  'log_date_time', 'host_name', 'repository_path', 'user_id', 'report_id_name', 'log_message'
 ];
 
 const timePresets = [
@@ -69,21 +73,12 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption[]>([]);
-  const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>({
-    log_date_time: true,
-    repository_path: true,
-    host_name: true,
-    port_number: false,
-    report_id_name: true,
-    error_number: false,
-    user_id: true,
-    as_server_mode: false,
-    as_start_date_time: false,
-    as_server_config: false,
-    version_number: false,
-    xql_query_id: false,
-    log_message: true,
-  });
+  
+  const [columnVisibility, setColumnVisibility] = useState<Partial<Record<keyof ErrorLog, boolean>>>(
+    Object.fromEntries(
+      allColumns.map(col => [col.id, defaultVisibleColumns.includes(col.id)])
+    )
+  );
   
   const [isPending, startTransition] = useTransition();
   const [isExporting, setIsExporting] = useState(false);
@@ -102,6 +97,11 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
     return allColumns
       .filter(col => columnVisibility[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
       .map(col => ({ value: col.id as ChartBreakdownByOption, label: col.name }));
+  }, [columnVisibility]);
+
+  const visibleGroupByOptions = useMemo(() => {
+    const groupableIds = new Set(GroupByOptionsList.map(o => o.id));
+    return allColumns.filter(col => columnVisibility[col.id] && groupableIds.has(col.id as GroupByOption));
   }, [columnVisibility]);
 
   useEffect(() => {
@@ -497,7 +497,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
   
   const today = new Date();
   const oneMonthAgo = subMonths(today, 1);
-  const orderedColumns = useMemo(() => {
+  const orderedViewOptionsColumns = useMemo(() => {
     return allColumns;
   }, []);
 
@@ -586,22 +586,26 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                             Clear selection
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {GroupByOptionsList.map((option) => (
-                              <DropdownMenuCheckboxItem
-                                  key={option.id}
-                                  checked={groupBy.includes(option.id as GroupByOption)}
-                                  onCheckedChange={(checked) => {
-                                      setGroupBy(current =>
-                                          checked
-                                              ? [...current, option.id as GroupByOption]
-                                              : current.filter(item => item !== option.id)
-                                      );
-                                  }}
-                                  onSelect={(e) => e.preventDefault()}
-                              >
-                                  {option.name}
-                              </DropdownMenuCheckboxItem>
-                          ))}
+                          {visibleGroupByOptions.length > 0 ? (
+                            visibleGroupByOptions.map((option) => (
+                                <DropdownMenuCheckboxItem
+                                    key={option.id}
+                                    checked={groupBy.includes(option.id as GroupByOption)}
+                                    onCheckedChange={(checked) => {
+                                        setGroupBy(current =>
+                                            checked
+                                                ? [...current, option.id as GroupByOption]
+                                                : current.filter(item => item !== option.id)
+                                        );
+                                    }}
+                                    onSelect={(e) => e.preventDefault()}
+                                >
+                                    {option.name}
+                                </DropdownMenuCheckboxItem>
+                            ))
+                           ) : (
+                            <DropdownMenuItem disabled>No groupable columns visible</DropdownMenuItem>
+                           )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
@@ -627,7 +631,7 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
                               Deselect All
                             </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {orderedColumns.map((column) => (
+                          {orderedViewOptionsColumns.map((column) => (
                               <DropdownMenuCheckboxItem
                                   key={column.id}
                                   className="capitalize"
