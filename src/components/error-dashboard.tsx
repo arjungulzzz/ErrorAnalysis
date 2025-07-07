@@ -58,7 +58,7 @@ const timePresets = [
 
 const breakDownableColumns: (keyof ErrorLog)[] = GroupByOptionsList.map(o => o.id).filter(id => id !== 'log_message');
 
-export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: string; fallbackSrc: string }) {
+export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallbackSrc = "/favicon.ico" }: { logoSrc?: string; fallbackSrc?: string } = {}) {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
   const [chartData, setChartData] = useState<ErrorTrendDataPoint[]>([]);
@@ -503,18 +503,18 @@ export default function ErrorDashboard({ logoSrc, fallbackSrc }: { logoSrc: stri
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 rounded-lg bg-primary text-primary-foreground border-b-4 border-accent">
-        <div className="flex items-center gap-4">
-          <Logo src={logoSrc} fallbackSrc={fallbackSrc} className="h-10 w-10" />
-          <h1 className="text-3xl font-bold tracking-tight">AnalyticServer Errors Dashboard</h1>
+      <header className="flex flex-col sm:flex-row justify-between items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white border-b border-primary shadow-sm">
+        <div className="flex items-center gap-2 min-w-0">
+          <Logo src="/circana-logo.svg" fallbackSrc="/favicon.ico" className="h-7 w-7" />
+          <span className="font-semibold text-base truncate">AnalyticServer Errors Dashboard</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={handleRefresh} disabled={isPending} variant="outline" className="bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground">
-            <RotateCw className={`mr-2 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
+        <div className="flex items-center gap-1">
+          <Button onClick={handleRefresh} disabled={isPending} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
+            <RotateCw className={`mr-1 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button onClick={handleExport} disabled={isPending || isExporting || groupBy.length > 0} variant="outline" className="bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground">
-            <Download className={`mr-2 h-4 w-4 ${isExporting ? 'animate-spin' : ''}`} />
+          <Button onClick={handleExport} disabled={isPending || isExporting || groupBy.length > 0} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
+            <Download className={`mr-1 h-4 w-4 ${isExporting ? 'animate-spin' : ''}`} />
             Export CSV
           </Button>
         </div>
