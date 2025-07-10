@@ -27,8 +27,8 @@ import Logo from './logo';
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
-    { id: 'host_name', name: 'Host' },
     { id: 'repository_path', name: 'Model' },
+    { id: 'host_name', name: 'Host' },
     { id: 'user_id', name: 'User' },
     { id: 'report_id_name', name: 'Report Name' },
     { id: 'log_message', name: 'Message' },
@@ -42,7 +42,7 @@ const allColumns: { id: keyof ErrorLog; name: string }[] = [
 ];
 
 const defaultVisibleColumns: (keyof ErrorLog)[] = [
-  'log_date_time', 'host_name', 'repository_path', 'user_id', 'report_id_name', 'log_message'
+  'log_date_time', 'repository_path', 'host_name', 'user_id', 'report_id_name', 'log_message'
 ];
 
 const timePresets = [
