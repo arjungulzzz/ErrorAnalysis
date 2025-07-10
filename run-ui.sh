@@ -73,6 +73,9 @@ if netstat -tuln 2>/dev/null | grep -q ":$PORT " || ss -tuln 2>/dev/null | grep 
     fi
 fi
 
+echo "🧹 Cleaning old installation..."
+docker run --rm -v $(pwd):/app -w /app my-centos-node rm -rf node_modules package-lock.json
+
 echo "🔧 Installing dependencies..."
 docker run --rm -v $(pwd):/app -w /app my-centos-node npm install
 
