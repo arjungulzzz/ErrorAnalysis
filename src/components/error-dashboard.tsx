@@ -27,8 +27,8 @@ import Logo from './logo';
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
-    { id: 'repository_path', name: 'Model' },
     { id: 'host_name', name: 'Host' },
+    { id: 'repository_path', name: 'Model' },
     { id: 'user_id', name: 'User' },
     { id: 'report_id_name', name: 'Report Name' },
     { id: 'log_message', name: 'Message' },
@@ -105,9 +105,9 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   }, [columnVisibility]);
 
   useEffect(() => {
+    // If the currently selected breakdown is no longer visible, reset to the first available option.
     if (!visibleBreakdownOptions.some(opt => opt.value === chartBreakdownBy)) {
-      const defaultOption = visibleBreakdownOptions.find(opt => opt.value === 'host_name');
-      setChartBreakdownBy(defaultOption ? defaultOption.value : (visibleBreakdownOptions[0]?.value || 'host_name'));
+      setChartBreakdownBy(visibleBreakdownOptions[0]?.value || 'host_name');
     }
   }, [visibleBreakdownOptions, chartBreakdownBy]);
 
