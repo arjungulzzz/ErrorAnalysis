@@ -73,8 +73,8 @@ export type ColumnFilters = Partial<Record<keyof ErrorLog, string>>;
  * Defines the available options for grouping logs in the table.
  */
 export const GroupByOptionsList: { id: GroupByOption; name: string }[] = [
-    { id: 'host_name', name: 'Host' },
     { id: 'repository_path', name: 'Model' },
+    { id: 'host_name', name: 'Host' },
     { id: 'error_number', name: 'Error Code' },
     { id: 'user_id', name: 'User' },
     { id: 'report_id_name', name: 'Report Name' },

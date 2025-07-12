@@ -26,9 +26,9 @@ import { Label } from "./ui/label";
 import Logo from './logo';
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
-    { id: 'log_date_time', name: 'Timestamp' },
     { id: 'repository_path', name: 'Model' },
     { id: 'host_name', name: 'Host' },
+    { id: 'log_date_time', name: 'Timestamp' },
     { id: 'user_id', name: 'User' },
     { id: 'report_id_name', name: 'Report Name' },
     { id: 'log_message', name: 'Message' },
@@ -105,8 +105,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   }, [columnVisibility]);
 
   useEffect(() => {
-    // If the currently selected breakdown is no longer visible, or when the data changes,
-    // reset to the first available option.
     const firstOption = visibleBreakdownOptions[0]?.value || 'repository_path';
     if (!visibleBreakdownOptions.some(opt => opt.value === chartBreakdownBy)) {
       setChartBreakdownBy(firstOption);
@@ -163,18 +161,12 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
       const getChartBucket = (): ChartBucket => {
           if (selectedPreset) {
-              if (['1h'].includes(selectedPreset)) {
-                  return 'minute';
-              }
-              if (['4h', '8h', '1d'].includes(selectedPreset)) {
+              if (['1h', '4h', '8h', '1d'].includes(selectedPreset)) {
                   return 'hour';
               }
           }
           if (dateRange?.from && dateRange?.to) {
               const diffInHours = (dateRange.to.getTime() - dateRange.from.getTime()) / 36e5;
-              if (diffInHours <= 1) {
-                  return 'minute';
-              }
               if (diffInHours <= 48) { // 2 days or less
                   return 'hour';
               }
@@ -421,7 +413,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   useEffect(() => {
     setPage(1);
     const firstOption = visibleBreakdownOptions[0]?.value;
-    if (firstOption && chartBreakdownBy !== firstOption) {
+    if (firstOption) {
         setChartBreakdownBy(firstOption);
     }
   }, [columnFilters, groupBy, sort, dateRange, selectedPreset, visibleBreakdownOptions]);
