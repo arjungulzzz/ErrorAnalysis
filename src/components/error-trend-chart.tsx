@@ -56,7 +56,7 @@ const CustomTooltip = ({ active, payload, breakdownBy, breakdownOptions }: any) 
         </div>
         {breakdownEntries.length > 0 && (
           <div className="pt-2 border-t">
-            <p className="font-semibold mb-1">By {breakdownTitle}</p>
+            <p className="font-semibold mb-1">By {breakdownTitle} (Top 5)</p>
             <div className="space-y-1">
               {breakdownEntries.slice(0, 5).map(([key, count]) => {
                 const formattedKey = formatBreakdownKey(key);
