@@ -59,6 +59,18 @@ const timePresets = [
 
 const breakDownableColumns: (keyof ErrorLog)[] = GroupByOptionsList.map(o => o.id).filter(id => id !== 'log_message');
 
+const defaultBreakdownFields: ChartBreakdownByOption[] = [
+    'repository_path', 
+    'host_name', 
+    'user_id', 
+    'report_id_name', 
+    'error_number', 
+    'port_number', 
+    'as_server_mode', 
+    'as_server_config', 
+    'version_number'
+];
+
 export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallbackSrc = "/favicon.ico" }: { logoSrc?: string; fallbackSrc?: string } = {}) {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
@@ -80,11 +92,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       allColumns.map(col => [col.id, defaultVisibleColumns.includes(col.id)])
     )
   );
-
-  const columnVisibilityRef = useRef(columnVisibility);
-  useEffect(() => {
-    columnVisibilityRef.current = columnVisibility;
-  }, [columnVisibility]);
   
   const [isPending, startTransition] = useTransition();
   const [isExporting, setIsExporting] = useState(false);
@@ -100,8 +107,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       return acc;
     }, {} as Record<keyof ErrorLog, number>)
   );
-  
-  const [fetchedBreakdownFields, setFetchedBreakdownFields] = useState<string[]>([]);
 
   const visibleBreakdownOptions = useMemo(() => {
     return allColumns
@@ -116,7 +121,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
-      const hasVisibleColumns = Object.values(columnVisibilityRef.current).some(v => v);
+      const hasVisibleColumns = Object.values(columnVisibility).some(v => v);
 
       if ((selectedPreset === 'none' && !dateRange?.from) || !hasVisibleColumns) {
         setLogs([]);
@@ -124,9 +129,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         setChartData([]);
         setGroupData([]);
         setLastRefreshed(null);
-        if (!hasVisibleColumns) {
-          setFetchedBreakdownFields([]);
-        }
         return;
       }
 
@@ -140,10 +142,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         return;
       }
       
-      const currentVisibleBreakdownFields = allColumns
-        .filter(col => columnVisibilityRef.current[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
-        .map(col => col.id as ChartBreakdownByOption);
-
       const getChartBucket = (): ChartBucket => {
           if (selectedPreset) {
               if (['1h', '4h', '8h', '1d'].includes(selectedPreset)) {
@@ -169,7 +167,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         filters: columnFilters,
         groupBy,
         chartBucket,
-        chartBreakdownFields: currentVisibleBreakdownFields,
+        chartBreakdownFields: defaultBreakdownFields,
       };
       
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -213,19 +211,20 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         setTotalLogs(data.totalCount);
         setChartData(data.chartData || []);
         setGroupData(data.groupData ? processGroupData(data.groupData) : []);
-        setFetchedBreakdownFields(currentVisibleBreakdownFields);
 
         if (data.dbTime && data.dbTimeUtc) {
             setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc });
         }
         
-        const newVisibleBreakdownOptions = allColumns
-            .filter(col => columnVisibilityRef.current[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
+        const currentVisibleBreakdownOptions = allColumns
+            .filter(col => columnVisibility[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
             .map(col => ({ value: col.id as ChartBreakdownByOption, label: col.name }));
 
-        const firstOption = newVisibleBreakdownOptions[0]?.value;
-        if (firstOption) {
-            setChartBreakdownBy(firstOption);
+        if (!currentVisibleBreakdownOptions.some(opt => opt.value === chartBreakdownBy)) {
+            const firstOption = currentVisibleBreakdownOptions[0]?.value;
+            if (firstOption) {
+                setChartBreakdownBy(firstOption);
+            }
         }
 
       } catch (error) {
@@ -241,7 +240,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
+  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility, chartBreakdownBy]);
   
   const fetchLogsForDrilldown = useCallback(async (drilldownFilters: ColumnFilters, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -415,7 +414,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
+  
   const handleRefresh = () => {
     fetchData();
   };
@@ -432,20 +431,9 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     }));
   };
   
-  // Smart refetch on column visibility change
   useEffect(() => {
-    const currentlyVisibleBreakdownFields = allColumns
-      .filter(col => columnVisibility[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
-      .map(col => col.id);
-
-    const hasNewField = currentlyVisibleBreakdownFields.some(field => !fetchedBreakdownFields.includes(field));
-
-    if (hasNewField) {
-      fetchData();
-    }
-  }, [columnVisibility, fetchedBreakdownFields, fetchData]);
-
-  useEffect(() => {
+    // When the visible breakdown options change, check if the currently selected
+    // breakdown is still visible. If not, reset to the first available option.
     const firstOption = visibleBreakdownOptions[0]?.value;
     if (!visibleBreakdownOptions.some(opt => opt.value === chartBreakdownBy) && firstOption) {
       setChartBreakdownBy(firstOption);
@@ -457,7 +445,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       Object.fromEntries(allColumns.map(col => [col.id, false]))
     );
     setGroupBy([]);
-    setFetchedBreakdownFields([]); // Clear fetched fields memory
   };
 
   const handlePresetClick = (key: string) => {
