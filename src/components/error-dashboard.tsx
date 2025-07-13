@@ -124,6 +124,9 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         setChartData([]);
         setGroupData([]);
         setLastRefreshed(null);
+        if (!hasVisibleColumns) {
+          setFetchedBreakdownFields([]);
+        }
         return;
       }
 
@@ -454,6 +457,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       Object.fromEntries(allColumns.map(col => [col.id, false]))
     );
     setGroupBy([]);
+    setFetchedBreakdownFields([]); // Clear fetched fields memory
   };
 
   const handlePresetClick = (key: string) => {
