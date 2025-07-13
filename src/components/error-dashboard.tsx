@@ -27,9 +27,9 @@ import Logo from './logo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
+    { id: 'log_date_time', name: 'Timestamp' },
     { id: 'repository_path', name: 'Model' },
     { id: 'host_name', name: 'Host' },
-    { id: 'log_date_time', name: 'Timestamp' },
     { id: 'user_id', name: 'User' },
     { id: 'report_id_name', name: 'Report Name' },
     { id: 'log_message', name: 'Message' },
