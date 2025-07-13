@@ -109,11 +109,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     }, {} as Record<keyof ErrorLog, number>)
   );
 
-  const visibleGroupByOptions = useMemo(() => {
-    const groupableIds = new Set(GroupByOptionsList.map(o => o.id));
-    return allColumns.filter(col => columnVisibility[col.id] && groupableIds.has(col.id as GroupByOption));
-  }, [columnVisibility]);
-
   const fetchData = useCallback(() => {
     startTransition(async () => {
       const hasVisibleColumns = Object.values(columnVisibility).some(v => v);
@@ -224,7 +219,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
+  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility]);
   
   const fetchLogsForDrilldown = useCallback(async (drilldownFilters: ColumnFilters, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -509,6 +504,11 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   const orderedViewOptionsColumns = useMemo(() => {
     return allColumns;
   }, []);
+
+  const visibleGroupByOptions = useMemo(() => {
+    const groupableIds = new Set(GroupByOptionsList.map(o => o.id));
+    return allColumns.filter(col => columnVisibility[col.id] && groupableIds.has(col.id as GroupByOption));
+  }, [columnVisibility]);
 
   return (
     <div className="space-y-6">
