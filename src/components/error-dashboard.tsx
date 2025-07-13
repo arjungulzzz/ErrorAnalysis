@@ -240,7 +240,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility, chartBreakdownBy]);
+  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
   
   const fetchLogsForDrilldown = useCallback(async (drilldownFilters: ColumnFilters, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
