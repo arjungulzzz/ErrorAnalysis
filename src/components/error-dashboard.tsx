@@ -557,7 +557,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <div className="text-xs text-white/80 hidden sm:block">
-                            Last refreshed at {lastRefreshed.local}
+                            Last refreshed at {lastRefreshed.local} DB time
                         </div>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
