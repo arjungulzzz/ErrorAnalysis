@@ -508,18 +508,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     return allColumns.filter(col => columnVisibility[col.id] && groupableIds.has(col.id as GroupByOption));
   }, [columnVisibility]);
 
-  const visibleBreakdownOptions = useMemo(() => {
-    return chartBreakdownOptions.filter(opt => columnVisibility[opt.value]);
-  }, [columnVisibility]);
-
-  useEffect(() => {
-      if (visibleBreakdownOptions.length > 0 && !visibleBreakdownOptions.find(opt => opt.value === chartBreakdownBy)) {
-          setChartBreakdownBy(visibleBreakdownOptions[0].value);
-      } else if (visibleBreakdownOptions.length === 0) {
-          // You might want to set a default or handle this case explicitly
-      }
-  }, [visibleBreakdownOptions, chartBreakdownBy]);
-
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white border-b border-primary shadow-sm">
@@ -785,7 +773,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           isLoading={isPending}
           breakdownBy={chartBreakdownBy}
           setBreakdownBy={setChartBreakdownBy}
-          breakdownOptions={visibleBreakdownOptions}
+          breakdownOptions={chartBreakdownOptions}
         />
       </div>
     </div>
