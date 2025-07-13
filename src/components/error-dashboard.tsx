@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback, useTransition, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
 import type { DateRange } from "react-day-picker";
 import { format, subDays, subHours, subMonths } from "date-fns";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint, type ChartBucket, GroupByOptionsList } from "@/types";
@@ -62,6 +62,7 @@ const chartBreakdownOptions: { value: ChartBreakdownByOption; label: string }[] 
     { value: 'host_name', label: 'Host' },
     { value: 'user_id', label: 'User' },
     { value: 'report_id_name', label: 'Report Name' },
+    { value: 'log_message', label: 'Message' },
     { value: 'error_number', label: 'Error Code' },
     { value: 'port_number', label: 'Port' },
     { value: 'as_server_mode', label: 'Server Mode' },
@@ -414,20 +415,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     }));
   };
   
-  useEffect(() => {
-    const hasVisibleColumns = Object.values(columnVisibility).some(v => v);
-    if (!hasVisibleColumns) {
-      if (logs.length > 0 || chartData.length > 0 || groupData.length > 0) {
-        setLogs([]);
-        setChartData([]);
-        setGroupData([]);
-        setTotalLogs(0);
-      }
-    } else {
-        fetchData();
-    }
-  }, [columnVisibility]);
-
   const handleDeselectAllColumns = () => {
     setColumnVisibility(
       Object.fromEntries(allColumns.map(col => [col.id, false]))

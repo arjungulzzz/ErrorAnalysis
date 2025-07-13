@@ -42,7 +42,7 @@ const CustomTooltip = ({ active, payload, breakdownBy, breakdownOptions }: any) 
             const lastSlashIndex = key.lastIndexOf('/');
             return lastSlashIndex !== -1 ? key.substring(lastSlashIndex + 1) : key;
         }
-        if (breakdownBy === 'report_id_name' && key === '') {
+        if (key === '') {
             return '<empty>';
         }
         return key;
@@ -60,7 +60,7 @@ const CustomTooltip = ({ active, payload, breakdownBy, breakdownOptions }: any) 
             <div className="space-y-1">
               {breakdownEntries.slice(0, 5).map(([key, count]) => {
                 const formattedKey = formatBreakdownKey(key);
-                const titleText = (breakdownBy === 'report_id_name' && key === '') ? '<empty>' : key;
+                const titleText = key === '' ? '<empty>' : key;
                 return (
                     <div key={key} className="flex justify-between items-center text-muted-foreground" title={titleText}>
                         <span className="truncate">{formattedKey}</span>
