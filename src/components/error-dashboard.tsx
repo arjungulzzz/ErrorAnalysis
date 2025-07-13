@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import Logo from './logo';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -85,6 +86,8 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   const [chartBreakdownBy, setChartBreakdownBy] = useState<ChartBreakdownByOption>('repository_path');
   
   const { toast } = useToast();
+
+  const [lastRefreshed, setLastRefreshed] = useState<{ local: string; utc: string } | null>(null);
   
   const [columnWidths, setColumnWidths] = useState<Record<keyof ErrorLog, number>>(
     allColumns.reduce((acc, col) => {
@@ -146,6 +149,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         setTotalLogs(0);
         setChartData([]);
         setGroupData([]);
+        setLastRefreshed(null);
         return;
       }
 
@@ -229,6 +233,14 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         setTotalLogs(data.totalCount);
         setChartData(data.chartData || []);
         setGroupData(data.groupData ? processGroupData(data.groupData) : []);
+        if (data.dbTime && data.dbTimeUtc) {
+            setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc });
+        }
+        
+        const firstOption = visibleBreakdownOptions[0]?.value;
+        if (firstOption) {
+            setChartBreakdownBy(firstOption);
+        }
 
       } catch (error) {
         console.error("Failed to fetch logs:", error);
@@ -412,11 +424,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
   useEffect(() => {
     setPage(1);
-    const firstOption = visibleBreakdownOptions[0]?.value;
-    if (firstOption && chartBreakdownBy !== firstOption) {
-        setChartBreakdownBy(firstOption);
-    }
-  }, [columnFilters, groupBy, sort, dateRange, selectedPreset, visibleBreakdownOptions]);
+  }, [columnFilters, groupBy, sort, dateRange, selectedPreset]);
 
   useEffect(() => {
     fetchData();
@@ -512,7 +520,21 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           <Logo src="/circana-logo.svg" fallbackSrc="/favicon.ico" className="h-7 w-7" />
           <span className="font-semibold text-base truncate">AnalyticServer Errors Dashboard</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          {lastRefreshed && (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div className="text-xs text-white/80 hidden sm:block">
+                            Last refreshed at {lastRefreshed.local}
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                        <p>{lastRefreshed.utc} (UTC)</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+          )}
           <Button onClick={handleRefresh} disabled={isPending} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
             <RotateCw className={`mr-1 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
             Refresh

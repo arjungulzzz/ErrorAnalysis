@@ -53,6 +53,8 @@ export type LogsApiResponse = {
   totalCount: number;
   chartData: ErrorTrendDataPoint[];
   groupData: ApiGroupDataPoint[];
+  dbTime: string;
+  dbTimeUtc: string;
 };
 
 /**
