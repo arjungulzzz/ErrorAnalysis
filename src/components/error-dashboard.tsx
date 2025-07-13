@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
+import { useState, useEffect, useCallback, useTransition, useMemo, useRef } from "react";
 import type { DateRange } from "react-day-picker";
 import { format, subDays, subHours, subMonths } from "date-fns";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint, type ChartBucket, GroupByOptionsList } from "@/types";
@@ -80,6 +80,11 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       allColumns.map(col => [col.id, defaultVisibleColumns.includes(col.id)])
     )
   );
+
+  const columnVisibilityRef = useRef(columnVisibility);
+  useEffect(() => {
+    columnVisibilityRef.current = columnVisibility;
+  }, [columnVisibility]);
   
   const [isPending, startTransition] = useTransition();
   const [isExporting, setIsExporting] = useState(false);
@@ -129,7 +134,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       }
       
       const currentVisibleBreakdownOptions = allColumns
-        .filter(col => columnVisibility[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
+        .filter(col => columnVisibilityRef.current[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
         .map(col => ({ value: col.id as ChartBreakdownByOption, label: col.name }));
 
       const getChartBucket = (): ChartBucket => {
@@ -224,7 +229,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility]);
+  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
   
   const fetchLogsForDrilldown = useCallback(async (drilldownFilters: ColumnFilters, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
