@@ -100,6 +100,8 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       return acc;
     }, {} as Record<keyof ErrorLog, number>)
   );
+  
+  const [fetchedBreakdownFields, setFetchedBreakdownFields] = useState<string[]>([]);
 
   const visibleBreakdownOptions = useMemo(() => {
     return allColumns
@@ -133,9 +135,9 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         return;
       }
       
-      const currentVisibleBreakdownOptions = allColumns
+      const currentVisibleBreakdownFields = allColumns
         .filter(col => columnVisibilityRef.current[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
-        .map(col => ({ value: col.id as ChartBreakdownByOption, label: col.name }));
+        .map(col => col.id as ChartBreakdownByOption);
 
       const getChartBucket = (): ChartBucket => {
           if (selectedPreset) {
@@ -154,7 +156,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       
       const chartBucket = getChartBucket();
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-      const chartBreakdownFields = currentVisibleBreakdownOptions.map(opt => opt.value);
       
       const requestBody: LogsApiRequest = {
         requestId,
@@ -163,7 +164,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         filters: columnFilters,
         groupBy,
         chartBucket,
-        chartBreakdownFields,
+        chartBreakdownFields: currentVisibleBreakdownFields,
       };
       
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -207,11 +208,17 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         setTotalLogs(data.totalCount);
         setChartData(data.chartData || []);
         setGroupData(data.groupData ? processGroupData(data.groupData) : []);
+        setFetchedBreakdownFields(currentVisibleBreakdownFields);
+
         if (data.dbTime && data.dbTimeUtc) {
             setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc });
         }
         
-        const firstOption = currentVisibleBreakdownOptions[0]?.value;
+        const newVisibleBreakdownOptions = allColumns
+            .filter(col => columnVisibilityRef.current[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
+            .map(col => ({ value: col.id as ChartBreakdownByOption, label: col.name }));
+
+        const firstOption = newVisibleBreakdownOptions[0]?.value;
         if (firstOption) {
             setChartBreakdownBy(firstOption);
         }
@@ -420,6 +427,19 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     }));
   };
   
+  // Smart refetch on column visibility change
+  useEffect(() => {
+    const currentlyVisibleBreakdownFields = allColumns
+      .filter(col => columnVisibility[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
+      .map(col => col.id);
+
+    const hasNewField = currentlyVisibleBreakdownFields.some(field => !fetchedBreakdownFields.includes(field));
+
+    if (hasNewField) {
+      fetchData();
+    }
+  }, [columnVisibility, fetchedBreakdownFields, fetchData]);
+
   useEffect(() => {
     const firstOption = visibleBreakdownOptions[0]?.value;
     if (!visibleBreakdownOptions.some(opt => opt.value === chartBreakdownBy) && firstOption) {
