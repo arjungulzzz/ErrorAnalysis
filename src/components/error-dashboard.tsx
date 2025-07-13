@@ -27,9 +27,9 @@ import Logo from './logo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
-    { id: 'log_date_time', name: 'Timestamp' },
     { id: 'repository_path', name: 'Model' },
     { id: 'host_name', name: 'Host' },
+    { id: 'log_date_time', name: 'Timestamp' },
     { id: 'user_id', name: 'User' },
     { id: 'report_id_name', name: 'Report Name' },
     { id: 'log_message', name: 'Message' },
@@ -107,41 +107,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     return allColumns.filter(col => columnVisibility[col.id] && groupableIds.has(col.id as GroupByOption));
   }, [columnVisibility]);
 
-  useEffect(() => {
-    const firstOption = visibleBreakdownOptions[0]?.value || 'repository_path';
-    if (!visibleBreakdownOptions.some(opt => opt.value === chartBreakdownBy)) {
-      setChartBreakdownBy(firstOption);
-    }
-  }, [visibleBreakdownOptions, chartBreakdownBy]);
-
-  const getPresetDisplay = (preset: (typeof timePresets)[number]) => {
-    if (!preset.interval || ['none', '1h', '4h', '8h'].includes(preset.key)) {
-      return preset.label;
-    }
-
-    const now = new Date();
-    let fromDate: Date;
-
-    switch (preset.key) {
-      case '1d':
-        fromDate = subDays(now, 1);
-        break;
-      case '7d':
-        fromDate = subDays(now, 6);
-        break;
-      case '15d':
-        fromDate = subDays(now, 14);
-        break;
-      case '1m':
-        fromDate = subMonths(now, 1);
-        break;
-      default:
-        return preset.label;
-    }
-    
-    return `${preset.label} (${format(fromDate, 'MMM d')} - ${format(now, 'MMM d')})`;
-  };
-  
   const fetchData = useCallback(() => {
     startTransition(async () => {
       if (selectedPreset === 'none' && !dateRange?.from) {
@@ -162,6 +127,10 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         });
         return;
       }
+      
+      const currentVisibleBreakdownOptions = allColumns
+        .filter(col => columnVisibility[col.id] && breakDownableColumns.includes(col.id as GroupByOption))
+        .map(col => ({ value: col.id as ChartBreakdownByOption, label: col.name }));
 
       const getChartBucket = (): ChartBucket => {
           if (selectedPreset) {
@@ -180,7 +149,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       
       const chartBucket = getChartBucket();
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-      const chartBreakdownFields = visibleBreakdownOptions.map(opt => opt.value);
+      const chartBreakdownFields = currentVisibleBreakdownOptions.map(opt => opt.value);
       
       const requestBody: LogsApiRequest = {
         requestId,
@@ -237,7 +206,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
             setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc });
         }
         
-        const firstOption = visibleBreakdownOptions[0]?.value;
+        const firstOption = currentVisibleBreakdownOptions[0]?.value;
         if (firstOption) {
             setChartBreakdownBy(firstOption);
         }
@@ -255,7 +224,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         setGroupData([]);
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, visibleBreakdownOptions]);
+  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility]);
   
   const fetchLogsForDrilldown = useCallback(async (drilldownFilters: ColumnFilters, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -445,6 +414,13 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         [columnId]: !!value,
     }));
   };
+  
+  useEffect(() => {
+    const firstOption = visibleBreakdownOptions[0]?.value;
+    if (!visibleBreakdownOptions.some(opt => opt.value === chartBreakdownBy) && firstOption) {
+      setChartBreakdownBy(firstOption);
+    }
+  }, [visibleBreakdownOptions, chartBreakdownBy]);
 
   const handleDeselectAllColumns = () => {
     setColumnVisibility(
@@ -507,6 +483,34 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     return "None";
   };
   
+  const getPresetDisplay = (preset: (typeof timePresets)[number]) => {
+    if (!preset.interval || ['none', '1h', '4h', '8h'].includes(preset.key)) {
+      return preset.label;
+    }
+
+    const now = new Date();
+    let fromDate: Date;
+
+    switch (preset.key) {
+      case '1d':
+        fromDate = subDays(now, 1);
+        break;
+      case '7d':
+        fromDate = subDays(now, 6);
+        break;
+      case '15d':
+        fromDate = subDays(now, 14);
+        break;
+      case '1m':
+        fromDate = subMonths(now, 1);
+        break;
+      default:
+        return preset.label;
+    }
+    
+    return `${preset.label} (${format(fromDate, 'MMM d')} - ${format(now, 'MMM d')})`;
+  };
+
   const today = new Date();
   const oneMonthAgo = subMonths(today, 1);
   const orderedViewOptionsColumns = useMemo(() => {
