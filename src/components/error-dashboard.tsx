@@ -116,7 +116,9 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
-      if (selectedPreset === 'none' && !dateRange?.from) {
+      const hasVisibleColumns = Object.values(columnVisibilityRef.current).some(v => v);
+
+      if ((selectedPreset === 'none' && !dateRange?.from) || !hasVisibleColumns) {
         setLogs([]);
         setTotalLogs(0);
         setChartData([]);
