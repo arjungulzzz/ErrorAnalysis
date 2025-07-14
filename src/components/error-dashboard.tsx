@@ -399,12 +399,10 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
-    if (!value && groupBy.includes(columnId as GroupByOption)) {
-        setGroupBy(prev => prev.filter(g => g !== columnId));
-    }
+    // Only update column visibility; do not affect groupBy
     setColumnVisibility(prev => ({
-        ...prev,
-        [columnId]: !!value,
+      ...prev,
+      [columnId]: !!value,
     }));
   };
   
@@ -412,7 +410,9 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     setColumnVisibility(
       Object.fromEntries(allColumns.map(col => [col.id, false]))
     );
-    setGroupBy([]);
+    // Do NOT clear groupBy when deselecting all columns; preserve previous groupBy
+    // This prevents unnecessary API requests and preserves grouping state
+    // setGroupBy([]); // Removed
   };
 
   const handlePresetClick = (key: string) => {
@@ -503,10 +503,16 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     return allColumns;
   }, []);
 
+  // Decouple group by options from column visibility; use chartBreakdownOptions order and values
   const visibleGroupByOptions = useMemo(() => {
     const groupableIds = new Set(GroupByOptionsList.map(o => o.id));
-    return allColumns.filter(col => columnVisibility[col.id] && groupableIds.has(col.id as GroupByOption));
-  }, [columnVisibility]);
+    return chartBreakdownOptions
+      .filter(opt => groupableIds.has(opt.value as GroupByOption))
+      .map(opt => {
+        const col = allColumns.find(c => c.id === opt.value);
+        return col ? { ...col } : { id: opt.value as keyof ErrorLog, name: opt.label };
+      });
+  }, []);
 
   return (
     <div className="space-y-6">
