@@ -579,13 +579,13 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                       <Calendar
                         initialFocus
                         mode="range"
-                        defaultMonth={dateRange?.from || oneMonthAgo}
+                        defaultMonth={oneMonthAgo}
                         fromMonth={oneMonthAgo}
                         toMonth={today}
                         selected={dateRange}
                         onSelect={handleCalendarSelect}
                         numberOfMonths={2}
-                        disabled={{ after: today }}
+                        disabled={{ before: oneMonthAgo, after: today }}
                       />
                     </PopoverContent>
                   </Popover>
