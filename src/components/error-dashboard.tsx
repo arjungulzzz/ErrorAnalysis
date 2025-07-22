@@ -25,6 +25,7 @@ import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import Logo from './logo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { useDebounce } from "@/hooks/use-debounce";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -85,6 +86,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
+  const debouncedColumnFilters = useDebounce(columnFilters, 500);
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption[]>([]);
   
@@ -155,7 +157,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         requestId,
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
-        filters: columnFilters,
+        filters: debouncedColumnFilters,
         groupBy,
         chartBucket,
         chartBreakdownFields: defaultBreakdownFields,
@@ -224,7 +226,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         }
       }
     });
-  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
+  }, [page, pageSize, sort, debouncedColumnFilters, groupBy, dateRange, selectedPreset, toast]);
   
   const fetchLogsForDrilldown = useCallback(async (drilldownFilters: ColumnFilters, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -242,7 +244,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           requestId,
           pagination: { page, pageSize },
           sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
-          filters: { ...columnFilters, ...drilldownFilters },
+          filters: { ...debouncedColumnFilters, ...drilldownFilters },
           groupBy: [],
       };
 
@@ -275,7 +277,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           }));
       };
       return { logs: processLogs(data.logs), totalCount: data.totalCount };
-  }, [columnFilters, dateRange, pageSize, selectedPreset, sort, toast]);
+  }, [debouncedColumnFilters, dateRange, pageSize, selectedPreset, sort, toast]);
 
   const handleExport = useCallback(async () => {
     if (groupBy.length > 0) {
@@ -312,7 +314,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         requestId,
         pagination: { page: 1, pageSize: totalLogs }, // Fetch all logs
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
-        filters: columnFilters,
+        filters: debouncedColumnFilters,
         groupBy: [],
       };
 
@@ -389,11 +391,11 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     } finally {
       setIsExporting(false);
     }
-  }, [totalLogs, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility]);
+  }, [totalLogs, sort, debouncedColumnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility]);
 
   useEffect(() => {
     setPage(1);
-  }, [columnFilters, groupBy, sort, dateRange, selectedPreset]);
+  }, [debouncedColumnFilters, groupBy, sort, dateRange, selectedPreset]);
 
   useEffect(() => {
     fetchData();
