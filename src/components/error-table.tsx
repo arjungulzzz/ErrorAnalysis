@@ -409,7 +409,7 @@ export function ErrorTable({
             const lastSlashIndex = path.lastIndexOf('/');
             const truncatedPath = lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
             displayContent = truncatedPath;
-            tooltipContent = truncatedPath; // Use truncated path for tooltip as well
+            tooltipContent = path; // Show full path in tooltip
             break;
         case 'error_number':
             displayContent = (
@@ -433,7 +433,7 @@ export function ErrorTable({
                 align="start"
             >
                 <div className="flex flex-col gap-2 p-1">
-                    <p className="font-mono text-xs whitespace-pre-wrap break-all text-foreground">
+                    <p className="font-mono text-sm whitespace-pre-wrap break-words text-foreground">
                         {tooltipContent}
                     </p>
                     <Button
