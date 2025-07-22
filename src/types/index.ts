@@ -55,6 +55,7 @@ export type LogsApiResponse = {
   groupData: ApiGroupDataPoint[];
   dbTime: string;
   dbTimeUtc: string;
+  dbTimezone: string;
 };
 
 /**

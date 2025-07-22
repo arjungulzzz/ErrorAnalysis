@@ -102,7 +102,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   
   const { toast } = useToast();
 
-  const [lastRefreshed, setLastRefreshed] = useState<{ local: string; utc: string } | null>(null);
+  const [lastRefreshed, setLastRefreshed] = useState<{ local: string; utc: string, timezone: string } | null>(null);
   
   const [columnWidths, setColumnWidths] = useState<Record<keyof ErrorLog, number>>(
     allColumns.reduce((acc, col) => {
@@ -206,8 +206,8 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           setChartData(data.chartData || []);
           setGroupData(data.groupData ? processGroupData(data.groupData) : []);
 
-          if (data.dbTime && data.dbTimeUtc) {
-              setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc });
+          if (data.dbTime && data.dbTimeUtc && data.dbTimezone) {
+              setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc, timezone: data.dbTimezone });
           }
         }
         
@@ -536,7 +536,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <div className="text-xs text-white/80 hidden sm:block">
-                            Last refreshed at {lastRefreshed.local} DB time
+                            Last refreshed at {lastRefreshed.local} {lastRefreshed.timezone}
                         </div>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
