@@ -409,7 +409,7 @@ export function ErrorTable({
             const lastSlashIndex = path.lastIndexOf('/');
             const truncatedPath = lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
             displayContent = truncatedPath;
-            tooltipContent = path; // Show full path in tooltip
+            tooltipContent = truncatedPath;
             break;
         case 'error_number':
             displayContent = (
