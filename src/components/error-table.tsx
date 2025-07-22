@@ -84,7 +84,6 @@ const GroupedRow = ({
     onFetchLogs,
     visibleColumns,
     renderCellContent,
-    renderExpandedDetail,
     handleCopy,
     pageSize
 }: { 
@@ -95,8 +94,7 @@ const GroupedRow = ({
     groupLogsData: Record<string, { logs: ErrorLog[]; total: number; page: number; isLoading: boolean }>;
     onFetchLogs: (path: Record<string, string>, page: number) => void;
     visibleColumns: { id: keyof ErrorLog; name: string }[];
-    renderCellContent: (log: ErrorLog, columnId: keyof ErrorLog) => React.ReactNode;
-    renderExpandedDetail: (log: ErrorLog, columnId: keyof ErrorLog) => string;
+    renderCellContent: (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => React.ReactNode;
     handleCopy: (textToCopy: string, fieldName: string) => Promise<void>;
     pageSize: number;
 }) => {
@@ -118,6 +116,14 @@ const GroupedRow = ({
         if (newExpandedState && isFinalLevel && !logsData) {
             onFetchLogs(currentPath, 1);
         }
+    };
+
+    const renderExpandedDetail = (log: ErrorLog, columnId: keyof ErrorLog) => {
+      const value = log[columnId];
+      if (value === null || value === undefined || value === '') {
+        return '—';
+      }
+      return String(value);
     };
 
     return (
@@ -147,7 +153,6 @@ const GroupedRow = ({
                       onFetchLogs={onFetchLogs}
                       visibleColumns={visibleColumns}
                       renderCellContent={renderCellContent}
-                      renderExpandedDetail={renderExpandedDetail}
                       handleCopy={handleCopy}
                       pageSize={pageSize}
                     />
@@ -181,27 +186,20 @@ const GroupedRow = ({
                                                 <TableBody>
                                                     {logsData.logs.map((log, index) => (
                                                         <React.Fragment key={log.id}>
-                                                            <Tooltip>
-                                                              <TooltipTrigger asChild>
-                                                                  <TableRow 
-                                                                      onClick={() => setExpandedRowId(prev => prev === log.id ? null : log.id)} 
-                                                                      className="cursor-pointer"
-                                                                      data-state={expandedRowId === log.id ? "selected" : undefined}
-                                                                  >
-                                                                      <TableCell className="text-center text-muted-foreground">
-                                                                          {(logsData.page - 1) * pageSize + index + 1}
-                                                                      </TableCell>
-                                                                      {visibleColumns.map(col => (
-                                                                          <TableCell key={col.id} className={cn("truncate", columnConfig.find(c => c.id === col.id)?.cellClassName)}>
-                                                                              {renderCellContent(log, col.id)}
-                                                                          </TableCell>
-                                                                      ))}
-                                                                  </TableRow>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                  <p>Click row to view all details.</p>
-                                                                </TooltipContent>
-                                                              </Tooltip>
+                                                            <TableRow 
+                                                                onClick={() => setExpandedRowId(prev => prev === log.id ? null : log.id)} 
+                                                                className="cursor-pointer"
+                                                                data-state={expandedRowId === log.id ? "selected" : undefined}
+                                                            >
+                                                                <TableCell className="text-center text-muted-foreground">
+                                                                    {(logsData.page - 1) * pageSize + index + 1}
+                                                                </TableCell>
+                                                                {visibleColumns.map(col => (
+                                                                    <TableCell key={col.id} className={cn("truncate", columnConfig.find(c => c.id === col.id)?.cellClassName)}>
+                                                                        {renderCellContent(log, col.id, col.name)}
+                                                                    </TableCell>
+                                                                ))}
+                                                            </TableRow>
             
                                                             {expandedRowId === log.id && (
                                                                 <TableRow>
@@ -212,8 +210,7 @@ const GroupedRow = ({
                                                                                 {visibleColumns.map(col => {
                                                                                     const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
                                                                                     const detailValue = renderExpandedDetail(log, col.id);
-                                                                                    if (col.id === 'report_id_name' || col.id === 'log_message') {
-                                                                                      return (
+                                                                                    return (
                                                                                         <div key={col.id} className="flex flex-col gap-1 md:col-span-3">
                                                                                             <dt className="font-medium text-muted-foreground">{col.name}</dt>
                                                                                             <dd className="flex items-start justify-between gap-2 font-mono">
@@ -221,40 +218,22 @@ const GroupedRow = ({
                                                                                                     {detailValue}
                                                                                                 </span>
                                                                                                 {isCopyable && (
-                                                                                                    <Tooltip>
-                                                                                                        <TooltipTrigger asChild>
-                                                                                                            <Button
-                                                                                                                variant="ghost"
-                                                                                                                size="icon"
-                                                                                                                className="h-7 w-7 shrink-0"
-                                                                                                                onClick={(e) => {
-                                                                                                                    e.stopPropagation();
-                                                                                                                    handleCopy(String(detailValue), col.name);
-                                                                                                                }}
-                                                                                                            >
-                                                                                                                <Copy className="h-4 w-4" />
-                                                                                                                <span className="sr-only">Copy {col.name}</span>
-                                                                                                            </Button>
-                                                                                                        </TooltipTrigger>
-                                                                                                        <TooltipContent>
-                                                                                                            <p>Copy {col.name}</p>
-                                                                                                        </TooltipContent>
-                                                                                                    </Tooltip>
+                                                                                                    <Button
+                                                                                                        variant="ghost"
+                                                                                                        size="icon"
+                                                                                                        className="h-7 w-7 shrink-0"
+                                                                                                        onClick={(e) => {
+                                                                                                            e.stopPropagation();
+                                                                                                            handleCopy(String(detailValue), col.name);
+                                                                                                        }}
+                                                                                                    >
+                                                                                                        <Copy className="h-4 w-4" />
+                                                                                                        <span className="sr-only">Copy {col.name}</span>
+                                                                                                    </Button>
                                                                                                 )}
                                                                                             </dd>
                                                                                         </div>
                                                                                       );
-                                                                                    }
-                                                                                    return (
-                                                                                        <div key={col.id} className="flex flex-col gap-1">
-                                                                                            <dt className="font-medium text-muted-foreground">{col.name}</dt>
-                                                                                            <dd className="flex items-start justify-between gap-2 font-mono">
-                                                                                                <span className="whitespace-pre-wrap break-all pt-1">
-                                                                                                    {detailValue}
-                                                                                                </span>
-                                                                                            </dd>
-                                                                                        </div>
-                                                                                    );
                                                                                 })}
                                                                             </dl>
                                                                         </div>
@@ -410,30 +389,67 @@ export function ErrorTable({
     }
   };
 
-  const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog) => {
+  const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => {
     const value = log[columnId];
+    const fullValue = String(value ?? '—');
     
     if (value === null || value === undefined || value === '') {
         return <span className="text-muted-foreground">—</span>;
     }
+
+    let displayContent: React.ReactNode;
     
     switch (columnId) {
         case 'log_date_time':
         case 'as_start_date_time':
-            return String(value);
+            displayContent = String(value);
+            break;
         case 'repository_path':
             const path = String(value);
             const lastSlashIndex = path.lastIndexOf('/');
-            return lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
+            displayContent = lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
+            break;
         case 'error_number':
-            return (
+            displayContent = (
                 <Badge variant={(value as number) >= 500 ? "destructive" : "secondary"}>
                     {value as number}
                 </Badge>
             );
+            break;
         default:
-            return String(value);
+            displayContent = String(value);
     }
+
+    return (
+        <Tooltip delayDuration={100}>
+            <TooltipTrigger asChild>
+                <div className="truncate w-full">{displayContent}</div>
+            </TooltipTrigger>
+            <TooltipContent
+                className="max-w-md"
+                side="bottom"
+                align="start"
+            >
+                <div className="flex flex-col gap-2 p-1">
+                    <p className="font-mono text-xs whitespace-pre-wrap break-all">
+                        {fullValue}
+                    </p>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopy(fullValue, columnName);
+                        }}
+                    >
+                        <Copy className="h-3 w-3" />
+                        Copy
+                    </Button>
+                </div>
+            </TooltipContent>
+        </Tooltip>
+    );
   };
 
   const renderExpandedDetail = (log: ErrorLog, columnId: keyof ErrorLog) => {
@@ -441,17 +457,7 @@ export function ErrorTable({
     if (value === null || value === undefined || value === '') {
       return '—';
     }
-    switch (columnId) {
-        case 'repository_path': {
-            const path = String(value);
-            const lastSlashIndex = path.lastIndexOf('/');
-            return lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
-        }
-        case 'log_date_time':
-        case 'as_start_date_time':
-        default:
-            return String(value);
-    }
+    return String(value);
   };
 
   const renderSkeleton = () => (
@@ -516,7 +522,6 @@ export function ErrorTable({
                         onFetchLogs={handleFetchGroupLogs}
                         visibleColumns={visibleColumns}
                         renderCellContent={renderCellContent}
-                        renderExpandedDetail={renderExpandedDetail}
                         handleCopy={handleCopy}
                         pageSize={pageSize}
                       />
@@ -583,28 +588,21 @@ export function ErrorTable({
                 {isLoading ? renderSkeleton() : logs.length > 0 ? (
                   logs.map((log, index) => (
                     <React.Fragment key={log.id}>
-                      <Tooltip delayDuration={300}>
-                        <TooltipTrigger asChild>
-                          <TableRow
-                            data-state={expandedRowId === log.id && "selected"}
-                            className="cursor-pointer"
-                            onClick={() => setExpandedRowId(prev => (prev === log.id ? null : log.id))}
-                          >
-                            <TableCell className="text-center text-muted-foreground">{(page - 1) * pageSize + index + 1}</TableCell>
-                            {visibleColumns.map(column => {
-                              const config = columnConfig.find(c => c.id === column.id);
-                              return (
-                                <TableCell key={column.id} className={cn("truncate", config?.cellClassName)}>
-                                  {renderCellContent(log, column.id)}
-                                </TableCell>
-                              )
-                            })}
-                          </TableRow>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Click row to view all details.</p>
-                        </TooltipContent>
-                      </Tooltip>
+                      <TableRow
+                        data-state={expandedRowId === log.id && "selected"}
+                        className="cursor-pointer"
+                        onClick={() => setExpandedRowId(prev => (prev === log.id ? null : log.id))}
+                      >
+                        <TableCell className="text-center text-muted-foreground">{(page - 1) * pageSize + index + 1}</TableCell>
+                        {visibleColumns.map(column => {
+                          const config = columnConfig.find(c => c.id === column.id);
+                          return (
+                            <TableCell key={column.id} className={cn(config?.cellClassName)}>
+                              {renderCellContent(log, column.id, column.name)}
+                            </TableCell>
+                          )
+                        })}
+                      </TableRow>
                       {expandedRowId === log.id && (
                         <TableRow>
                           <TableCell colSpan={visibleColumnCount + 1}>
@@ -614,46 +612,27 @@ export function ErrorTable({
                                 {visibleColumns.map(col => {
                                   const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
                                   const detailValue = renderExpandedDetail(log, col.id);
-                                  if (col.id === 'report_id_name' || col.id === 'log_message') {
-                                    return (
-                                      <div key={col.id} className="flex flex-col gap-1 md:col-span-3">
-                                          <dt className="font-medium text-muted-foreground">{col.name}</dt>
-                                          <dd className="flex items-start justify-between gap-2 font-mono">
-                                              <span className="whitespace-pre-wrap break-all pt-1">
-                                                  {detailValue}
-                                              </span>
-                                              {isCopyable && (
-                                                  <Tooltip>
-                                                      <TooltipTrigger asChild>
-                                                          <Button
-                                                              variant="ghost"
-                                                              size="icon"
-                                                              className="h-7 w-7 shrink-0"
-                                                              onClick={(e) => {
-                                                                  e.stopPropagation();
-                                                                  handleCopy(String(detailValue), col.name);
-                                                              }}
-                                                          >
-                                                              <Copy className="h-4 w-4" />
-                                                              <span className="sr-only">Copy {col.name}</span>
-                                                          </Button>
-                                                      </TooltipTrigger>
-                                                      <TooltipContent>
-                                                          <p>Copy {col.name}</p>
-                                                      </TooltipContent>
-                                                  </Tooltip>
-                                              )}
-                                          </dd>
-                                      </div>
-                                    );
-                                  }
                                   return (
-                                    <div key={col.id} className="flex flex-col gap-1">
+                                    <div key={col.id} className={cn("flex flex-col gap-1", isCopyable && "md:col-span-3")}>
                                       <dt className="font-medium text-muted-foreground">{col.name}</dt>
                                       <dd className="flex items-start justify-between gap-2 font-mono">
                                         <span className="whitespace-pre-wrap break-all pt-1">
                                           {detailValue}
                                         </span>
+                                        {isCopyable && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 shrink-0"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCopy(String(detailValue), col.name);
+                                                }}
+                                            >
+                                                <Copy className="h-4 w-4" />
+                                                <span className="sr-only">Copy {col.name}</span>
+                                            </Button>
+                                        )}
                                       </dd>
                                     </div>
                                   );
