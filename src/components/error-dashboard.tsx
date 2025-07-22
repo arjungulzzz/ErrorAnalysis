@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
+import { useState, useEffect, useCallback, useTransition, useMemo, useRef } from "react";
 import type { DateRange } from "react-day-picker";
 import { format, subDays, subHours, subMonths } from "date-fns";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type ErrorTrendDataPoint, type ApiErrorLog, type ChartBreakdownByOption, type GroupDataPoint, type LogsApiResponse, type LogsApiRequest, type ApiGroupDataPoint, type ChartBucket, GroupByOptionsList } from "@/types";
@@ -109,6 +109,8 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     }, {} as Record<keyof ErrorLog, number>)
   );
 
+  const latestRequestIdRef = useRef<string | null>(null);
+
   const fetchData = useCallback(() => {
     startTransition(async () => {
       if (selectedPreset === 'none' && !dateRange?.from) {
@@ -147,6 +149,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       
       const chartBucket = getChartBucket();
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
+      latestRequestIdRef.current = requestId;
       
       const requestBody: LogsApiRequest = {
         requestId,
@@ -181,40 +184,44 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         }
         const data: LogsApiResponse = await response.json();
 
-        const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
-            return logs.map((log, index) => ({
-                ...log,
-                id: `log-${log.log_date_time}-${index}`,
-            }));
-        };
+        if (requestId === latestRequestIdRef.current) {
+          const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
+              return logs.map((log, index) => ({
+                  ...log,
+                  id: `log-${log.log_date_time}-${index}`,
+              }));
+          };
 
-        const processGroupData = (groups: ApiGroupDataPoint[]): GroupDataPoint[] => {
-            return groups.map(group => ({
-                ...group,
-                subgroups: group.subgroups ? processGroupData(group.subgroups) : [],
-            }));
-        };
-        
-        setLogs(processLogs(data.logs));
-        setTotalLogs(data.totalCount);
-        setChartData(data.chartData || []);
-        setGroupData(data.groupData ? processGroupData(data.groupData) : []);
+          const processGroupData = (groups: ApiGroupDataPoint[]): GroupDataPoint[] => {
+              return groups.map(group => ({
+                  ...group,
+                  subgroups: group.subgroups ? processGroupData(group.subgroups) : [],
+              }));
+          };
+          
+          setLogs(processLogs(data.logs));
+          setTotalLogs(data.totalCount);
+          setChartData(data.chartData || []);
+          setGroupData(data.groupData ? processGroupData(data.groupData) : []);
 
-        if (data.dbTime && data.dbTimeUtc) {
-            setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc });
+          if (data.dbTime && data.dbTimeUtc) {
+              setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc });
+          }
         }
         
       } catch (error) {
-        console.error("Failed to fetch logs:", error);
-        toast({
-          variant: "destructive",
-          title: "Failed to Fetch Data",
-          description: error instanceof Error ? error.message : "An unknown error occurred.",
-        });
-        setLogs([]);
-        setTotalLogs(0);
-        setChartData([]);
-        setGroupData([]);
+        if (requestId === latestRequestIdRef.current) {
+          console.error("Failed to fetch logs:", error);
+          toast({
+            variant: "destructive",
+            title: "Failed to Fetch Data",
+            description: error instanceof Error ? error.message : "An unknown error occurred.",
+          });
+          setLogs([]);
+          setTotalLogs(0);
+          setChartData([]);
+          setGroupData([]);
+        }
       }
     });
   }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
