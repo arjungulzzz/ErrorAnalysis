@@ -391,13 +391,13 @@ export function ErrorTable({
 
   const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => {
     const value = log[columnId];
-    const fullValue = String(value ?? '—');
     
     if (value === null || value === undefined || value === '') {
         return <span className="text-muted-foreground">—</span>;
     }
 
     let displayContent: React.ReactNode;
+    let tooltipContent = String(value);
     
     switch (columnId) {
         case 'log_date_time':
@@ -407,7 +407,9 @@ export function ErrorTable({
         case 'repository_path':
             const path = String(value);
             const lastSlashIndex = path.lastIndexOf('/');
-            displayContent = lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
+            const truncatedPath = lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
+            displayContent = truncatedPath;
+            tooltipContent = truncatedPath; // Use truncated path for tooltip as well
             break;
         case 'error_number':
             displayContent = (
@@ -426,13 +428,13 @@ export function ErrorTable({
                 <div className="truncate w-full">{displayContent}</div>
             </TooltipTrigger>
             <TooltipContent
-                className="max-w-md"
+                className="max-w-md bg-background/95 backdrop-blur-sm"
                 side="bottom"
                 align="start"
             >
                 <div className="flex flex-col gap-2 p-1">
-                    <p className="font-mono text-xs whitespace-pre-wrap break-all">
-                        {fullValue}
+                    <p className="font-mono text-xs whitespace-pre-wrap break-all text-foreground">
+                        {tooltipContent}
                     </p>
                     <Button
                         variant="outline"
@@ -440,7 +442,7 @@ export function ErrorTable({
                         className="h-7 gap-1"
                         onClick={(e) => {
                             e.stopPropagation();
-                            handleCopy(fullValue, columnName);
+                            handleCopy(tooltipContent, columnName);
                         }}
                     >
                         <Copy className="h-3 w-3" />
