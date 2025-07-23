@@ -68,9 +68,9 @@ export type SortDescriptor = {
 
 /**
  * Defines the structure for storing active column filters.
- * Each key is a column name, and the value is the string to filter by.
+ * Each key is a column name, and the value is an array of strings to filter by.
  */
-export type ColumnFilters = Partial<Record<keyof ErrorLog, string>>;
+export type ColumnFilters = Partial<Record<keyof ErrorLog, string[]>>;
 
 /**
  * Defines the available options for grouping logs in the table.
@@ -153,6 +153,7 @@ export type ChartBucket = 'day' | 'hour';
 
 /**
  * Defines the structure of the request body sent to the logs API.
+ * The frontend will handle converting array filters to comma-separated strings.
  */
 export type LogsApiRequest = {
   requestId: string;
@@ -160,7 +161,7 @@ export type LogsApiRequest = {
   dateRange?: ApiDateRange;
   pagination: { page: number; pageSize: number };
   sort: SortDescriptor;
-  filters: ColumnFilters;
+  filters: Partial<Record<keyof ErrorLog, string>>;
   groupBy: GroupByOption[];
   chartBreakdownFields?: GroupByOption[];
   chartBucket?: ChartBucket;

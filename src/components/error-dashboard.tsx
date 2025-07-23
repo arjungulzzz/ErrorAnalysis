@@ -25,7 +25,6 @@ import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import Logo from './logo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { useDebounce } from "@/hooks/use-debounce";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -86,7 +85,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
-  const debouncedColumnFilters = useDebounce(columnFilters, 500);
   const [sort, setSort] = useState<SortDescriptor>({ column: 'log_date_time', direction: 'descending' });
   const [groupBy, setGroupBy] = useState<GroupByOption[]>([]);
   
@@ -153,11 +151,19 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
       latestRequestIdRef.current = requestId;
       
-      const requestBody: LogsApiRequest = {
+      // Convert array filters to comma-separated strings for the API
+      const apiFilters = Object.entries(columnFilters).reduce((acc, [key, value]) => {
+          if (value && value.length > 0) {
+              acc[key as keyof ErrorLog] = value.join(',');
+          }
+          return acc;
+      }, {} as Record<keyof ErrorLog, string>);
+
+      const requestBody: Omit<LogsApiRequest, 'filters'> & { filters: Record<keyof ErrorLog, string> } = {
         requestId,
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
-        filters: debouncedColumnFilters,
+        filters: apiFilters,
         groupBy,
         chartBucket,
         chartBreakdownFields: defaultBreakdownFields,
@@ -226,9 +232,9 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         }
       }
     });
-  }, [page, pageSize, sort, debouncedColumnFilters, groupBy, dateRange, selectedPreset, toast]);
+  }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
   
-  const fetchLogsForDrilldown = useCallback(async (drilldownFilters: ColumnFilters, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
+  const fetchLogsForDrilldown = useCallback(async (drilldownFilters: Record<string, string>, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) {
           toast({
@@ -240,11 +246,18 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       }
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
 
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'chartBreakdownFields'> & { groupBy: [] } = {
+      const apiFilters = Object.entries(columnFilters).reduce((acc, [key, value]) => {
+          if (value && value.length > 0) {
+              acc[key as keyof ErrorLog] = value.join(',');
+          }
+          return acc;
+      }, {} as Record<keyof ErrorLog, string>);
+
+      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'chartBreakdownFields' | 'filters'> & { groupBy: [], filters: Record<string, string> } = {
           requestId,
           pagination: { page, pageSize },
           sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
-          filters: { ...debouncedColumnFilters, ...drilldownFilters },
+          filters: { ...apiFilters, ...drilldownFilters },
           groupBy: [],
       };
 
@@ -277,7 +290,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           }));
       };
       return { logs: processLogs(data.logs), totalCount: data.totalCount };
-  }, [debouncedColumnFilters, dateRange, pageSize, selectedPreset, sort, toast]);
+  }, [columnFilters, dateRange, pageSize, selectedPreset, sort, toast]);
 
   const handleExport = useCallback(async () => {
     if (groupBy.length > 0) {
@@ -308,13 +321,20 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         });
         return;
       }
+      
+      const apiFilters = Object.entries(columnFilters).reduce((acc, [key, value]) => {
+          if (value && value.length > 0) {
+              acc[key as keyof ErrorLog] = value.join(',');
+          }
+          return acc;
+      }, {} as Record<keyof ErrorLog, string>);
 
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'pagination' | 'chartBreakdownFields'> & { groupBy: [], pagination: {page: number, pageSize: number} } = {
+      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'pagination' | 'chartBreakdownFields' | 'filters'> & { groupBy: [], pagination: {page: number, pageSize: number}, filters: Record<string, string> } = {
         requestId,
         pagination: { page: 1, pageSize: totalLogs }, // Fetch all logs
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
-        filters: debouncedColumnFilters,
+        filters: apiFilters,
         groupBy: [],
       };
 
@@ -391,11 +411,11 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     } finally {
       setIsExporting(false);
     }
-  }, [totalLogs, sort, debouncedColumnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility]);
+  }, [totalLogs, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility]);
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedColumnFilters, groupBy, sort, dateRange, selectedPreset]);
+  }, [columnFilters, groupBy, sort, dateRange, selectedPreset]);
 
   useEffect(() => {
     fetchData();
@@ -405,7 +425,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     fetchData();
   };
   
-  const activeFilters = Object.entries(columnFilters).filter(([, value]) => !!value);
+  const activeFilters = Object.entries(columnFilters).filter(([, value]) => value && value.length > 0);
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
     // Only update column visibility; do not affect groupBy
@@ -699,28 +719,29 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 {activeFilters.map(([key, value]) => {
+                                    if (!value || value.length === 0) return null;
                                     const column = allColumns.find(c => c.id === key);
                                     if (!column) return null;
 
-                                    return (
-                                        <Badge key={key} variant="secondary" className="pl-2 pr-1 py-1 text-sm font-normal">
-                                            <span className="font-semibold mr-1">{column.name}:</span>
-                                            <span className="mr-1 truncate max-w-xs">{String(value)}</span>
-                                            <button 
-                                                className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20 disabled:opacity-50"
-                                                onClick={() => {
-                                                    setColumnFilters(prev => ({
-                                                        ...prev,
-                                                        [key]: ''
-                                                    }));
-                                                }}
-                                                disabled={isPending}
-                                            >
-                                                <span className="sr-only">Remove {column.name} filter</span>
-                                                <X className="h-3 w-3" />
-                                            </button>
-                                        </Badge>
-                                    );
+                                    return value.map((val, index) => (
+                                      <Badge key={`${key}-${index}`} variant="secondary" className="pl-2 pr-1 py-1 text-sm font-normal">
+                                          {index === 0 && <span className="font-semibold mr-1">{column.name}:</span>}
+                                          <span className="mr-1 truncate max-w-xs">{String(val)}</span>
+                                          <button 
+                                              className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20 disabled:opacity-50"
+                                              onClick={() => {
+                                                  setColumnFilters(prev => ({
+                                                      ...prev,
+                                                      [key]: prev[key as keyof ColumnFilters]?.filter(v => v !== val)
+                                                  }));
+                                              }}
+                                              disabled={isPending}
+                                          >
+                                              <span className="sr-only">Remove {column.name} filter for {val}</span>
+                                              <X className="h-3 w-3" />
+                                          </button>
+                                      </Badge>
+                                    ));
                                 })}
                             </div>
                         </div>

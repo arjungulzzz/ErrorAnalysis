@@ -51,7 +51,7 @@ interface ErrorTableProps {
   allColumns: { id: keyof ErrorLog; name: string }[];
   columnWidths: Record<keyof ErrorLog, number>;
   setColumnWidths: React.Dispatch<React.SetStateAction<Record<keyof ErrorLog, number>>>;
-  fetchLogsForDrilldown: (drilldownFilters: ColumnFilters, page: number) => Promise<{logs: ErrorLog[], totalCount: number}>;
+  fetchLogsForDrilldown: (drilldownFilters: Record<string, string>, page: number) => Promise<{logs: ErrorLog[], totalCount: number}>;
 }
 
 const columnConfig: {

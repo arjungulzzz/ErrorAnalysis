@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters } from "@/types";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TagInput } from "./ui/tag-input";
 
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -56,12 +56,12 @@ export function DataTableColumnHeader<TData, TValue>({
   };
   
   const isFilterable = !!setColumnFilters;
-  const filterValue = columnFilters?.[column] || "";
+  const filterValue = columnFilters?.[column] || [];
 
-  const handleFilterChange = (value: string) => {
+  const handleFilterChange = (newValues: string[]) => {
     setColumnFilters?.(prev => ({
       ...prev,
-      [column]: value,
+      [column]: newValues,
     }));
   };
 
@@ -80,26 +80,29 @@ export function DataTableColumnHeader<TData, TValue>({
          {isFilterable && (
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className={cn("h-7 w-7 shrink-0", filterValue && "text-primary bg-accent/50")} disabled={isPending}>
+              <Button variant="ghost" size="icon" className={cn("h-7 w-7 shrink-0", filterValue.length > 0 && "text-primary bg-accent/50")} disabled={isPending}>
                 <Filter className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-60" align="start" onClick={(e) => e.stopPropagation()}>
+            <PopoverContent className="w-80" align="start" onClick={(e) => e.stopPropagation()}>
               <div className="space-y-2">
                 <Label htmlFor={`filter-${column}`}>Filter by {title}</Label>
-                <Input
+                <p className="text-xs text-muted-foreground">
+                  Enter values and press Enter. You can also paste comma or newline-separated values.
+                </p>
+                <TagInput
                   id={`filter-${column}`}
-                  placeholder={`Filter...`}
+                  placeholder={`Add values...`}
                   value={filterValue}
-                  onChange={(e) => handleFilterChange(e.target.value)}
-                  className="h-8"
+                  onChange={handleFilterChange}
+                  className="h-auto"
                 />
                 <Button 
                   variant="ghost" 
                   size="sm"
                   className="w-full h-8"
-                  disabled={!filterValue}
-                  onClick={() => handleFilterChange('')}
+                  disabled={filterValue.length === 0}
+                  onClick={() => handleFilterChange([])}
                 >
                   Clear filter
                 </Button>
