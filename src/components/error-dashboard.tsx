@@ -152,18 +152,18 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       latestRequestIdRef.current = requestId;
       
       // Convert array filters to comma-separated strings for the API
-      const apiFilters = Object.entries(columnFilters).reduce((acc, [key, value]) => {
+      /* const apiFilters = Object.entries(columnFilters).reduce((acc, [key, value]) => {
           if (value && value.length > 0) {
               acc[key as keyof ErrorLog] = value.join(',');
           }
           return acc;
       }, {} as Record<keyof ErrorLog, string>);
-
-      const requestBody: Omit<LogsApiRequest, 'filters'> & { filters: Record<keyof ErrorLog, string> } = {
+ */
+      const requestBody: LogsApiRequest = {
         requestId,
         pagination: { page, pageSize },
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
-        filters: apiFilters,
+        filters: columnFilters,
         groupBy,
         chartBucket,
         chartBreakdownFields: defaultBreakdownFields,
@@ -246,18 +246,17 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       }
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
 
-      const apiFilters = Object.entries(columnFilters).reduce((acc, [key, value]) => {
-          if (value && value.length > 0) {
-              acc[key as keyof ErrorLog] = value.join(',');
-          }
-          return acc;
-      }, {} as Record<keyof ErrorLog, string>);
+      const drilldownFiltersAsArrays = Object.entries(drilldownFilters).reduce((acc, [key, value]) => {
+        acc[key as keyof ColumnFilters] = [value];
+        return acc;
+      }, {} as ColumnFilters);
 
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'chartBreakdownFields' | 'filters'> & { groupBy: [], filters: Record<string, string> } = {
+      const combinedFilters = { ...columnFilters, ...drilldownFiltersAsArrays };
+      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'chartBreakdownFields'> & { groupBy: [] } = {
           requestId,
           pagination: { page, pageSize },
           sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
-          filters: { ...apiFilters, ...drilldownFilters },
+          filters: combinedFilters,
           groupBy: [],
       };
 
@@ -321,20 +320,13 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         });
         return;
       }
-      
-      const apiFilters = Object.entries(columnFilters).reduce((acc, [key, value]) => {
-          if (value && value.length > 0) {
-              acc[key as keyof ErrorLog] = value.join(',');
-          }
-          return acc;
-      }, {} as Record<keyof ErrorLog, string>);
 
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'pagination' | 'chartBreakdownFields' | 'filters'> & { groupBy: [], pagination: {page: number, pageSize: number}, filters: Record<string, string> } = {
+      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'pagination' | 'chartBreakdownFields'> & { groupBy: [], pagination: {page: number, pageSize: number} } = {
         requestId,
         pagination: { page: 1, pageSize: totalLogs }, // Fetch all logs
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
-        filters: apiFilters,
+        filters: columnFilters,
         groupBy: [],
       };
 

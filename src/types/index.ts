@@ -161,7 +161,7 @@ export type LogsApiRequest = {
   dateRange?: ApiDateRange;
   pagination: { page: number; pageSize: number };
   sort: SortDescriptor;
-  filters: Partial<Record<keyof ErrorLog, string>>;
+  filters: Partial<Record<keyof ErrorLog, string[]>>;
   groupBy: GroupByOption[];
   chartBreakdownFields?: GroupByOption[];
   chartBucket?: ChartBucket;
