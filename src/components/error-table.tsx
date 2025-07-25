@@ -95,7 +95,7 @@ const GroupedRow = ({
     onFetchLogs: (path: Record<string, string>, page: number) => void;
     visibleColumns: { id: keyof ErrorLog; name: string }[];
     renderCellContent: (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => React.ReactNode;
-    handleCopy: (textToCopy: string, fieldName: string) => Promise<void>;
+    handleCopy: (textToCopy: string, fieldName: string) => void;
     pageSize: number;
 }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
@@ -367,27 +367,59 @@ export function ErrorTable({
   }, [resizingColumn, handleResize, handleResizeEnd]);
 
   const handleCopy = async (textToCopy: string, fieldName: string) => {
-    if (!textToCopy || textToCopy === '—') {
-      toast({
-        title: "Nothing to copy",
-        description: `The ${fieldName} field is empty.`,
-      });
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      toast({
-        title: "Copied to clipboard",
-        description: `The ${fieldName} has been copied.`,
-      });
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Copy Failed",
-        description: "Could not copy to clipboard.",
-      });
-    }
-  };
+      if (!textToCopy || textToCopy === '—') {
+        toast({
+          title: "Nothing to copy",
+          description: `The ${fieldName} field is empty.`,
+        });
+        return;
+      }
+
+      let success = false;
+      try {
+        // Use modern clipboard API in secure contexts
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(textToCopy);
+          success = true;
+        } else {
+          // Fallback for non-secure contexts (e.g., http)
+          const textArea = document.createElement("textarea");
+          textArea.value = textToCopy;
+          
+          // Make the textarea invisible
+          textArea.style.position = "absolute";
+          textArea.style.left = "-9999px";
+          
+          document.body.prepend(textArea);
+          textArea.select();
+
+          try {
+            document.execCommand('copy');
+            success = true;
+          } catch (err) {
+            success = false;
+          } finally {
+            textArea.remove();
+          }
+        }
+        
+        if (success) {
+          toast({
+            title: "Copied to clipboard",
+            description: `The ${fieldName} has been copied.`,
+          });
+        } else {
+          throw new Error('Copy command failed.');
+        }
+
+      } catch (err) {
+        toast({
+          variant: "destructive",
+          title: "Copy Failed",
+          description: "Could not copy text to clipboard.",
+        });
+      }
+    };
 
   const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => {
     const value = log[columnId];
