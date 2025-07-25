@@ -113,12 +113,17 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
   const fetchData = useCallback(() => {
     startTransition(async () => {
+    const isPresetActive = selectedPreset && selectedPreset !== 'none';
+    const isFullDateRange = dateRange?.from && dateRange.to;
+
+    if (!isPresetActive && !isFullDateRange) {
       if (selectedPreset === 'none' && !dateRange?.from) {
-        setLogs([]);
-        setTotalLogs(0);
-        setChartData([]);
-        setGroupData([]);
-        setLastRefreshed(null);
+          setLogs([]);
+          setTotalLogs(0);
+          setChartData([]);
+          setGroupData([]);
+          setLastRefreshed(null);
+        }
         return;
       }
 
@@ -151,14 +156,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
       latestRequestIdRef.current = requestId;
       
-      // Convert array filters to comma-separated strings for the API
-      /* const apiFilters = Object.entries(columnFilters).reduce((acc, [key, value]) => {
-          if (value && value.length > 0) {
-              acc[key as keyof ErrorLog] = value.join(',');
-          }
-          return acc;
-      }, {} as Record<keyof ErrorLog, string>);
- */
       const requestBody: LogsApiRequest = {
         requestId,
         pagination: { page, pageSize },
@@ -169,14 +166,26 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         chartBreakdownFields: defaultBreakdownFields,
       };
       
+      // Inside fetchData function...
       const preset = timePresets.find(p => p.key === selectedPreset);
       if (preset?.interval) {
         requestBody.interval = preset.interval;
-      } else if (dateRange?.from) {
+      } else if (dateRange?.from && dateRange?.to) {
+        // --- START of new logic ---
+        const from = dateRange.from;
+        const to = dateRange.to;
+
+        // Create a UTC date for the start of the selected "from" day
+        const utcFrom = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0));
+        
+        // Create a UTC date for the end of the selected "to" day
+        const utcTo = new Date(Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999));
+        
         requestBody.dateRange = {
-            from: dateRange.from?.toISOString(),
-            to: dateRange.to?.toISOString()
+          from: utcFrom.toISOString(),
+          to: utcTo.toISOString(),
         };
+        // --- END of new logic ---
       }
 
       try {
@@ -260,14 +269,26 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           groupBy: [],
       };
 
+      // Inside fetchData function...
       const preset = timePresets.find(p => p.key === selectedPreset);
       if (preset?.interval) {
-          requestBody.interval = preset.interval;
-      } else if (dateRange?.from) {
-          requestBody.dateRange = {
-              from: dateRange.from?.toISOString(),
-              to: dateRange.to?.toISOString()
-          };
+        requestBody.interval = preset.interval;
+      } else if (dateRange?.from && dateRange?.to) {
+        // --- START of new logic ---
+        const from = dateRange.from;
+        const to = dateRange.to;
+
+        // Create a UTC date for the start of the selected "from" day
+        const utcFrom = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0));
+        
+        // Create a UTC date for the end of the selected "to" day
+        const utcTo = new Date(Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999));
+        
+        requestBody.dateRange = {
+          from: utcFrom.toISOString(),
+          to: utcTo.toISOString(),
+        };
+        // --- END of new logic ---
       }
       
       const response = await fetch(apiUrl, {
@@ -330,14 +351,26 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         groupBy: [],
       };
 
+      // Inside fetchData function...
       const preset = timePresets.find(p => p.key === selectedPreset);
       if (preset?.interval) {
         requestBody.interval = preset.interval;
-      } else if (dateRange?.from) {
+      } else if (dateRange?.from && dateRange?.to) {
+        // --- START of new logic ---
+        const from = dateRange.from;
+        const to = dateRange.to;
+
+        // Create a UTC date for the start of the selected "from" day
+        const utcFrom = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0));
+        
+        // Create a UTC date for the end of the selected "to" day
+        const utcTo = new Date(Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999));
+        
         requestBody.dateRange = {
-          from: dateRange.from?.toISOString(),
-          to: dateRange.to?.toISOString()
+          from: utcFrom.toISOString(),
+          to: utcTo.toISOString(),
         };
+        // --- END of new logic ---
       }
 
       const response = await fetch(apiUrl, {
