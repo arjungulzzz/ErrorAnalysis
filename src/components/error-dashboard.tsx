@@ -255,12 +255,12 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       }
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
 
-      const drilldownFiltersAsArrays = Object.entries(drilldownFilters).reduce((acc, [key, value]) => {
-        acc[key as keyof ColumnFilters] = [value];
+      const drilldownFiltersAsConditions: ColumnFilters = Object.entries(drilldownFilters).reduce((acc, [key, value]) => {
+        acc[key as keyof ColumnFilters] = { operator: 'in', values: [value] };
         return acc;
       }, {} as ColumnFilters);
 
-      const combinedFilters = { ...columnFilters, ...drilldownFiltersAsArrays };
+      const combinedFilters = { ...columnFilters, ...drilldownFiltersAsConditions };
       const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'chartBreakdownFields'> & { groupBy: [] } = {
           requestId,
           pagination: { page, pageSize },
@@ -269,26 +269,18 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           groupBy: [],
       };
 
-      // Inside fetchData function...
       const preset = timePresets.find(p => p.key === selectedPreset);
       if (preset?.interval) {
         requestBody.interval = preset.interval;
       } else if (dateRange?.from && dateRange?.to) {
-        // --- START of new logic ---
         const from = dateRange.from;
         const to = dateRange.to;
-
-        // Create a UTC date for the start of the selected "from" day
         const utcFrom = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0));
-        
-        // Create a UTC date for the end of the selected "to" day
         const utcTo = new Date(Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999));
-        
         requestBody.dateRange = {
           from: utcFrom.toISOString(),
           to: utcTo.toISOString(),
         };
-        // --- END of new logic ---
       }
       
       const response = await fetch(apiUrl, {
@@ -351,26 +343,18 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         groupBy: [],
       };
 
-      // Inside fetchData function...
       const preset = timePresets.find(p => p.key === selectedPreset);
       if (preset?.interval) {
         requestBody.interval = preset.interval;
       } else if (dateRange?.from && dateRange?.to) {
-        // --- START of new logic ---
         const from = dateRange.from;
         const to = dateRange.to;
-
-        // Create a UTC date for the start of the selected "from" day
         const utcFrom = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0));
-        
-        // Create a UTC date for the end of the selected "to" day
         const utcTo = new Date(Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999));
-        
         requestBody.dateRange = {
           from: utcFrom.toISOString(),
           to: utcTo.toISOString(),
         };
-        // --- END of new logic ---
       }
 
       const response = await fetch(apiUrl, {
@@ -450,10 +434,9 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     fetchData();
   };
   
-  const activeFilters = Object.entries(columnFilters).filter(([, value]) => value && value.length > 0);
+  const activeFilters = Object.entries(columnFilters).filter(([, value]) => value && value.values.length > 0);
   
   const handleVisibilityChange = (columnId: keyof ErrorLog, value: boolean) => {
-    // Only update column visibility; do not affect groupBy
     setColumnVisibility(prev => ({
       ...prev,
       [columnId]: !!value,
@@ -464,9 +447,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     setColumnVisibility(
       Object.fromEntries(allColumns.map(col => [col.id, false]))
     );
-    // Do NOT clear groupBy when deselecting all columns; preserve previous groupBy
-    // This prevents unnecessary API requests and preserves grouping state
-    // setGroupBy([]); // Removed
   };
 
   const handlePresetClick = (key: string) => {
@@ -557,7 +537,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     return allColumns;
   }, []);
 
-  // Decouple group by options from column visibility; use chartBreakdownOptions order and values
   const visibleGroupByOptions = useMemo(() => {
     const groupableIds = new Set(GroupByOptionsList.map(o => o.id));
     return chartBreakdownOptions
@@ -567,6 +546,14 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         return col ? { ...col } : { id: opt.value as keyof ErrorLog, name: opt.label };
       });
   }, []);
+
+  const getOperatorText = (op: 'in' | 'notIn' | 'and') => {
+    switch (op) {
+      case 'in': return 'IS ONE OF';
+      case 'notIn': return 'IS NONE OF';
+      case 'and': return 'MUST CONTAIN ALL';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -743,22 +730,31 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                                 </Button>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                {activeFilters.map(([key, value]) => {
-                                    if (!value || value.length === 0) return null;
+                                {activeFilters.map(([key, condition]) => {
+                                    if (!condition || condition.values.length === 0) return null;
                                     const column = allColumns.find(c => c.id === key);
                                     if (!column) return null;
 
-                                    return value.map((val, index) => (
+                                    return condition.values.map((val, index) => (
                                       <Badge key={`${key}-${index}`} variant="secondary" className="pl-2 pr-1 py-1 text-sm font-normal">
-                                          {index === 0 && <span className="font-semibold mr-1">{column.name}:</span>}
+                                          {index === 0 && <span className="font-semibold mr-1">{column.name} {getOperatorText(condition.operator)}:</span>}
                                           <span className="mr-1 truncate max-w-xs">{String(val)}</span>
                                           <button 
                                               className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20 disabled:opacity-50"
                                               onClick={() => {
-                                                  setColumnFilters(prev => ({
-                                                      ...prev,
-                                                      [key]: prev[key as keyof ColumnFilters]?.filter(v => v !== val)
-                                                  }));
+                                                  const newValues = condition.values.filter(v => v !== val);
+                                                  if (newValues.length > 0) {
+                                                      setColumnFilters(prev => ({
+                                                          ...prev,
+                                                          [key]: { ...condition, values: newValues }
+                                                      }));
+                                                  } else {
+                                                      setColumnFilters(prev => {
+                                                          const newFilters = { ...prev };
+                                                          delete newFilters[key as keyof ColumnFilters];
+                                                          return newFilters;
+                                                      });
+                                                  }
                                               }}
                                               disabled={isPending}
                                           >
