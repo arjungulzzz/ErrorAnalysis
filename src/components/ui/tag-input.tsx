@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -25,7 +26,8 @@ export const TagInput = React.forwardRef<HTMLInputElement, TagInputProps>((props
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       const newTag = inputValue.trim();
-      if (newTag && !value.includes(newTag)) {
+      const lowercasedValue = value.map(t => t.toLowerCase());
+      if (newTag && !lowercasedValue.includes(newTag.toLowerCase())) {
         onChange([...value, newTag]);
       }
       setInputValue('');
@@ -37,13 +39,17 @@ export const TagInput = React.forwardRef<HTMLInputElement, TagInputProps>((props
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
       e.preventDefault();
       const pasteText = e.clipboardData.getData('text');
+      const lowercasedValue = value.map(t => t.toLowerCase());
+      
       const newTags = pasteText
         .split(/[\n,]+/)
         .map(tag => tag.trim())
-        .filter(tag => tag && !value.includes(tag));
+        .filter(tag => tag && !lowercasedValue.includes(tag.toLowerCase()));
       
-      if (newTags.length > 0) {
-        onChange([...value, ...newTags]);
+      const uniqueNewTags = Array.from(new Set(newTags));
+
+      if (uniqueNewTags.length > 0) {
+        onChange([...value, ...uniqueNewTags]);
       }
       setInputValue('');
   };
