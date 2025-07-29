@@ -11,26 +11,45 @@ import { Badge } from './badge';
 interface TagInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   value: string[];
   onChange: (value: string[]) => void;
+  validationType?: 'numeric' | 'text';
 }
 
 export const TagInput = React.forwardRef<HTMLInputElement, TagInputProps>((props, ref) => {
-  const { className, value, onChange, ...rest } = props;
+  const { className, value, onChange, validationType = 'text', ...rest } = props;
 
   const [inputValue, setInputValue] = React.useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   };
+  
+  const isNumeric = (str: string) => /^\d+$/.test(str);
+
+  const addTags = (tagsToAdd: string[]) => {
+    const lowercasedValue = value.map(t => t.toLowerCase());
+    
+    let validTags = tagsToAdd
+      .map(tag => tag.trim())
+      .filter(tag => tag); // remove empty tags
+
+    if (validationType === 'numeric') {
+        validTags = validTags.filter(isNumeric);
+    }
+      
+    const newUniqueTags = validTags.filter(tag => !lowercasedValue.includes(tag.toLowerCase()));
+    
+    if (newUniqueTags.length > 0) {
+      // De-duplicate the new tags themselves before adding
+      onChange([...value, ...Array.from(new Set(newUniqueTags))]);
+    }
+
+    setInputValue('');
+  }
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
-      const newTag = inputValue.trim();
-      const lowercasedValue = value.map(t => t.toLowerCase());
-      if (newTag && !lowercasedValue.includes(newTag.toLowerCase())) {
-        onChange([...value, newTag]);
-      }
-      setInputValue('');
+      addTags([inputValue]);
     } else if (e.key === 'Backspace' && !inputValue && value.length > 0) {
         onChange(value.slice(0, -1));
     }
@@ -39,19 +58,8 @@ export const TagInput = React.forwardRef<HTMLInputElement, TagInputProps>((props
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
       e.preventDefault();
       const pasteText = e.clipboardData.getData('text');
-      const lowercasedValue = value.map(t => t.toLowerCase());
-      
-      const newTags = pasteText
-        .split(/[\n,]+/)
-        .map(tag => tag.trim())
-        .filter(tag => tag && !lowercasedValue.includes(tag.toLowerCase()));
-      
-      const uniqueNewTags = Array.from(new Set(newTags));
-
-      if (uniqueNewTags.length > 0) {
-        onChange([...value, ...uniqueNewTags]);
-      }
-      setInputValue('');
+      const tagsFromPaste = pasteText.split(/[\n,]+/);
+      addTags(tagsFromPaste);
   };
 
   const removeTag = (tagToRemove: string) => {

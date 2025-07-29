@@ -1,3 +1,4 @@
+
 "use client";
 
 import { ArrowDown, ArrowUp, ChevronsUpDown, Filter } from "lucide-react";
@@ -80,6 +81,7 @@ export function DataTableColumnHeader<TData, TValue>({
   const FilterPopoverContent = () => {
     const [values, setValues] = useState(filterValues);
     const [operator, setOperator] = useState<FilterOperator>(filterOperator);
+    const isNumericColumn = column === 'port_number' || column === 'error_number';
 
     return (
       <PopoverContent className="w-80" align="start" onClick={(e) => e.stopPropagation()}>
@@ -106,6 +108,7 @@ export function DataTableColumnHeader<TData, TValue>({
              <Label htmlFor={`filter-${column}`}>Values</Label>
              <p className="text-xs text-muted-foreground mt-1">
               Enter values and press Enter. You can also paste comma or newline-separated values.
+              {isNumericColumn && <span className="font-bold"> Only numbers are allowed.</span>}
             </p>
             <TagInput
               id={`filter-${column}`}
@@ -113,6 +116,7 @@ export function DataTableColumnHeader<TData, TValue>({
               value={values}
               onChange={setValues}
               className="mt-2 h-auto"
+              validationType={isNumericColumn ? 'numeric' : 'text'}
             />
           </div>
           
