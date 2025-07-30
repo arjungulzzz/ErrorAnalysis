@@ -524,7 +524,7 @@ export function ErrorTable({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Error Groups by {friendlyGroupNames}</CardTitle>
+          <CardTitle>Groups by {friendlyGroupNames}</CardTitle>
           <CardDescription>
             {isLoading ? 'Loading groups...' : (groupData && groupData.length > 0 ? 'Showing top groups. Click a row to expand.' : 'No groups to display.')}
           </CardDescription>
@@ -581,9 +581,8 @@ export function ErrorTable({
     <TooltipProvider>
       <Card>
         <CardHeader>
-          <CardTitle>Error Logs</CardTitle>
           <CardDescription>
-            Showing {logs.length > 0 ? `1-${logs.length}` : 0} of {totalLogs.toLocaleString()} errors.
+            Showing {logs.length > 0 ? `1-${logs.length}` : 0} of {totalLogs.toLocaleString()} logs.
           </CardDescription>
         </CardHeader>
         <CardContent>

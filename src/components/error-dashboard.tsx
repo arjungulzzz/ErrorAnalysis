@@ -873,8 +873,8 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="logs">Error Logs</TabsTrigger>
-              <TabsTrigger value="chart">Trend Chart</TabsTrigger>
+              <TabsTrigger value="logs">Logs</TabsTrigger>
+              <TabsTrigger value="chart">Trend</TabsTrigger>
           </TabsList>
           <TabsContent value="logs" className="mt-4">
               <ErrorTable 

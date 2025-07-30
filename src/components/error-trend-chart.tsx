@@ -84,7 +84,6 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, 
     <Card>
       <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-            <CardTitle>Error Trend</CardTitle>
             <CardDescription>
             The frequency of errors over the selected time period.
             </CardDescription>
