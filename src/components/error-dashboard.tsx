@@ -504,6 +504,26 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       fetchChartData(true);
     }
   };
+
+  const handleReset = () => {
+    setLogs([]);
+    setTotalLogs(0);
+    setChartData([]);
+    setGroupData([]);
+    setPage(1);
+    setDateRange(undefined);
+    setSelectedPreset('none');
+    setColumnFilters({});
+    setSort({ column: 'log_date_time', direction: 'descending' });
+    setGroupBy([]);
+    setColumnVisibility(
+      Object.fromEntries(
+        allColumns.map(col => [col.id, defaultVisibleColumns.includes(col.id)])
+      )
+    );
+    setActiveTab('logs');
+    setLastRefreshed(null);
+  };
   
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => value && value.values.length > 0);
   
@@ -526,6 +546,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     switch (key) {
         case 'none':
             setDateRange(undefined);
+            setChartData([]);
             break;
         case '1h':
             setDateRange({ from: subHours(now, 1), to: now });
@@ -629,10 +650,10 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white border-b border-primary shadow-sm">
-        <div className="flex items-center gap-2 min-w-0">
+        <button onClick={handleReset} className="flex items-center gap-2 min-w-0 no-underline text-white hover:opacity-90 transition-opacity">
           <Logo src="/circana-logo.svg" fallbackSrc="/favicon.ico" className="h-7 w-7" />
           <span className="font-semibold text-base truncate">AnalyticServer Errors Dashboard</span>
-        </div>
+        </button>
         <div className="flex items-center gap-2">
           {lastRefreshed && (
             <TooltipProvider>
