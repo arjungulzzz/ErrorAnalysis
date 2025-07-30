@@ -97,7 +97,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   );
   
   const [isPending, startTransition] = useTransition();
-  const [isChartPending, startChartTransition] = useTransition();
   const [isExporting, setIsExporting] = useState(false);
   const [chartBreakdownBy, setChartBreakdownBy] = useState<ChartBreakdownByOption>('repository_path');
   
@@ -116,7 +115,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
   const latestRequestIdRef = useRef<string | null>(null);
 
-  const fetchLogs = useCallback((isRefresh = false) => {
+  const fetchData = useCallback((isRefresh = false) => {
     startTransition(async () => {
       const isPresetActive = selectedPreset && selectedPreset !== 'none';
       const isFullDateRange = dateRange?.from && dateRange.to;
@@ -142,7 +141,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         return;
       }
       
-      const requestId = `req_logs_${new Date().getTime()}`;
+      const requestId = `req_data_${new Date().getTime()}`;
       latestRequestIdRef.current = requestId;
       
       const requestBody: LogsApiRequest = {
@@ -222,7 +221,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
   
   const fetchChartData = useCallback((isRefresh = false) => {
-    startChartTransition(async () => {
+    startTransition(async () => {
       const isPresetActive = selectedPreset && selectedPreset !== 'none';
       const isFullDateRange = dateRange?.from && dateRange.to;
 
@@ -250,8 +249,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         filters: columnFilters,
         chartBucket: getChartBucket(),
         chartBreakdownFields: defaultBreakdownFields,
-        // "Group By Hack" to prevent backend from fetching unnecessary logs
-        groupBy: ['host_name'], 
+        groupBy: ['host_name'],
       };
 
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -487,15 +485,19 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   // Consolidated data fetching logic
   useEffect(() => {
     if (activeTab === 'logs') {
-      fetchLogs();
+      fetchData();
     } else if (activeTab === 'chart') {
       fetchChartData();
     }
-  }, [activeTab, page, fetchLogs, fetchChartData]);
+  // The dependency arrays are intentionally different for the two paths.
+  // We don't want to re-fetch logs just because the activeTab changes.
+  // The chart data fetch should be more sensitive to filter changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, page, fetchData, fetchChartData]);
 
   const handleRefresh = () => {
     if (activeTab === 'logs') {
-      fetchLogs(true);
+      fetchData(true);
     } else if (activeTab === 'chart') {
       fetchChartData(true);
     }
@@ -644,8 +646,8 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                 </Tooltip>
             </TooltipProvider>
           )}
-          <Button onClick={handleRefresh} disabled={isPending || isChartPending} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
-            <RotateCw className={`mr-1 h-4 w-4 ${(isPending || isChartPending) ? 'animate-spin' : ''}`} />
+          <Button onClick={handleRefresh} disabled={isPending} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
+            <RotateCw className={`mr-1 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
           <Button onClick={handleExport} disabled={isPending || isExporting || groupBy.length > 0} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
@@ -669,7 +671,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                           "w-full justify-start text-left font-normal",
                           !dateRange && "text-muted-foreground"
                         )}
-                        disabled={isPending || isChartPending}
+                        disabled={isPending}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {displayDateText()}
@@ -709,7 +711,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                     <Label htmlFor="group-by-trigger">Group By</Label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" disabled={isPending || isChartPending || activeTab === 'chart'} id="group-by-trigger">
+                        <Button variant="outline" className="w-full justify-between" disabled={isPending || activeTab === 'chart'} id="group-by-trigger">
                           <span>{groupBy.length > 0 ? `Grouped by ${groupBy.length} column(s)` : 'None'}</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
@@ -749,7 +751,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                     <Label htmlFor="view-options-trigger">View Options</Label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" disabled={isPending || isChartPending || activeTab === 'chart'} id="view-options-trigger">
+                        <Button variant="outline" className="w-full justify-between" disabled={isPending || activeTab === 'chart'} id="view-options-trigger">
                           <span>Toggle columns</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
@@ -791,7 +793,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                                     variant="link" 
                                     className="h-auto p-0 text-sm"
                                     onClick={() => setColumnFilters({})}
-                                    disabled={isPending || isChartPending}
+                                    disabled={isPending}
                                 >
                                     Clear all
                                 </Button>
@@ -823,7 +825,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                                                       });
                                                   }
                                               }}
-                                              disabled={isPending || isChartPending}
+                                              disabled={isPending}
                                           >
                                               <span className="sr-only">Remove {column.name} filter for {val}</span>
                                               <X className="h-3 w-3" />
@@ -842,7 +844,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                                     variant="link" 
                                     className="h-auto p-0 text-sm"
                                     onClick={() => setGroupBy([])}
-                                    disabled={isPending || isChartPending}
+                                    disabled={isPending}
                                 >
                                     Clear
                                 </Button>
@@ -856,7 +858,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                                     <button
                                       className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20 disabled:opacity-50"
                                       onClick={() => setGroupBy(current => current.filter(item => item !== groupKey))}
-                                      disabled={isPending || isChartPending}
+                                      disabled={isPending}
                                     >
                                       <span className="sr-only">Remove {column?.name} grouping</span>
                                       <X className="h-3 w-3" />
@@ -901,7 +903,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           <TabsContent value="chart" className="mt-4">
               <ErrorTrendChart 
                 data={chartData} 
-                isLoading={isChartPending}
+                isLoading={isPending}
                 breakdownBy={chartBreakdownBy}
                 setBreakdownBy={setChartBreakdownBy}
                 breakdownOptions={chartBreakdownOptions}
