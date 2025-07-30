@@ -249,7 +249,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         filters: columnFilters,
         chartBucket: getChartBucket(),
         chartBreakdownFields: defaultBreakdownFields,
-        groupBy: ['host_name'],
+        groupBy: [], // Send empty groupBy to get chart data without grouping logs
       };
 
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -484,16 +484,18 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
   // Consolidated data fetching logic
   useEffect(() => {
+    const isFilterChange = true; 
+
     if (activeTab === 'logs') {
-      fetchData();
+      fetchData(isFilterChange);
     } else if (activeTab === 'chart') {
-      fetchChartData();
+      fetchChartData(isFilterChange);
     }
-  // The dependency arrays are intentionally different for the two paths.
-  // We don't want to re-fetch logs just because the activeTab changes.
-  // The chart data fetch should be more sensitive to filter changes.
+  // This effect should run when filters change or when the active tab changes.
+  // The fetch functions themselves are wrapped in useCallback to prevent
+  // re-running unless their own dependencies change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, page, fetchData, fetchChartData]);
+  }, [page, activeTab, fetchData, fetchChartData]);
 
   const handleRefresh = () => {
     if (activeTab === 'logs') {
