@@ -285,6 +285,9 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         
         const data: LogsApiResponse = await response.json();
         setChartData(data.chartData || []);
+        if (data.dbTime && data.dbTimeUtc && data.dbTimezone) {
+            setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc, timezone: data.dbTimezone });
+        }
         chartFetchedForFilters.current = filterSignature;
 
       } catch (error) {
