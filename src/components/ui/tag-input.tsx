@@ -12,15 +12,17 @@ interface TagInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   value: string[];
   onChange: (value: string[]) => void;
   validationType?: 'numeric' | 'text';
+  onInputChange?: (value: string) => void;
 }
 
 export const TagInput = React.forwardRef<HTMLInputElement, TagInputProps>((props, ref) => {
-  const { className, value, onChange, validationType = 'text', ...rest } = props;
+  const { className, value, onChange, validationType = 'text', onInputChange, ...rest } = props;
 
   const [inputValue, setInputValue] = React.useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
+    onInputChange?.(e.target.value);
   };
   
   const isNumeric = (str: string) => /^\d+$/.test(str);
@@ -44,12 +46,15 @@ export const TagInput = React.forwardRef<HTMLInputElement, TagInputProps>((props
     }
 
     setInputValue('');
+    onInputChange?.('');
   }
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addTags([inputValue]);
+      if(inputValue.trim()) {
+        e.preventDefault();
+        addTags([inputValue]);
+      }
     } else if (e.key === 'Backspace' && !inputValue && value.length > 0) {
         onChange(value.slice(0, -1));
     }

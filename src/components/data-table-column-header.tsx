@@ -81,11 +81,35 @@ export function DataTableColumnHeader<TData, TValue>({
   const FilterPopoverContent = () => {
     const [values, setValues] = useState(filterValues);
     const [operator, setOperator] = useState<FilterOperator>(filterOperator);
+    const [pendingInputValue, setPendingInputValue] = useState('');
     const isNumericColumn = column === 'port_number' || column === 'error_number';
+
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        
+        let finalValues = [...values];
+        const newTag = pendingInputValue.trim();
+
+        if (newTag) {
+            const isNumeric = /^\d+$/.test(newTag);
+            if (validationType === 'numeric' && !isNumeric) {
+                // Ignore non-numeric input for numeric columns
+            } else {
+                const lowercasedValues = finalValues.map(v => v.toLowerCase());
+                if (!lowercasedValues.includes(newTag.toLowerCase())) {
+                    finalValues.push(newTag);
+                }
+            }
+        }
+        
+        handleFilterChange({ operator, values: finalValues });
+    };
+
+    const validationType = isNumericColumn ? 'numeric' : 'text';
 
     return (
       <PopoverContent className="w-80" align="start" onClick={(e) => e.stopPropagation()}>
-        <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label>Filter logic for {title}</Label>
             <RadioGroup value={operator} onValueChange={(v) => setOperator(v as FilterOperator)} className="mt-2">
@@ -115,13 +139,15 @@ export function DataTableColumnHeader<TData, TValue>({
               placeholder={`Add values...`}
               value={values}
               onChange={setValues}
+              onInputChange={setPendingInputValue}
               className="mt-2 h-auto"
-              validationType={isNumericColumn ? 'numeric' : 'text'}
+              validationType={validationType}
             />
           </div>
           
           <div className="flex justify-between gap-2">
             <Button 
+              type="button"
               variant="ghost" 
               size="sm"
               className="w-full h-8"
@@ -130,15 +156,14 @@ export function DataTableColumnHeader<TData, TValue>({
               Clear & Close
             </Button>
             <Button 
+              type="submit"
               size="sm"
               className="w-full h-8"
-              disabled={values.length === 0}
-              onClick={() => handleFilterChange({ operator, values })}
             >
               Apply
             </Button>
           </div>
-        </div>
+        </form>
       </PopoverContent>
     );
   };
