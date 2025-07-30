@@ -711,7 +711,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                     <Label htmlFor="group-by-trigger">Group By</Label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" disabled={isPending || isChartPending} id="group-by-trigger">
+                        <Button variant="outline" className="w-full justify-between" disabled={isPending || isChartPending || activeTab === 'chart'} id="group-by-trigger">
                           <span>{groupBy.length > 0 ? `Grouped by ${groupBy.length} column(s)` : 'None'}</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
@@ -751,7 +751,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                     <Label htmlFor="view-options-trigger">View Options</Label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" disabled={isPending || isChartPending} id="view-options-trigger">
+                        <Button variant="outline" className="w-full justify-between" disabled={isPending || isChartPending || activeTab === 'chart'} id="view-options-trigger">
                           <span>Toggle columns</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
