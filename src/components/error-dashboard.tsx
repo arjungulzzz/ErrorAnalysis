@@ -25,6 +25,7 @@ import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import Logo from './logo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -95,6 +96,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   );
   
   const [isPending, startTransition] = useTransition();
+  const [isChartPending, startChartTransition] = useTransition();
   const [isExporting, setIsExporting] = useState(false);
   const [chartBreakdownBy, setChartBreakdownBy] = useState<ChartBreakdownByOption>('repository_path');
   
@@ -109,9 +111,12 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     }, {} as Record<keyof ErrorLog, number>)
   );
 
-  const latestRequestIdRef = useRef<string | null>(null);
+  const [activeTab, setActiveTab] = useState('logs');
 
-  const fetchData = useCallback(() => {
+  const latestRequestIdRef = useRef<string | null>(null);
+  const chartFetchedForFilters = useRef<string | null>(null);
+
+  const fetchData = useCallback((isRefresh = false) => {
     startTransition(async () => {
     const isPresetActive = selectedPreset && selectedPreset !== 'none';
     const isFullDateRange = dateRange?.from && dateRange.to;
@@ -123,6 +128,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           setChartData([]);
           setGroupData([]);
           setLastRefreshed(null);
+          chartFetchedForFilters.current = null;
         }
         return;
       }
@@ -137,22 +143,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         return;
       }
       
-      const getChartBucket = (): ChartBucket => {
-          if (selectedPreset) {
-              if (['1h', '4h', '8h', '1d'].includes(selectedPreset)) {
-                  return 'hour';
-              }
-          }
-          if (dateRange?.from && dateRange?.to) {
-              const diffInHours = (dateRange.to.getTime() - dateRange.from.getTime()) / 36e5;
-              if (diffInHours <= 48) { // 2 days or less
-                  return 'hour';
-              }
-          }
-          return 'day'; // Default for longer ranges
-      };
-      
-      const chartBucket = getChartBucket();
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
       latestRequestIdRef.current = requestId;
       
@@ -162,30 +152,21 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
         groupBy,
-        chartBucket,
-        chartBreakdownFields: defaultBreakdownFields,
       };
       
-      // Inside fetchData function...
       const preset = timePresets.find(p => p.key === selectedPreset);
       if (preset?.interval) {
         requestBody.interval = preset.interval;
       } else if (dateRange?.from && dateRange?.to) {
-        // --- START of new logic ---
         const from = dateRange.from;
         const to = dateRange.to;
-
-        // Create a UTC date for the start of the selected "from" day
         const utcFrom = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0));
-        
-        // Create a UTC date for the end of the selected "to" day
         const utcTo = new Date(Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999));
         
         requestBody.dateRange = {
           from: utcFrom.toISOString(),
           to: utcTo.toISOString(),
         };
-        // --- END of new logic ---
       }
 
       try {
@@ -218,8 +199,11 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           
           setLogs(processLogs(data.logs));
           setTotalLogs(data.totalCount);
-          setChartData(data.chartData || []);
           setGroupData(data.groupData ? processGroupData(data.groupData) : []);
+          
+          if (isRefresh) {
+            chartFetchedForFilters.current = null;
+          }
 
           if (data.dbTime && data.dbTimeUtc && data.dbTimezone) {
               setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc, timezone: data.dbTimezone });
@@ -236,13 +220,85 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           });
           setLogs([]);
           setTotalLogs(0);
-          setChartData([]);
           setGroupData([]);
         }
       }
     });
   }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
   
+  const fetchChartData = useCallback(() => {
+    startChartTransition(async () => {
+      const isPresetActive = selectedPreset && selectedPreset !== 'none';
+      const isFullDateRange = dateRange?.from && dateRange.to;
+
+      if (!isPresetActive && !isFullDateRange) return;
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) return;
+
+      const getChartBucket = (): ChartBucket => {
+          if (selectedPreset) {
+              if (['1h', '4h', '8h', '1d'].includes(selectedPreset)) return 'hour';
+          }
+          if (dateRange?.from && dateRange?.to) {
+              const diffInHours = (dateRange.to.getTime() - dateRange.from.getTime()) / 36e5;
+              if (diffInHours <= 48) return 'hour';
+          }
+          return 'day';
+      };
+      
+      const filterSignature = JSON.stringify({dateRange, selectedPreset, columnFilters});
+      if (chartFetchedForFilters.current === filterSignature) {
+          return;
+      }
+      
+      const requestId = `req_chart_${new Date().getTime()}`;
+      const requestBody: LogsApiRequest = {
+        requestId,
+        filters: columnFilters,
+        chartBucket: getChartBucket(),
+        chartBreakdownFields: defaultBreakdownFields,
+      };
+
+      const preset = timePresets.find(p => p.key === selectedPreset);
+      if (preset?.interval) {
+        requestBody.interval = preset.interval;
+      } else if (dateRange?.from && dateRange?.to) {
+        const from = dateRange.from;
+        const to = dateRange.to;
+        const utcFrom = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0));
+        const utcTo = new Date(Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999));
+        requestBody.dateRange = {
+          from: utcFrom.toISOString(),
+          to: utcTo.toISOString(),
+        };
+      }
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+        
+        const data: LogsApiResponse = await response.json();
+        setChartData(data.chartData || []);
+        chartFetchedForFilters.current = filterSignature;
+
+      } catch (error) {
+        console.error("Failed to fetch chart data:", error);
+        toast({
+            variant: "destructive",
+            title: "Failed to Fetch Chart Data",
+            description: error instanceof Error ? error.message : "An unknown error occurred.",
+        });
+        setChartData([]);
+      }
+    });
+  }, [dateRange, selectedPreset, columnFilters, toast]);
+
   const fetchLogsForDrilldown = useCallback(async (drilldownFilters: Record<string, string>, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) {
@@ -261,7 +317,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       }, {} as ColumnFilters);
 
       const combinedFilters = { ...columnFilters, ...drilldownFiltersAsConditions };
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'chartBreakdownFields'> & { groupBy: [] } = {
+      const requestBody: LogsApiRequest = {
           requestId,
           pagination: { page, pageSize },
           sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
@@ -335,7 +391,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       }
 
       const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'pagination' | 'chartBreakdownFields'> & { groupBy: [], pagination: {page: number, pageSize: number} } = {
+      const requestBody: LogsApiRequest = {
         requestId,
         pagination: { page: 1, pageSize: totalLogs }, // Fetch all logs
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
@@ -424,14 +480,24 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
   useEffect(() => {
     setPage(1);
+    chartFetchedForFilters.current = null; // Reset chart cache on filter change
   }, [columnFilters, groupBy, sort, dateRange, selectedPreset]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
   
+  useEffect(() => {
+    if (activeTab === 'chart') {
+        fetchChartData();
+    }
+  }, [activeTab, fetchChartData]);
+
   const handleRefresh = () => {
-    fetchData();
+    fetchData(true);
+    if(activeTab === 'chart') {
+        fetchChartData();
+    }
   };
   
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => value && value.values.length > 0);
@@ -577,8 +643,8 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                 </Tooltip>
             </TooltipProvider>
           )}
-          <Button onClick={handleRefresh} disabled={isPending} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
-            <RotateCw className={`mr-1 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
+          <Button onClick={handleRefresh} disabled={isPending || isChartPending} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
+            <RotateCw className={`mr-1 h-4 w-4 ${(isPending || isChartPending) ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
           <Button onClick={handleExport} disabled={isPending || isExporting || groupBy.length > 0} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
@@ -602,7 +668,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                           "w-full justify-start text-left font-normal",
                           !dateRange && "text-muted-foreground"
                         )}
-                        disabled={isPending}
+                        disabled={isPending || isChartPending}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {displayDateText()}
@@ -642,7 +708,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                     <Label htmlFor="group-by-trigger">Group By</Label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" disabled={isPending} id="group-by-trigger">
+                        <Button variant="outline" className="w-full justify-between" disabled={isPending || isChartPending} id="group-by-trigger">
                           <span>{groupBy.length > 0 ? `Grouped by ${groupBy.length} column(s)` : 'None'}</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
@@ -682,7 +748,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                     <Label htmlFor="view-options-trigger">View Options</Label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" disabled={isPending} id="view-options-trigger">
+                        <Button variant="outline" className="w-full justify-between" disabled={isPending || isChartPending} id="view-options-trigger">
                           <span>Toggle columns</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
@@ -724,7 +790,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                                     variant="link" 
                                     className="h-auto p-0 text-sm"
                                     onClick={() => setColumnFilters({})}
-                                    disabled={isPending}
+                                    disabled={isPending || isChartPending}
                                 >
                                     Clear all
                                 </Button>
@@ -756,7 +822,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                                                       });
                                                   }
                                               }}
-                                              disabled={isPending}
+                                              disabled={isPending || isChartPending}
                                           >
                                               <span className="sr-only">Remove {column.name} filter for {val}</span>
                                               <X className="h-3 w-3" />
@@ -775,7 +841,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                                     variant="link" 
                                     className="h-auto p-0 text-sm"
                                     onClick={() => setGroupBy([])}
-                                    disabled={isPending}
+                                    disabled={isPending || isChartPending}
                                 >
                                     Clear
                                 </Button>
@@ -789,7 +855,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                                     <button
                                       className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20 disabled:opacity-50"
                                       onClick={() => setGroupBy(current => current.filter(item => item !== groupKey))}
-                                      disabled={isPending}
+                                      disabled={isPending || isChartPending}
                                     >
                                       <span className="sr-only">Remove {column?.name} grouping</span>
                                       <X className="h-3 w-3" />
@@ -805,34 +871,42 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         </CardContent>
       </Card>
       
-      <ErrorTable 
-        logs={logs} 
-        isLoading={isPending}
-        sortDescriptor={sort}
-        setSortDescriptor={setSort}
-        page={page}
-        pageSize={pageSize}
-        totalLogs={totalLogs}
-        setPage={setPage}
-        groupBy={groupBy}
-        groupData={groupData}
-        columnFilters={columnFilters}
-        setColumnFilters={setColumnFilters}
-        columnVisibility={columnVisibility}
-        allColumns={allColumns}
-        columnWidths={columnWidths}
-        setColumnWidths={setColumnWidths}
-        fetchLogsForDrilldown={fetchLogsForDrilldown}
-      />
-      <div className="mt-6">
-        <ErrorTrendChart 
-          data={chartData} 
-          isLoading={isPending}
-          breakdownBy={chartBreakdownBy}
-          setBreakdownBy={setChartBreakdownBy}
-          breakdownOptions={chartBreakdownOptions}
-        />
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="logs">Error Logs</TabsTrigger>
+              <TabsTrigger value="chart">Trend Chart</TabsTrigger>
+          </TabsList>
+          <TabsContent value="logs" className="mt-4">
+              <ErrorTable 
+                logs={logs} 
+                isLoading={isPending}
+                sortDescriptor={sort}
+                setSortDescriptor={setSort}
+                page={page}
+                pageSize={pageSize}
+                totalLogs={totalLogs}
+                setPage={setPage}
+                groupBy={groupBy}
+                groupData={groupData}
+                columnFilters={columnFilters}
+                setColumnFilters={setColumnFilters}
+                columnVisibility={columnVisibility}
+                allColumns={allColumns}
+                columnWidths={columnWidths}
+                setColumnWidths={setColumnWidths}
+                fetchLogsForDrilldown={fetchLogsForDrilldown}
+              />
+          </TabsContent>
+          <TabsContent value="chart" className="mt-4">
+              <ErrorTrendChart 
+                data={chartData} 
+                isLoading={isChartPending}
+                breakdownBy={chartBreakdownBy}
+                setBreakdownBy={setChartBreakdownBy}
+                breakdownOptions={chartBreakdownOptions}
+              />
+          </TabsContent>
+      </Tabs>
     </div>
   );
 }
