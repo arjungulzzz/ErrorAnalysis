@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview
  * The main component for the Error Insights Dashboard.
@@ -114,21 +115,19 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   const [activeTab, setActiveTab] = useState('logs');
 
   const latestRequestIdRef = useRef<string | null>(null);
-  const chartFetchedForFilters = useRef<string | null>(null);
 
-  const fetchData = useCallback((isRefresh = false) => {
+  const fetchLogs = useCallback((isRefresh = false) => {
     startTransition(async () => {
-    const isPresetActive = selectedPreset && selectedPreset !== 'none';
-    const isFullDateRange = dateRange?.from && dateRange.to;
+      const isPresetActive = selectedPreset && selectedPreset !== 'none';
+      const isFullDateRange = dateRange?.from && dateRange.to;
 
-    if (!isPresetActive && !isFullDateRange) {
-      if (selectedPreset === 'none' && !dateRange?.from) {
+      if (!isPresetActive && !isFullDateRange) {
+        if (selectedPreset === 'none' && !dateRange?.from) {
           setLogs([]);
           setTotalLogs(0);
           setChartData([]);
           setGroupData([]);
           setLastRefreshed(null);
-          chartFetchedForFilters.current = null;
         }
         return;
       }
@@ -143,7 +142,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         return;
       }
       
-      const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
+      const requestId = `req_logs_${new Date().getTime()}`;
       latestRequestIdRef.current = requestId;
       
       const requestBody: LogsApiRequest = {
@@ -200,10 +199,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           setLogs(processLogs(data.logs));
           setTotalLogs(data.totalCount);
           setGroupData(data.groupData ? processGroupData(data.groupData) : []);
-          
-          if (isRefresh) {
-            chartFetchedForFilters.current = null;
-          }
 
           if (data.dbTime && data.dbTimeUtc && data.dbTimezone) {
               setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc, timezone: data.dbTimezone });
@@ -226,7 +221,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     });
   }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
   
-  const fetchChartData = useCallback(() => {
+  const fetchChartData = useCallback((isRefresh = false) => {
     startChartTransition(async () => {
       const isPresetActive = selectedPreset && selectedPreset !== 'none';
       const isFullDateRange = dateRange?.from && dateRange.to;
@@ -247,17 +242,16 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           return 'day';
       };
       
-      const filterSignature = JSON.stringify({dateRange, selectedPreset, columnFilters});
-      if (chartFetchedForFilters.current === filterSignature) {
-          return;
-      }
-      
       const requestId = `req_chart_${new Date().getTime()}`;
+      latestRequestIdRef.current = requestId;
+
       const requestBody: LogsApiRequest = {
         requestId,
         filters: columnFilters,
         chartBucket: getChartBucket(),
         chartBreakdownFields: defaultBreakdownFields,
+        // "Group By Hack" to prevent backend from fetching unnecessary logs
+        groupBy: ['host_name'], 
       };
 
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -284,20 +278,24 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
         
         const data: LogsApiResponse = await response.json();
-        setChartData(data.chartData || []);
-        if (data.dbTime && data.dbTimeUtc && data.dbTimezone) {
-            setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc, timezone: data.dbTimezone });
+
+        if (requestId === latestRequestIdRef.current) {
+            setChartData(data.chartData || []);
+            if (data.dbTime && data.dbTimeUtc && data.dbTimezone) {
+                setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc, timezone: data.dbTimezone });
+            }
         }
-        chartFetchedForFilters.current = filterSignature;
 
       } catch (error) {
-        console.error("Failed to fetch chart data:", error);
-        toast({
-            variant: "destructive",
-            title: "Failed to Fetch Chart Data",
-            description: error instanceof Error ? error.message : "An unknown error occurred.",
-        });
-        setChartData([]);
+        if (requestId === latestRequestIdRef.current) {
+            console.error("Failed to fetch chart data:", error);
+            toast({
+                variant: "destructive",
+                title: "Failed to Fetch Chart Data",
+                description: error instanceof Error ? error.message : "An unknown error occurred.",
+            });
+            setChartData([]);
+        }
       }
     });
   }, [dateRange, selectedPreset, columnFilters, toast]);
@@ -312,7 +310,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           });
           return { logs: [], totalCount: 0 };
       }
-      const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
+      const requestId = `req_drilldown_${new Date().getTime()}`;
 
       const drilldownFiltersAsConditions: ColumnFilters = Object.entries(drilldownFilters).reduce((acc, [key, value]) => {
         acc[key as keyof ColumnFilters] = { operator: 'in', values: [value] };
@@ -393,7 +391,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         return;
       }
 
-      const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
+      const requestId = `req_export_${new Date().getTime()}`;
       const requestBody: LogsApiRequest = {
         requestId,
         pagination: { page: 1, pageSize: totalLogs }, // Fetch all logs
@@ -481,25 +479,25 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     }
   }, [totalLogs, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility]);
 
+  // Reset page to 1 when filters change, but not on page change itself
   useEffect(() => {
     setPage(1);
-    chartFetchedForFilters.current = null; // Reset chart cache on filter change
   }, [columnFilters, groupBy, sort, dateRange, selectedPreset]);
 
+  // Consolidated data fetching logic
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-  
-  useEffect(() => {
-    if (activeTab === 'chart') {
-        fetchChartData();
+    if (activeTab === 'logs') {
+      fetchLogs();
+    } else if (activeTab === 'chart') {
+      fetchChartData();
     }
-  }, [activeTab, fetchChartData]);
+  }, [activeTab, page, fetchLogs, fetchChartData]);
 
   const handleRefresh = () => {
-    fetchData(true);
-    if(activeTab === 'chart') {
-        fetchChartData();
+    if (activeTab === 'logs') {
+      fetchLogs(true);
+    } else if (activeTab === 'chart') {
+      fetchChartData(true);
     }
   };
   
@@ -836,7 +834,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                             </div>
                         </div>
                     )}
-                    {groupBy.length > 0 && (
+                    {groupBy.length > 0 && activeTab === 'logs' && (
                         <div>
                             <div className="flex items-center gap-2 mb-2">
                                 <h4 className="text-sm font-medium">Grouping Order</h4>
