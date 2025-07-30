@@ -67,10 +67,28 @@ export type SortDescriptor = {
 };
 
 /**
- * Defines the structure for storing active column filters.
- * Each key is a column name, and the value is an array of strings to filter by.
+ * Defines the available logical operators for column filtering.
+ * - 'in': Corresponds to a SQL `IN` or `OR` condition.
+ * - 'notIn': Corresponds to a SQL `NOT IN` condition.
+ * - 'and': Corresponds to a series of `AND` conditions (e.g., `ILIKE '%a%' AND ILIKE '%b%'`).
  */
-export type ColumnFilters = Partial<Record<keyof ErrorLog, string[]>>;
+export type FilterOperator = 'in' | 'notIn' | 'and';
+
+/**
+ * Defines the structure for a single filter condition, including the
+ * operator and the values to filter by.
+ */
+export type FilterCondition = {
+  operator: FilterOperator;
+  values: string[];
+};
+
+/**
+ * Defines the structure for storing active column filters.
+ * Each key is a column name, and the value is a `FilterCondition` object.
+ */
+export type ColumnFilters = Partial<Record<keyof ErrorLog, FilterCondition>>;
+
 
 /**
  * Defines the available options for grouping logs in the table.
@@ -130,7 +148,7 @@ export type ErrorTrendDataPoint = {
   count: number;
   /** A user-friendly formatted date for the chart's x-axis (e.g., "Nov 21" or "10:30"). */
   formattedDate: string;
-  /** 
+  /**
    * A pre-fetched object containing breakdowns for all possible fields.
    * The frontend selects which breakdown to display without a new API call.
    */
@@ -161,7 +179,7 @@ export type LogsApiRequest = {
   dateRange?: ApiDateRange;
   pagination: { page: number; pageSize: number };
   sort: SortDescriptor;
-  filters: Partial<Record<keyof ErrorLog, string[]>>;
+  filters: ColumnFilters;
   groupBy: GroupByOption[];
   chartBreakdownFields?: GroupByOption[];
   chartBucket?: ChartBucket;

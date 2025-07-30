@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -10,25 +11,50 @@ import { Badge } from './badge';
 interface TagInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   value: string[];
   onChange: (value: string[]) => void;
+  validationType?: 'numeric' | 'text';
+  onInputChange?: (value: string) => void;
 }
 
 export const TagInput = React.forwardRef<HTMLInputElement, TagInputProps>((props, ref) => {
-  const { className, value, onChange, ...rest } = props;
+  const { className, value, onChange, validationType = 'text', onInputChange, ...rest } = props;
 
   const [inputValue, setInputValue] = React.useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
+    onInputChange?.(e.target.value);
   };
+  
+  const isNumeric = (str: string) => /^\d+$/.test(str);
+
+  const addTags = (tagsToAdd: string[]) => {
+    const lowercasedValue = value.map(t => t.toLowerCase());
+    
+    let validTags = tagsToAdd
+      .map(tag => tag.trim())
+      .filter(tag => tag); // remove empty tags
+
+    if (validationType === 'numeric') {
+        validTags = validTags.filter(isNumeric);
+    }
+      
+    const newUniqueTags = validTags.filter(tag => !lowercasedValue.includes(tag.toLowerCase()));
+    
+    if (newUniqueTags.length > 0) {
+      // De-duplicate the new tags themselves before adding
+      onChange([...value, ...Array.from(new Set(newUniqueTags))]);
+    }
+
+    setInputValue('');
+    onInputChange?.('');
+  }
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const newTag = inputValue.trim();
-      if (newTag && !value.includes(newTag)) {
-        onChange([...value, newTag]);
+      if(inputValue.trim()) {
+        e.preventDefault();
+        addTags([inputValue]);
       }
-      setInputValue('');
     } else if (e.key === 'Backspace' && !inputValue && value.length > 0) {
         onChange(value.slice(0, -1));
     }
@@ -37,15 +63,8 @@ export const TagInput = React.forwardRef<HTMLInputElement, TagInputProps>((props
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
       e.preventDefault();
       const pasteText = e.clipboardData.getData('text');
-      const newTags = pasteText
-        .split(/[\n,]+/)
-        .map(tag => tag.trim())
-        .filter(tag => tag && !value.includes(tag));
-      
-      if (newTags.length > 0) {
-        onChange([...value, ...newTags]);
-      }
-      setInputValue('');
+      const tagsFromPaste = pasteText.split(/[\n,]+/);
+      addTags(tagsFromPaste);
   };
 
   const removeTag = (tagToRemove: string) => {
