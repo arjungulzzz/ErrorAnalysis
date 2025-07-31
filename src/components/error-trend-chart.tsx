@@ -80,12 +80,20 @@ const CustomTooltip = ({ active, payload, breakdownBy, breakdownOptions }: any) 
 
 
 export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, breakdownOptions }: ErrorTrendChartProps) {
+  const totalErrors = React.useMemo(() => {
+    if (!data) return 0;
+    return data.reduce((acc, current) => acc + current.count, 0);
+  }, [data]);
+
   return (
     <Card>
       <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
+        <div className="flex-1">
+            <CardTitle>
+                {totalErrors > 0 ? `${totalErrors.toLocaleString()} Total Errors` : 'Error Trend'}
+            </CardTitle>
             <CardDescription>
-            The frequency of errors over the selected time period.
+                The frequency of errors over the selected time period.
             </CardDescription>
         </div>
         <div className="flex items-center gap-2">
