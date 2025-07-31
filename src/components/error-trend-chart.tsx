@@ -89,11 +89,8 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, 
     <Card>
       <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex-1">
-            <CardTitle>
-                {totalErrors > 0 ? `${totalErrors.toLocaleString()} Total Errors` : 'Error Trend'}
-            </CardTitle>
             <CardDescription>
-                The frequency of errors over the selected time period.
+                The frequency of errors over the selected time period. Total Errors : {totalErrors.toLocaleString()}
             </CardDescription>
         </div>
         <div className="flex items-center gap-2">
