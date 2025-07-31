@@ -81,17 +81,26 @@ const CustomTooltip = ({ active, payload, breakdownBy, breakdownOptions }: any) 
 
 export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, breakdownOptions }: ErrorTrendChartProps) {
   const totalErrors = React.useMemo(() => {
-    if (!data) return 0;
+    if (isLoading || !data) return 0;
     return data.reduce((acc, current) => acc + current.count, 0);
-  }, [data]);
+  }, [data, isLoading]);
 
   return (
     <Card>
-      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <CardHeader className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1">
-            <CardDescription>
-                The frequency of errors over the selected time period. Total Errors : {totalErrors.toLocaleString()}
-            </CardDescription>
+          <CardTitle>
+            {isLoading ? (
+              <Skeleton className="h-7 w-48" />
+            ) : data.length > 0 ? (
+              `${totalErrors.toLocaleString()} Total Errors`
+            ) : (
+              'Error Trend'
+            )}
+          </CardTitle>
+          <CardDescription>
+            The frequency of errors over the selected time period.
+          </CardDescription>
         </div>
         <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Breakdown By</span>
@@ -111,7 +120,9 @@ export function ErrorTrendChart({ data, isLoading, breakdownBy, setBreakdownBy, 
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <Skeleton className="h-[300px] w-full" />
+          <div className="h-[300px] w-full">
+            <Skeleton className="h-full w-full" />
+          </div>
         ) : !data || data.length === 0 ? (
           <div className="h-[300px] w-full flex items-center justify-center text-muted-foreground">
               No data available to display. Select a time range to start.

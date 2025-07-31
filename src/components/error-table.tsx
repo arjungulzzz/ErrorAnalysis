@@ -125,6 +125,50 @@ const GroupedRow = ({
       }
       return String(value);
     };
+    
+    const DrilldownSkeleton = () => (
+      <div className="p-2">
+        <Card className="shadow-none border-border/50">
+          <CardContent className="p-0">
+            <Table className="bg-background">
+              <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                      <TableHead className="h-10 w-12 text-center">#</TableHead>
+                      {visibleColumns.map(col => (
+                          <TableHead key={col.id} className="h-10">
+                              <Skeleton className="h-5 w-3/4" />
+                          </TableHead>
+                      ))}
+                  </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={`drilldown-skeleton-${i}`}>
+                    <TableCell>
+                      <Skeleton className="h-6 w-8 mx-auto" />
+                    </TableCell>
+                    {visibleColumns.map(c => (
+                       <TableCell key={c.id}>
+                         <Skeleton className="h-6 w-full" />
+                       </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+          <CardFooter>
+            <DataTablePagination
+              page={1}
+              pageSize={pageSize}
+              total={0}
+              setPage={() => {}}
+              isPending={true}
+            />
+          </CardFooter>
+        </Card>
+      </div>
+    );
 
     return (
         <React.Fragment>
@@ -161,15 +205,10 @@ const GroupedRow = ({
             {isExpanded && isFinalLevel && (
                 <TableRow>
                     <TableCell colSpan={2} className="p-0 bg-muted/25" style={{ paddingLeft: `${1 + (level * 1.5)}rem` }}>
-                        <div className="p-2">
-                            {logsData?.isLoading && (
-                                <div className="flex items-center justify-center h-32 text-muted-foreground gap-2">
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                    <span>Loading logs...</span>
-                                </div>
-                            )}
-                            {logsData && !logsData.isLoading && (
-                                logsData.logs.length > 0 ? (
+                        {logsData?.isLoading && <DrilldownSkeleton />}
+                        {logsData && !logsData.isLoading && (
+                            logsData.logs.length > 0 ? (
+                                <div className="p-2">
                                     <Card className="shadow-none border-border/50">
                                         <CardContent className="p-0">
                                             <Table className="bg-background">
@@ -255,13 +294,13 @@ const GroupedRow = ({
                                             />
                                         </CardFooter>
                                     </Card>
-                                ) : (
-                                    <div className="h-24 text-center text-muted-foreground flex items-center justify-center">
-                                        No individual logs are available for this group.
-                                    </div>
-                                )
-                            )}
-                        </div>
+                                </div>
+                            ) : (
+                                <div className="h-24 text-center text-muted-foreground flex items-center justify-center">
+                                    No individual logs are available for this group.
+                                </div>
+                            )
+                        )}
                     </TableCell>
                 </TableRow>
             )}
@@ -513,7 +552,7 @@ export function ErrorTable({
     const friendlyGroupNames = groupBy.map(g => allColumns.find(c => c.id === g)?.name || g).join(', ');
     
     const renderGroupedSkeleton = () => (
-        Array.from({ length: 5 }).map((_, i) => (
+        Array.from({ length: 10 }).map((_, i) => (
             <TableRow key={`grouped-skeleton-${i}`}>
                 <TableCell><Skeleton className="h-8 w-3/4" /></TableCell>
                 <TableCell><Skeleton className="h-8 w-1/4 ml-auto" /></TableCell>
@@ -582,7 +621,7 @@ export function ErrorTable({
       <Card>
         <CardHeader>
           <CardDescription>
-            Showing {logs.length > 0 ? `1-${logs.length}` : 0} of {totalLogs.toLocaleString()} logs.
+            {isLoading ? <Skeleton className="h-5 w-48" /> : `Showing ${logs.length > 0 ? `1-${logs.length}` : 0} of ${totalLogs.toLocaleString()} logs.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
