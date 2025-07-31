@@ -47,6 +47,7 @@ export type ApiGroupDataPoint = {
 
 /**
  * Defines the structure of the successful response from the logs API.
+ * The backend might return only a subset of these fields depending on the request.
  */
 export type LogsApiResponse = {
   logs: ApiErrorLog[];
@@ -172,15 +173,16 @@ export type ChartBucket = 'day' | 'hour';
 /**
  * Defines the structure of the request body sent to the logs API.
  * The frontend will handle converting array filters to comma-separated strings.
+ * Fields are optional to support specialized requests (e.g., logs only vs. chart only).
  */
 export type LogsApiRequest = {
   requestId: string;
   interval?: string;
   dateRange?: ApiDateRange;
-  pagination: { page: number; pageSize: number };
-  sort: SortDescriptor;
+  pagination?: { page: number; pageSize: number };
+  sort?: SortDescriptor;
   filters: ColumnFilters;
-  groupBy: GroupByOption[];
+  groupBy?: GroupByOption[];
   chartBreakdownFields?: GroupByOption[];
   chartBucket?: ChartBucket;
 };

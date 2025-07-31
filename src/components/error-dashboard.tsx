@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview
  * The main component for the Error Insights Dashboard.
@@ -25,6 +26,7 @@ import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import Logo from './logo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -109,15 +111,17 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     }, {} as Record<keyof ErrorLog, number>)
   );
 
+  const [activeTab, setActiveTab] = useState('logs');
+
   const latestRequestIdRef = useRef<string | null>(null);
 
-  const fetchData = useCallback(() => {
+  const fetchData = useCallback((isRefresh = false) => {
     startTransition(async () => {
-    const isPresetActive = selectedPreset && selectedPreset !== 'none';
-    const isFullDateRange = dateRange?.from && dateRange.to;
+      const isPresetActive = selectedPreset && selectedPreset !== 'none';
+      const isFullDateRange = dateRange?.from && dateRange.to;
 
-    if (!isPresetActive && !isFullDateRange) {
-      if (selectedPreset === 'none' && !dateRange?.from) {
+      if (!isPresetActive && !isFullDateRange) {
+        if (selectedPreset === 'none' && !dateRange?.from) {
           setLogs([]);
           setTotalLogs(0);
           setChartData([]);
@@ -137,23 +141,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         return;
       }
       
-      const getChartBucket = (): ChartBucket => {
-          if (selectedPreset) {
-              if (['1h', '4h', '8h', '1d'].includes(selectedPreset)) {
-                  return 'hour';
-              }
-          }
-          if (dateRange?.from && dateRange?.to) {
-              const diffInHours = (dateRange.to.getTime() - dateRange.from.getTime()) / 36e5;
-              if (diffInHours <= 48) { // 2 days or less
-                  return 'hour';
-              }
-          }
-          return 'day'; // Default for longer ranges
-      };
-      
-      const chartBucket = getChartBucket();
-      const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
+      const requestId = `req_data_${new Date().getTime()}`;
       latestRequestIdRef.current = requestId;
       
       const requestBody: LogsApiRequest = {
@@ -162,30 +150,21 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
         groupBy,
-        chartBucket,
-        chartBreakdownFields: defaultBreakdownFields,
       };
       
-      // Inside fetchData function...
       const preset = timePresets.find(p => p.key === selectedPreset);
       if (preset?.interval) {
         requestBody.interval = preset.interval;
       } else if (dateRange?.from && dateRange?.to) {
-        // --- START of new logic ---
         const from = dateRange.from;
         const to = dateRange.to;
-
-        // Create a UTC date for the start of the selected "from" day
         const utcFrom = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0));
-        
-        // Create a UTC date for the end of the selected "to" day
         const utcTo = new Date(Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999));
         
         requestBody.dateRange = {
           from: utcFrom.toISOString(),
           to: utcTo.toISOString(),
         };
-        // --- END of new logic ---
       }
 
       try {
@@ -218,7 +197,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           
           setLogs(processLogs(data.logs));
           setTotalLogs(data.totalCount);
-          setChartData(data.chartData || []);
           setGroupData(data.groupData ? processGroupData(data.groupData) : []);
 
           if (data.dbTime && data.dbTimeUtc && data.dbTimezone) {
@@ -236,13 +214,90 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           });
           setLogs([]);
           setTotalLogs(0);
-          setChartData([]);
           setGroupData([]);
         }
       }
     });
   }, [page, pageSize, sort, columnFilters, groupBy, dateRange, selectedPreset, toast]);
   
+  const fetchChartData = useCallback((isRefresh = false) => {
+    startTransition(async () => {
+      const isPresetActive = selectedPreset && selectedPreset !== 'none';
+      const isFullDateRange = dateRange?.from && dateRange.to;
+
+      if (!isPresetActive && !isFullDateRange) return;
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) return;
+
+      const getChartBucket = (): ChartBucket => {
+          if (selectedPreset) {
+              if (['1h', '4h', '8h', '1d'].includes(selectedPreset)) return 'hour';
+          }
+          if (dateRange?.from && dateRange?.to) {
+              const diffInHours = (dateRange.to.getTime() - dateRange.from.getTime()) / 36e5;
+              if (diffInHours <= 48) return 'hour';
+          }
+          return 'day';
+      };
+      
+      const requestId = `req_chart_${new Date().getTime()}`;
+      latestRequestIdRef.current = requestId;
+
+      const requestBody: LogsApiRequest = {
+        requestId,
+        filters: columnFilters,
+        chartBucket: getChartBucket(),
+        chartBreakdownFields: defaultBreakdownFields,
+        groupBy: [], // Send empty groupBy to get chart data without grouping logs
+      };
+
+      const preset = timePresets.find(p => p.key === selectedPreset);
+      if (preset?.interval) {
+        requestBody.interval = preset.interval;
+      } else if (dateRange?.from && dateRange?.to) {
+        const from = dateRange.from;
+        const to = dateRange.to;
+        const utcFrom = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0));
+        const utcTo = new Date(Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999));
+        requestBody.dateRange = {
+          from: utcFrom.toISOString(),
+          to: utcTo.toISOString(),
+        };
+      }
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+        
+        const data: LogsApiResponse = await response.json();
+
+        if (requestId === latestRequestIdRef.current) {
+            setChartData(data.chartData || []);
+            if (data.dbTime && data.dbTimeUtc && data.dbTimezone) {
+                setLastRefreshed({ local: data.dbTime, utc: data.dbTimeUtc, timezone: data.dbTimezone });
+            }
+        }
+
+      } catch (error) {
+        if (requestId === latestRequestIdRef.current) {
+            console.error("Failed to fetch chart data:", error);
+            toast({
+                variant: "destructive",
+                title: "Failed to Fetch Chart Data",
+                description: error instanceof Error ? error.message : "An unknown error occurred.",
+            });
+            setChartData([]);
+        }
+      }
+    });
+  }, [dateRange, selectedPreset, columnFilters, toast]);
+
   const fetchLogsForDrilldown = useCallback(async (drilldownFilters: Record<string, string>, page: number): Promise<{logs: ErrorLog[], totalCount: number}> => {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) {
@@ -253,7 +308,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           });
           return { logs: [], totalCount: 0 };
       }
-      const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
+      const requestId = `req_drilldown_${new Date().getTime()}`;
 
       const drilldownFiltersAsConditions: ColumnFilters = Object.entries(drilldownFilters).reduce((acc, [key, value]) => {
         acc[key as keyof ColumnFilters] = { operator: 'in', values: [value] };
@@ -261,7 +316,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       }, {} as ColumnFilters);
 
       const combinedFilters = { ...columnFilters, ...drilldownFiltersAsConditions };
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'chartBreakdownFields'> & { groupBy: [] } = {
+      const requestBody: LogsApiRequest = {
           requestId,
           pagination: { page, pageSize },
           sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
@@ -334,8 +389,8 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         return;
       }
 
-      const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-      const requestBody: Omit<LogsApiRequest, 'groupBy' | 'chartBucket' | 'pagination' | 'chartBreakdownFields'> & { groupBy: [], pagination: {page: number, pageSize: number} } = {
+      const requestId = `req_export_${new Date().getTime()}`;
+      const requestBody: LogsApiRequest = {
         requestId,
         pagination: { page: 1, pageSize: totalLogs }, // Fetch all logs
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
@@ -422,16 +477,52 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     }
   }, [totalLogs, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility]);
 
+  // Reset page to 1 when filters change, but not on page change itself
   useEffect(() => {
     setPage(1);
   }, [columnFilters, groupBy, sort, dateRange, selectedPreset]);
 
+  // Consolidated data fetching logic
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-  
+    const isFilterChange = true; 
+
+    if (activeTab === 'logs') {
+      fetchData(isFilterChange);
+    } else if (activeTab === 'chart') {
+      fetchChartData(isFilterChange);
+    }
+  // This effect should run when filters change or when the active tab changes.
+  // The fetch functions themselves are wrapped in useCallback to prevent
+  // re-running unless their own dependencies change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, activeTab, fetchData, fetchChartData]);
+
   const handleRefresh = () => {
-    fetchData();
+    if (activeTab === 'logs') {
+      fetchData(true);
+    } else if (activeTab === 'chart') {
+      fetchChartData(true);
+    }
+  };
+
+  const handleReset = () => {
+    setLogs([]);
+    setTotalLogs(0);
+    setChartData([]);
+    setGroupData([]);
+    setPage(1);
+    setDateRange(undefined);
+    setSelectedPreset('none');
+    setColumnFilters({});
+    setSort({ column: 'log_date_time', direction: 'descending' });
+    setGroupBy([]);
+    setColumnVisibility(
+      Object.fromEntries(
+        allColumns.map(col => [col.id, defaultVisibleColumns.includes(col.id)])
+      )
+    );
+    setActiveTab('logs');
+    setLastRefreshed(null);
   };
   
   const activeFilters = Object.entries(columnFilters).filter(([, value]) => value && value.values.length > 0);
@@ -455,6 +546,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     switch (key) {
         case 'none':
             setDateRange(undefined);
+            setChartData([]);
             break;
         case '1h':
             setDateRange({ from: subHours(now, 1), to: now });
@@ -558,10 +650,10 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white border-b border-primary shadow-sm">
-        <div className="flex items-center gap-2 min-w-0">
+        <button onClick={handleReset} className="flex items-center gap-2 min-w-0 no-underline text-white hover:opacity-90 transition-opacity">
           <Logo src="/circana-logo.svg" fallbackSrc="/favicon.ico" className="h-7 w-7" />
           <span className="font-semibold text-base truncate">AnalyticServer Errors Dashboard</span>
-        </div>
+        </button>
         <div className="flex items-center gap-2">
           {lastRefreshed && (
             <TooltipProvider>
@@ -642,7 +734,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                     <Label htmlFor="group-by-trigger">Group By</Label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" disabled={isPending} id="group-by-trigger">
+                        <Button variant="outline" className="w-full justify-between" disabled={isPending || activeTab === 'chart'} id="group-by-trigger">
                           <span>{groupBy.length > 0 ? `Grouped by ${groupBy.length} column(s)` : 'None'}</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
@@ -682,7 +774,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                     <Label htmlFor="view-options-trigger">View Options</Label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" disabled={isPending} id="view-options-trigger">
+                        <Button variant="outline" className="w-full justify-between" disabled={isPending || activeTab === 'chart'} id="view-options-trigger">
                           <span>Toggle columns</span>
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
                         </Button>
@@ -767,7 +859,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                             </div>
                         </div>
                     )}
-                    {groupBy.length > 0 && (
+                    {groupBy.length > 0 && activeTab === 'logs' && (
                         <div>
                             <div className="flex items-center gap-2 mb-2">
                                 <h4 className="text-sm font-medium">Grouping Order</h4>
@@ -805,34 +897,42 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         </CardContent>
       </Card>
       
-      <ErrorTable 
-        logs={logs} 
-        isLoading={isPending}
-        sortDescriptor={sort}
-        setSortDescriptor={setSort}
-        page={page}
-        pageSize={pageSize}
-        totalLogs={totalLogs}
-        setPage={setPage}
-        groupBy={groupBy}
-        groupData={groupData}
-        columnFilters={columnFilters}
-        setColumnFilters={setColumnFilters}
-        columnVisibility={columnVisibility}
-        allColumns={allColumns}
-        columnWidths={columnWidths}
-        setColumnWidths={setColumnWidths}
-        fetchLogsForDrilldown={fetchLogsForDrilldown}
-      />
-      <div className="mt-6">
-        <ErrorTrendChart 
-          data={chartData} 
-          isLoading={isPending}
-          breakdownBy={chartBreakdownBy}
-          setBreakdownBy={setChartBreakdownBy}
-          breakdownOptions={chartBreakdownOptions}
-        />
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="logs">Logs</TabsTrigger>
+              <TabsTrigger value="chart">Trend</TabsTrigger>
+          </TabsList>
+          <TabsContent value="logs" className="mt-4">
+              <ErrorTable 
+                logs={logs} 
+                isLoading={isPending}
+                sortDescriptor={sort}
+                setSortDescriptor={setSort}
+                page={page}
+                pageSize={pageSize}
+                totalLogs={totalLogs}
+                setPage={setPage}
+                groupBy={groupBy}
+                groupData={groupData}
+                columnFilters={columnFilters}
+                setColumnFilters={setColumnFilters}
+                columnVisibility={columnVisibility}
+                allColumns={allColumns}
+                columnWidths={columnWidths}
+                setColumnWidths={setColumnWidths}
+                fetchLogsForDrilldown={fetchLogsForDrilldown}
+              />
+          </TabsContent>
+          <TabsContent value="chart" className="mt-4">
+              <ErrorTrendChart 
+                data={chartData} 
+                isLoading={isPending}
+                breakdownBy={chartBreakdownBy}
+                setBreakdownBy={setChartBreakdownBy}
+                breakdownOptions={chartBreakdownOptions}
+              />
+          </TabsContent>
+      </Tabs>
     </div>
   );
 }
