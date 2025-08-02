@@ -115,7 +115,7 @@ export function DataTableColumnHeader<TData, TValue>({
             <RadioGroup value={operator} onValueChange={(v) => setOperator(v as FilterOperator)} className="mt-2">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="in" id={`op-in-${column}`} />
-                <Label htmlFor={`op-in-${column}`} className="font-normal">Is one of (OR)</Label>
+                <Label htmlFor={`op-in-${column}`} className="font-normal">Is one of (IN)</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="notIn" id={`op-notin-${column}`} />

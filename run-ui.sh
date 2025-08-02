@@ -7,7 +7,7 @@ set -euo pipefail  # Exit on error, undefined variables, and pipe failures
 
 # Configuration variables
 readonly CONTAINER_NAME="next-container"
-readonly DOCKER_IMAGE="my-centos-node"
+readonly DOCKER_IMAGE="centos8_node18"
 readonly DEFAULT_PORT=3000
 readonly SCRIPT_NAME="$(basename "$0")"
 
