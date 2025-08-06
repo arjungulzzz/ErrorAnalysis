@@ -121,6 +121,15 @@ The frontend communicates with a single backend endpoint defined by `NEXT_PUBLIC
 
 > **Important**: The frontend application **does not perform any time conversion or formatting**. It displays the timestamp strings it receives directly from the API. The backend service is the **single source of truth** for time and is responsible for all time-related calculations and formatting.
 
+### Request IDs
+
+To aid in server-side logging and debugging, every request sent from the frontend includes a unique `requestId`. This ID follows the format `prefix_{timestamp}`, where the prefix indicates the purpose of the request. The following prefixes are used:
+
+-   **`req_data_`**: Used for general data fetching for the "Logs" tab, including flat lists and top-level grouped data. Triggered by changes to filters, sorting, pagination, or grouping.
+-   **`req_chart_`**: Used when fetching data specifically for the "Trend" tab.
+-   **`req_drilldown_`**: Sent when a user expands a final-level group to fetch the individual logs it contains.
+-   **`req_export_`**: Sent when the user clicks the "Export CSV" button to fetch all currently filtered logs.
+
 ### Request Body Parameters
 
 | Parameter               | Type                                | Description                                                                                                                                                                                                  |
@@ -144,7 +153,7 @@ This is the standard request for a paginated list of logs. `groupBy` is empty. T
 **Request (`/v1/logs`)**:
 ```json
 {
-  "requestId": "req_1700586000000_b3k4d5a1",
+  "requestId": "req_data_1700586000000_b3k4d5a1",
   "interval": "7 days",
   "pagination": { "page": 1, "pageSize": 100 },
   "sort": { "column": "log_date_time", "direction": "descending" },
@@ -188,7 +197,7 @@ When `groupBy` is used, the backend returns a nested `groupData` structure and m
 **Request (`/v1/logs`)**:
 ```json
 {
-  "requestId": "req_1700586240000_f7o8h9e5",
+  "requestId": "req_data_1700586240000_f7o8h9e5",
   "interval": "1 day",
   "pagination": { "page": 1, "pageSize": 100 },
   "sort": { "column": "log_date_time", "direction": "descending" },
@@ -228,7 +237,7 @@ When a user expands a final-level group, the frontend makes a new request to fet
 **Request (`/v1/logs`)**:
 ```json
 {
-  "requestId": "req_1700586300000_g8p9i0f6",
+  "requestId": "req_drilldown_1700586300000_g8p9i0f6",
   "interval": "1 day",
   "pagination": { "page": 1, "pageSize": 100 },
   "sort": { "column": "log_date_time", "direction": "descending" },
