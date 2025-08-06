@@ -173,13 +173,10 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: response.statusText }));
-          throw new Error(errorData.message || `API request failed with status ${response.status}`);
+        const data: LogsApiResponse & { error?: string; message?: string } = await response.json();
+        if (!response.ok || data.error) {
+          throw new Error(data.error || data.message || `API request failed with status ${response.status}`);
         }
-        const data: LogsApiResponse = await response.json();
-
         if (requestId === latestRequestIdRef.current) {
           const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
               return logs.map((log, index) => ({
@@ -272,11 +269,10 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
-
-        if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
-        
-        const data: LogsApiResponse = await response.json();
-
+        const data: LogsApiResponse & { error?: string; message?: string } = await response.json();
+        if (!response.ok || data.error) {
+          throw new Error(data.error || data.message || `API request failed with status ${response.status}`);
+        }
         if (requestId === latestRequestIdRef.current) {
             setChartData(data.chartData || []);
             if (data.dbTime && data.dbTimeUtc && data.dbTimezone) {
@@ -343,13 +339,10 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
       });
-
-      if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: response.statusText }));
-          throw new Error(errorData.message || `API request failed with status ${response.status}`);
+      const data: LogsApiResponse & { error?: string; message?: string } = await response.json();
+      if (!response.ok || data.error) {
+          throw new Error(data.error || data.message || `API request failed with status ${response.status}`);
       }
-      const data: LogsApiResponse = await response.json();
-
       const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
           return logs.map((log: ApiErrorLog, index: number) => ({
               ...log,
@@ -417,13 +410,10 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message || `API request failed with status ${response.status}`);
+      const data: LogsApiResponse & { error?: string; message?: string } = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || data.message || `API request failed with status ${response.status}`);
       }
-      const data: LogsApiResponse = await response.json();
-
       const visibleColumnDefs = allColumns.filter(c => columnVisibility[c.id]);
       const headers = visibleColumnDefs.map(c => c.name);
       const csvRows = [headers.join(',')];
