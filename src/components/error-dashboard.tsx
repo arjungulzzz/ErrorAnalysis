@@ -372,23 +372,23 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
     setIsExporting(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (!apiUrl) {
+      // Use a dedicated export endpoint if available
+      const exportApiUrl = process.env.NEXT_PUBLIC_EXPORT_API_URL;
+      if (!exportApiUrl) {
         toast({
           variant: "destructive",
-          title: "API URL Not Configured",
-          description: "Please set NEXT_PUBLIC_API_URL in your environment.",
+          title: "Export API URL Not Configured",
+          description: "Please set NEXT_PUBLIC_EXPORT_API_URL in your environment.",
         });
         return;
       }
 
       const requestId = `req_export_${new Date().getTime()}`;
-      const requestBody: LogsApiRequest = {
+      // Do NOT include pagination in export request
+      const requestBody: Partial<LogsApiRequest> = {
         requestId,
-        pagination: { page: 1, pageSize: totalLogs }, // Fetch all logs
         sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
-        groupBy: [],
       };
 
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -405,42 +405,23 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         };
       }
 
-      const response = await fetch(apiUrl, {
+      // Streaming export: expect CSV from backend
+      const response = await fetch(exportApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
-      const data: LogsApiResponse & { error?: string; message?: string } = await response.json();
-      if (!response.ok || data.error) {
-        throw new Error(data.error || data.message || `API request failed with status ${response.status}`);
+      if (!response.ok) {
+        let errorMsg = `API request failed with status ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData?.error || errData?.message) errorMsg = errData.error || errData.message;
+        } catch {}
+        throw new Error(errorMsg);
       }
-      const visibleColumnDefs = allColumns.filter(c => columnVisibility[c.id]);
-      const headers = visibleColumnDefs.map(c => c.name);
-      const csvRows = [headers.join(',')];
-      const logsToExport: ApiErrorLog[] = data.logs;
 
-      logsToExport.forEach(log => {
-        const row = visibleColumnDefs.map(colDef => {
-          const colId = colDef.id;
-          let value = log[colId as keyof ApiErrorLog];
-
-          if (colId === 'repository_path' && typeof value === 'string') {
-            const lastSlashIndex = value.lastIndexOf('/');
-            value = lastSlashIndex !== -1 ? value.substring(lastSlashIndex + 1) : value;
-          }
-          
-          let stringValue = String(value ?? '');
-
-          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-            stringValue = `"${stringValue.replace(/"/g, '""')}"`;
-          }
-          return stringValue;
-        });
-        csvRows.push(row.join(','));
-      });
-
-      const csvString = csvRows.join('\n');
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      // Stream the CSV file from the response
+      const blob = await response.blob();
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
@@ -452,7 +433,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
       toast({
         title: "Export Successful",
-        description: `${logsToExport.length} rows have been exported.`,
+        description: `CSV export has started.`,
       });
 
     } catch (error) {
