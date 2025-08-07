@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorTable } from "@/components/error-table";
 import { Card, CardContent } from "@/components/ui/card";
 import { RotateCw, ChevronDown, X, Calendar as CalendarIcon, Download } from "lucide-react";
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -352,7 +352,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       return { logs: processLogs(data.logs), totalCount: data.totalCount };
   }, [columnFilters, dateRange, pageSize, selectedPreset, sort, toast]);
 
-  const handleExport = useCallback(async () => {
+  const handleExport = useCallback(async (exportType: 'visible' | 'all') => {
     if (groupBy.length > 0) {
       toast({
         variant: "destructive",
@@ -370,7 +370,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       return;
     }
 
-    setIsExporting(true);
     try {
       // Use a dedicated export endpoint if available
       const exportApiUrl = process.env.NEXT_PUBLIC_EXPORT_API_URL;
@@ -380,15 +379,23 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           title: "Export API URL Not Configured",
           description: "Please set NEXT_PUBLIC_EXPORT_API_URL in your environment.",
         });
+        setIsExporting(false);
         return;
       }
 
+      setIsExporting(true);
+
+      const columnsToExport: (keyof ErrorLog)[] = exportType === 'visible'
+        ? allColumns.filter(c => columnVisibility[c.id]).map(c => c.id)
+        : allColumns.map(c => c.id);
+
       const requestId = `req_export_${new Date().getTime()}`;
-      // Do NOT include pagination in export request
-      const requestBody: Partial<LogsApiRequest> = {
+
+      const requestBody: LogsApiRequest = {
         requestId,
-        sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
         filters: columnFilters,
+        sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
+        columns: columnsToExport,
       };
 
       const preset = timePresets.find(p => p.key === selectedPreset);
@@ -405,6 +412,11 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         };
       }
 
+      delete requestBody.pagination;
+      delete requestBody.groupBy;
+      delete requestBody.chartBucket;
+      delete requestBody.chartBreakdownFields;
+
       // Streaming export: expect CSV from backend
       const response = await fetch(exportApiUrl, {
         method: 'POST',
@@ -420,12 +432,21 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         throw new Error(errorMsg);
       }
 
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `as_error_logs_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch && filenameMatch.length > 1) {
+          filename = filenameMatch[1];
+        }
+      }
+
       // Stream the CSV file from the response
       const blob = await response.blob();
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
-      link.setAttribute("download", `as_error_logs_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.setAttribute("download", filename);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -433,7 +454,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
       toast({
         title: "Export Successful",
-        description: `CSV export has started.`,
+        description: `${filename} has started downloading.`,
       });
 
     } catch (error) {
@@ -644,10 +665,23 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
             <RotateCw className={`mr-1 h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button onClick={handleExport} disabled={isPending || isExporting || groupBy.length > 0} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
-            <Download className={`mr-1 h-4 w-4 ${isExporting ? 'animate-spin' : ''}`} />
-            Export CSV
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button disabled={isPending || isExporting || groupBy.length > 0} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
+                <Download className={`mr-1 h-4 w-4 ${isExporting ? 'animate-spin' : ''}`} />
+                Export
+                <ChevronDown className="ml-1 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => handleExport('visible')}>
+                Export Visible Columns
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleExport('all')}>
+                Export All Columns
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

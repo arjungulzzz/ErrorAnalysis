@@ -185,4 +185,5 @@ export type LogsApiRequest = {
   groupBy?: GroupByOption[];
   chartBreakdownFields?: GroupByOption[];
   chartBucket?: ChartBucket;
+  columns?: (keyof ErrorLog)[];
 };
