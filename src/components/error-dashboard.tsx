@@ -639,6 +639,9 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     }
   };
 
+  const visibleColumnCount = useMemo(() => Object.values(columnVisibility).filter(v => v).length, [columnVisibility]);
+  const totalColumnCount = allColumns.length;
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white border-b border-primary shadow-sm">
@@ -675,10 +678,10 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => handleExport('visible')}>
-                Export Visible Columns
+                Export Visible Columns ({visibleColumnCount})
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => handleExport('all')}>
-                Export All Columns
+                Export All Columns ({totalColumnCount})
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
