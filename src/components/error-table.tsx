@@ -621,7 +621,7 @@ export function ErrorTable({
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
                                 {allColumns.map(col => (
                                     <div key={col.id} className={cn("flex flex-col gap-1", (col.id === 'log_message' || col.id === 'report_id_name') && "md:col-span-3")}>
-                                      <dt className="font-medium text-muted-foreground">{col.name}</dt>
+                                      <dt className="font-semibold text-primary">{col.name}</dt>
                                       <dd className="flex items-start justify-between gap-2 font-mono">
                                           <CopyableCell value={log[col.id]} as="span" className="whitespace-pre-wrap break-all pt-1" />
                                       </dd>
