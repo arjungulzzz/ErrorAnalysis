@@ -620,9 +620,9 @@ export function ErrorTable({
     <TooltipProvider>
       <Card>
         <CardHeader>
-          <CardDescription>
+          <div className="text-sm text-muted-foreground">
             {isLoading ? <Skeleton className="h-5 w-48" /> : `Showing ${logs.length > 0 ? `1-${logs.length}` : 0} of ${totalLogs.toLocaleString()} logs.`}
-          </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border overflow-auto">
