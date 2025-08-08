@@ -244,15 +244,12 @@ const GroupedRow = ({
                                                                             <h4 className="text-sm font-semibold">Full Log Details</h4>
                                                                             <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
                                                                                 {visibleColumns.map(col => {
-                                                                                    const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
                                                                                     const detailValue = renderExpandedDetail(log, col.id);
                                                                                     return (
-                                                                                        <div key={col.id} className="flex flex-col gap-1 md:col-span-3">
+                                                                                        <div key={col.id} className={cn("flex flex-col gap-1", (col.id === 'log_message' || col.id === 'report_id_name') && "md:col-span-3")}>
                                                                                             <dt className="font-medium text-muted-foreground">{col.name}</dt>
                                                                                             <dd className="flex items-start justify-between gap-2 font-mono">
-                                                                                                <span className="whitespace-pre-wrap break-all pt-1">
-                                                                                                    {detailValue}
-                                                                                                </span>
+                                                                                                <CopyableCell value={detailValue} columnName={col.name} as="span" className="whitespace-pre-wrap break-all pt-1" />
                                                                                             </dd>
                                                                                         </div>
                                                                                       );
@@ -291,11 +288,12 @@ const GroupedRow = ({
     );
 };
 
-const CopyableCell = ({ value, columnName }: { value: any, columnName: string }) => {
+const CopyableCell = ({ value, columnName, as = "div", className }: { value: any, columnName: string, as?: 'div' | 'span', className?: string }) => {
   const [isCopied, setIsCopied] = React.useState(false);
   const { toast } = useToast();
+  const Tag = as;
 
-  const handleCopy = async (textToCopy: string, fieldName: string) => {
+  const handleCopy = async (textToCopy: string) => {
     if (!textToCopy || textToCopy === '—') return;
 
     let success = false;
@@ -321,6 +319,10 @@ const CopyableCell = ({ value, columnName }: { value: any, columnName: string })
     
     if (success) {
       setIsCopied(true);
+      toast({
+        title: "Copied to clipboard",
+        description: `The value for "${columnName}" has been copied.`,
+      });
       setTimeout(() => setIsCopied(false), 2000);
     } else {
       toast({
@@ -334,13 +336,15 @@ const CopyableCell = ({ value, columnName }: { value: any, columnName: string })
   if (value === null || value === undefined || value === '') {
     return <span className="text-muted-foreground">—</span>;
   }
-
-  const tooltipContent = String(value);
+  
+  const textValue = String(value);
 
   return (
     <Tooltip delayDuration={100}>
       <TooltipTrigger asChild>
-        <div className="truncate w-full">{value}</div>
+        <Tag className={cn("truncate", as === "div" && "w-full", className)}>
+          {value}
+        </Tag>
       </TooltipTrigger>
       <TooltipContent
         className="max-w-md bg-background/95 backdrop-blur-sm"
@@ -349,7 +353,7 @@ const CopyableCell = ({ value, columnName }: { value: any, columnName: string })
       >
         <div className="flex flex-col gap-2 p-1">
           <p className="font-mono text-sm whitespace-pre-wrap break-words text-foreground">
-            {tooltipContent}
+            {textValue}
           </p>
           <Button
             variant="outline"
@@ -357,7 +361,7 @@ const CopyableCell = ({ value, columnName }: { value: any, columnName: string })
             className={cn("h-7 gap-1 transition-all", isCopied && "bg-green-500/10 border-green-500/20 text-green-700 hover:bg-green-500/20")}
             onClick={(e) => {
               e.stopPropagation();
-              handleCopy(tooltipContent, columnName);
+              handleCopy(textValue);
             }}
           >
             {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
@@ -368,7 +372,6 @@ const CopyableCell = ({ value, columnName }: { value: any, columnName: string })
     </Tooltip>
   );
 };
-
 
 export function ErrorTable({
   logs,
@@ -402,6 +405,8 @@ export function ErrorTable({
       isLoading: boolean;
   }>>({});
   
+  const { toast } = useToast();
+
   React.useEffect(() => {
     // When the grouping keys change, we must reset the state
     // of the expanded groups to avoid stale data and pagination.
@@ -423,7 +428,7 @@ export function ErrorTable({
         });
         setGroupLogsData(prev => ({ ...prev, [groupKey]: { ...(prev[groupKey] || { logs: [], total: 0 }), isLoading: false } }));
     }
-  }, [fetchLogsForDrilldown]);
+  }, [fetchLogsForDrilldown, toast]);
   
   const handleResizeStart = React.useCallback((columnId: keyof ErrorLog, e: React.MouseEvent) => {
       e.preventDefault();
@@ -466,34 +471,28 @@ export function ErrorTable({
   }, [resizingColumn, handleResize, handleResizeEnd]);
 
   const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => {
-    const value = log[columnId];
-    
-    let displayContent: React.ReactNode;
+    let value = log[columnId];
     
     switch (columnId) {
-        case 'log_date_time':
-        case 'as_start_date_time':
-            displayContent = String(value);
-            break;
         case 'repository_path':
             const path = String(value);
             const lastSlashIndex = path.lastIndexOf('/');
-            const truncatedPath = lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
-            displayContent = truncatedPath;
+            value = lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
             break;
         case 'error_number':
-            displayContent = (
+            value = (
                 <Badge variant={(value as number) >= 500 ? "destructive" : "secondary"}>
                     {value as number}
                 </Badge>
             );
             break;
         default:
-            displayContent = String(value);
+            // No change for other columns
+            break;
     }
 
     return (
-       <CopyableCell value={displayContent} columnName={columnName} />
+       <CopyableCell value={value} columnName={columnName} />
     );
   };
 
@@ -658,9 +657,7 @@ export function ErrorTable({
                                     <div key={col.id} className={cn("flex flex-col gap-1", (col.id === 'log_message' || col.id === 'report_id_name') && "md:col-span-3")}>
                                       <dt className="font-medium text-muted-foreground">{col.name}</dt>
                                       <dd className="flex items-start justify-between gap-2 font-mono">
-                                        <span className="whitespace-pre-wrap break-all pt-1">
-                                          {detailValue}
-                                        </span>
+                                          <CopyableCell value={detailValue} columnName={col.name} as="span" className="whitespace-pre-wrap break-all pt-1" />
                                       </dd>
                                     </div>
                                   );
