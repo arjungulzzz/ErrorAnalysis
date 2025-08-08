@@ -8,7 +8,7 @@
 
 import React from "react";
 import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOption, type GroupDataPoint } from "@/types";
-import { Copy, ChevronRight, Loader2 } from "lucide-react";
+import { Copy, ChevronRight, Loader2, Check } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -84,7 +84,6 @@ const GroupedRow = ({
     onFetchLogs,
     visibleColumns,
     renderCellContent,
-    handleCopy,
     pageSize
 }: { 
     item: GroupDataPoint; 
@@ -95,7 +94,6 @@ const GroupedRow = ({
     onFetchLogs: (path: Record<string, string>, page: number) => void;
     visibleColumns: { id: keyof ErrorLog; name: string }[];
     renderCellContent: (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => React.ReactNode;
-    handleCopy: (textToCopy: string, fieldName: string) => void;
     pageSize: number;
 }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
@@ -197,7 +195,6 @@ const GroupedRow = ({
                       onFetchLogs={onFetchLogs}
                       visibleColumns={visibleColumns}
                       renderCellContent={renderCellContent}
-                      handleCopy={handleCopy}
                       pageSize={pageSize}
                     />
                 ))
@@ -256,20 +253,6 @@ const GroupedRow = ({
                                                                                                 <span className="whitespace-pre-wrap break-all pt-1">
                                                                                                     {detailValue}
                                                                                                 </span>
-                                                                                                {isCopyable && (
-                                                                                                    <Button
-                                                                                                        variant="ghost"
-                                                                                                        size="icon"
-                                                                                                        className="h-7 w-7 shrink-0"
-                                                                                                        onClick={(e) => {
-                                                                                                            e.stopPropagation();
-                                                                                                            handleCopy(String(detailValue), col.name);
-                                                                                                        }}
-                                                                                                    >
-                                                                                                        <Copy className="h-4 w-4" />
-                                                                                                        <span className="sr-only">Copy {col.name}</span>
-                                                                                                    </Button>
-                                                                                                )}
                                                                                             </dd>
                                                                                         </div>
                                                                                       );
@@ -405,53 +388,38 @@ export function ErrorTable({
       };
   }, [resizingColumn, handleResize, handleResizeEnd]);
 
-  const handleCopy = async (textToCopy: string, fieldName: string) => {
-      if (!textToCopy || textToCopy === '—') {
-        toast({
-          title: "Nothing to copy",
-          description: `The ${fieldName} field is empty.`,
-        });
-        return;
-      }
+  const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => {
+    const [isCopied, setIsCopied] = React.useState(false);
+
+    const handleCopy = async (textToCopy: string, fieldName: string) => {
+      if (!textToCopy || textToCopy === '—') return;
 
       let success = false;
       try {
-        // Use modern clipboard API in secure contexts
-        if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(textToCopy);
-          success = true;
-        } else {
-          // Fallback for non-secure contexts (e.g., http)
-          const textArea = document.createElement("textarea");
-          textArea.value = textToCopy;
-          
-          // Make the textarea invisible
-          textArea.style.position = "absolute";
-          textArea.style.left = "-9999px";
-          
-          document.body.prepend(textArea);
-          textArea.select();
-
-          try {
-            document.execCommand('copy');
-            success = true;
-          } catch (err) {
-            success = false;
-          } finally {
-            textArea.remove();
-          }
-        }
-        
-        if (success) {
-          toast({
-            title: "Copied to clipboard",
-            description: `The ${fieldName} has been copied.`,
-          });
-        } else {
-          throw new Error('Copy command failed.');
-        }
-
+        await navigator.clipboard.writeText(textToCopy);
+        success = true;
       } catch (err) {
+        // Fallback for non-secure contexts
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+            textArea.style.position = "absolute";
+            textArea.style.left = "-9999px";
+            document.body.prepend(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            textArea.remove();
+            success = true;
+        } catch (fallbackErr) {
+            console.error("Copy to clipboard failed:", fallbackErr);
+            success = false;
+        }
+      }
+      
+      if (success) {
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000); // Revert after 2 seconds
+      } else {
         toast({
           variant: "destructive",
           title: "Copy Failed",
@@ -459,8 +427,7 @@ export function ErrorTable({
         });
       }
     };
-
-  const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => {
+    
     const value = log[columnId];
     
     if (value === null || value === undefined || value === '') {
@@ -510,14 +477,14 @@ export function ErrorTable({
                     <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 gap-1"
+                        className={cn("h-7 gap-1 transition-all", isCopied && "bg-green-500/10 border-green-500/20 text-green-700 hover:bg-green-500/20")}
                         onClick={(e) => {
                             e.stopPropagation();
                             handleCopy(tooltipContent, columnName);
                         }}
                     >
-                        <Copy className="h-3 w-3" />
-                        Copy
+                        {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                        {isCopied ? "Copied!" : "Copy"}
                     </Button>
                 </div>
             </TooltipContent>
@@ -595,7 +562,6 @@ export function ErrorTable({
                         onFetchLogs={handleFetchGroupLogs}
                         visibleColumns={visibleColumns}
                         renderCellContent={renderCellContent}
-                        handleCopy={handleCopy}
                         pageSize={pageSize}
                       />
                     ))
@@ -682,29 +648,14 @@ export function ErrorTable({
                               <h4 className="text-sm font-semibold">Full Log Details</h4>
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
                                 {visibleColumns.map(col => {
-                                  const isCopyable = col.id === 'log_message' || col.id === 'report_id_name';
                                   const detailValue = renderExpandedDetail(log, col.id);
                                   return (
-                                    <div key={col.id} className={cn("flex flex-col gap-1", isCopyable && "md:col-span-3")}>
+                                    <div key={col.id} className={cn("flex flex-col gap-1", (col.id === 'log_message' || col.id === 'report_id_name') && "md:col-span-3")}>
                                       <dt className="font-medium text-muted-foreground">{col.name}</dt>
                                       <dd className="flex items-start justify-between gap-2 font-mono">
                                         <span className="whitespace-pre-wrap break-all pt-1">
                                           {detailValue}
                                         </span>
-                                        {isCopyable && (
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 shrink-0"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleCopy(String(detailValue), col.name);
-                                                }}
-                                            >
-                                                <Copy className="h-4 w-4" />
-                                                <span className="sr-only">Copy {col.name}</span>
-                                            </Button>
-                                        )}
                                       </dd>
                                     </div>
                                   );
