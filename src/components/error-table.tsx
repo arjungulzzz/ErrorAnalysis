@@ -34,6 +34,81 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 
+
+const CopyableCell = ({ value, columnName, as = "div", className }: { value: any, columnName: string, as?: 'div' | 'span', className?: string }) => {
+  const [isCopied, setIsCopied] = React.useState(false);
+  const Tag = as;
+
+  const handleCopy = async (textToCopy: string) => {
+    if (!textToCopy || textToCopy === '—') return;
+
+    let success = false;
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      success = true;
+    } catch (err) {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        textArea.style.position = "absolute";
+        textArea.style.left = "-9999px";
+        document.body.prepend(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+        success = true;
+      } catch (fallbackErr) {
+        console.error("Copy to clipboard failed:", fallbackErr);
+        success = false;
+      }
+    }
+    
+    if (success) {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  
+  const textValue = String(value);
+
+  return (
+    <Tooltip delayDuration={100}>
+      <TooltipTrigger asChild>
+        <Tag className={cn("truncate", as === "div" && "w-full", className)}>
+          {value}
+        </Tag>
+      </TooltipTrigger>
+      <TooltipContent
+        className="max-w-md bg-background/95 backdrop-blur-sm"
+        side="bottom"
+        align="start"
+      >
+        <div className="flex flex-col gap-2 p-1">
+          <p className="font-mono text-sm whitespace-pre-wrap break-words text-foreground">
+            {textValue}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn("h-7 gap-1 transition-all", isCopied && "bg-green-500/10 border-green-500/20 text-green-700 hover:bg-green-500/20")}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCopy(textValue);
+            }}
+          >
+            {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {isCopied ? "Copied!" : "Copy"}
+          </Button>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
 interface ErrorTableProps {
   logs: ErrorLog[];
   isLoading: boolean;
@@ -288,90 +363,6 @@ const GroupedRow = ({
     );
 };
 
-const CopyableCell = ({ value, columnName, as = "div", className }: { value: any, columnName: string, as?: 'div' | 'span', className?: string }) => {
-  const [isCopied, setIsCopied] = React.useState(false);
-  const { toast } = useToast();
-  const Tag = as;
-
-  const handleCopy = async (textToCopy: string) => {
-    if (!textToCopy || textToCopy === '—') return;
-
-    let success = false;
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      success = true;
-    } catch (err) {
-      try {
-        const textArea = document.createElement("textarea");
-        textArea.value = textToCopy;
-        textArea.style.position = "absolute";
-        textArea.style.left = "-9999px";
-        document.body.prepend(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        textArea.remove();
-        success = true;
-      } catch (fallbackErr) {
-        console.error("Copy to clipboard failed:", fallbackErr);
-        success = false;
-      }
-    }
-    
-    if (success) {
-      setIsCopied(true);
-      toast({
-        title: "Copied to clipboard",
-        description: `The value for "${columnName}" has been copied.`,
-      });
-      setTimeout(() => setIsCopied(false), 2000);
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Copy Failed",
-        description: "Could not copy text to clipboard.",
-      });
-    }
-  };
-
-  if (value === null || value === undefined || value === '') {
-    return <span className="text-muted-foreground">—</span>;
-  }
-  
-  const textValue = String(value);
-
-  return (
-    <Tooltip delayDuration={100}>
-      <TooltipTrigger asChild>
-        <Tag className={cn("truncate", as === "div" && "w-full", className)}>
-          {value}
-        </Tag>
-      </TooltipTrigger>
-      <TooltipContent
-        className="max-w-md bg-background/95 backdrop-blur-sm"
-        side="bottom"
-        align="start"
-      >
-        <div className="flex flex-col gap-2 p-1">
-          <p className="font-mono text-sm whitespace-pre-wrap break-words text-foreground">
-            {textValue}
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn("h-7 gap-1 transition-all", isCopied && "bg-green-500/10 border-green-500/20 text-green-700 hover:bg-green-500/20")}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCopy(textValue);
-            }}
-          >
-            {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            {isCopied ? "Copied!" : "Copy"}
-          </Button>
-        </div>
-      </TooltipContent>
-    </Tooltip>
-  );
-};
 
 export function ErrorTable({
   logs,
@@ -471,7 +462,7 @@ export function ErrorTable({
   }, [resizingColumn, handleResize, handleResizeEnd]);
 
   const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => {
-    let value = log[columnId];
+    let value: React.ReactNode = log[columnId];
     
     switch (columnId) {
         case 'repository_path':
