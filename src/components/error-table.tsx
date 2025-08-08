@@ -32,10 +32,8 @@ import { DataTablePagination } from "./data-table-pagination";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Button } from "./ui/button";
-import { useToast } from "@/hooks/use-toast";
 
-
-const CopyableCell = ({ value, columnName, as = "div", className }: { value: any, columnName: string, as?: 'div' | 'span', className?: string }) => {
+const CopyableCell = ({ value, as = "div", className }: { value: any, as?: 'div' | 'span', className?: string }) => {
   const [isCopied, setIsCopied] = React.useState(false);
   const Tag = as;
 
@@ -83,18 +81,21 @@ const CopyableCell = ({ value, columnName, as = "div", className }: { value: any
         </Tag>
       </TooltipTrigger>
       <TooltipContent
-        className="max-w-md bg-background/95 backdrop-blur-sm"
+        className="max-w-md bg-slate-900 text-slate-50"
         side="bottom"
         align="start"
       >
         <div className="flex flex-col gap-2 p-1">
-          <p className="font-mono text-sm whitespace-pre-wrap break-words text-foreground">
+          <p className="font-mono text-sm whitespace-pre-wrap break-words">
             {textValue}
           </p>
           <Button
             variant="outline"
             size="sm"
-            className={cn("h-7 gap-1 transition-all", isCopied && "bg-green-500/10 border-green-500/20 text-green-700 hover:bg-green-500/20")}
+            className={cn(
+                "h-7 gap-1 transition-all bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-50",
+                isCopied && "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20"
+            )}
             onClick={(e) => {
               e.stopPropagation();
               handleCopy(textValue);
@@ -108,6 +109,7 @@ const CopyableCell = ({ value, columnName, as = "div", className }: { value: any
     </Tooltip>
   );
 };
+
 
 interface ErrorTableProps {
   logs: ErrorLog[];
@@ -168,7 +170,7 @@ const GroupedRow = ({
     groupLogsData: Record<string, { logs: ErrorLog[]; total: number; page: number; isLoading: boolean }>;
     onFetchLogs: (path: Record<string, string>, page: number) => void;
     visibleColumns: { id: keyof ErrorLog; name: string }[];
-    renderCellContent: (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => React.ReactNode;
+    renderCellContent: (log: ErrorLog, columnId: keyof ErrorLog) => React.ReactNode;
     pageSize: number;
 }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
@@ -299,7 +301,7 @@ const GroupedRow = ({
                                                                 </TableCell>
                                                                 {visibleColumns.map(col => (
                                                                     <TableCell key={col.id} className={cn("truncate", columnConfig.find(c => c.id === col.id)?.cellClassName)}>
-                                                                        {renderCellContent(log, col.id, col.name)}
+                                                                        {renderCellContent(log, col.id)}
                                                                     </TableCell>
                                                                 ))}
                                                             </TableRow>
@@ -310,11 +312,11 @@ const GroupedRow = ({
                                                                         <div className="p-4 bg-muted rounded-md space-y-3">
                                                                             <h4 className="text-sm font-semibold">Full Log Details</h4>
                                                                             <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
-                                                                                {visibleColumns.map(col => (
+                                                                                {allColumns.map(col => (
                                                                                     <div key={col.id} className={cn("flex flex-col gap-1", (col.id === 'log_message' || col.id === 'report_id_name') && "md:col-span-3")}>
                                                                                         <dt className="font-medium text-muted-foreground">{col.name}</dt>
                                                                                         <dd className="flex items-start justify-between gap-2 font-mono">
-                                                                                            <CopyableCell value={log[col.id]} columnName={col.name} as="span" className="whitespace-pre-wrap break-all pt-1" />
+                                                                                            <CopyableCell value={log[col.id]} as="span" className="whitespace-pre-wrap break-all pt-1" />
                                                                                         </dd>
                                                                                     </div>
                                                                                 ))}
@@ -385,7 +387,6 @@ export function ErrorTable({
       isLoading: boolean;
   }>>({});
   
-  const { toast } = useToast();
 
   React.useEffect(() => {
     // When the grouping keys change, we must reset the state
@@ -401,14 +402,9 @@ export function ErrorTable({
         const { logs, totalCount } = await fetchLogsForDrilldown(path, page);
         setGroupLogsData(prev => ({ ...prev, [groupKey]: { logs, total: totalCount, page, isLoading: false } }));
     } catch (error) {
-        toast({
-            variant: "destructive",
-            title: "Failed to Fetch Group Logs",
-            description: error instanceof Error ? error.message : "An unknown error occurred.",
-        });
         setGroupLogsData(prev => ({ ...prev, [groupKey]: { ...(prev[groupKey] || { logs: [], total: 0 }), isLoading: false } }));
     }
-  }, [fetchLogsForDrilldown, toast]);
+  }, [fetchLogsForDrilldown]);
   
   const handleResizeStart = React.useCallback((columnId: keyof ErrorLog, e: React.MouseEvent) => {
       e.preventDefault();
@@ -450,7 +446,7 @@ export function ErrorTable({
       };
   }, [resizingColumn, handleResize, handleResizeEnd]);
 
-  const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog, columnName: string) => {
+  const renderCellContent = (log: ErrorLog, columnId: keyof ErrorLog) => {
     let value: React.ReactNode = log[columnId];
     
     switch (columnId) {
@@ -472,7 +468,7 @@ export function ErrorTable({
     }
 
     return (
-       <CopyableCell value={value} columnName={columnName} />
+       <CopyableCell value={value} />
     );
   };
 
@@ -562,9 +558,9 @@ export function ErrorTable({
     <TooltipProvider>
       <Card>
         <CardHeader>
-          <div className="text-sm text-muted-foreground">
+          <CardDescription>
             {isLoading ? <Skeleton className="h-5 w-48" /> : `Showing ${logs.length > 0 ? `1-${logs.length}` : 0} of ${totalLogs.toLocaleString()} logs.`}
-          </div>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border overflow-auto">
@@ -612,7 +608,7 @@ export function ErrorTable({
                           const config = columnConfig.find(c => c.id === column.id);
                           return (
                             <TableCell key={column.id} className={cn(config?.cellClassName)}>
-                              {renderCellContent(log, column.id, column.name)}
+                              {renderCellContent(log, column.id)}
                             </TableCell>
                           )
                         })}
@@ -623,11 +619,11 @@ export function ErrorTable({
                             <div className="p-4 bg-muted/50 rounded-md space-y-3">
                               <h4 className="text-sm font-semibold">Full Log Details</h4>
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
-                                {visibleColumns.map(col => (
+                                {allColumns.map(col => (
                                     <div key={col.id} className={cn("flex flex-col gap-1", (col.id === 'log_message' || col.id === 'report_id_name') && "md:col-span-3")}>
                                       <dt className="font-medium text-muted-foreground">{col.name}</dt>
                                       <dd className="flex items-start justify-between gap-2 font-mono">
-                                          <CopyableCell value={log[col.id]} columnName={col.name} as="span" className="whitespace-pre-wrap break-all pt-1" />
+                                          <CopyableCell value={log[col.id]} as="span" className="whitespace-pre-wrap break-all pt-1" />
                                       </dd>
                                     </div>
                                 ))}
