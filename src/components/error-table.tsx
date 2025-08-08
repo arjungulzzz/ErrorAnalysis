@@ -190,14 +190,6 @@ const GroupedRow = ({
             onFetchLogs(currentPath, 1);
         }
     };
-
-    const renderExpandedDetail = (log: ErrorLog, columnId: keyof ErrorLog) => {
-      const value = log[columnId];
-      if (value === null || value === undefined || value === '') {
-        return '—';
-      }
-      return String(value);
-    };
     
     const DrilldownSkeleton = () => (
       <div className="p-2">
@@ -318,17 +310,14 @@ const GroupedRow = ({
                                                                         <div className="p-4 bg-muted rounded-md space-y-3">
                                                                             <h4 className="text-sm font-semibold">Full Log Details</h4>
                                                                             <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
-                                                                                {visibleColumns.map(col => {
-                                                                                    const detailValue = renderExpandedDetail(log, col.id);
-                                                                                    return (
-                                                                                        <div key={col.id} className={cn("flex flex-col gap-1", (col.id === 'log_message' || col.id === 'report_id_name') && "md:col-span-3")}>
-                                                                                            <dt className="font-medium text-muted-foreground">{col.name}</dt>
-                                                                                            <dd className="flex items-start justify-between gap-2 font-mono">
-                                                                                                <CopyableCell value={detailValue} columnName={col.name} as="span" className="whitespace-pre-wrap break-all pt-1" />
-                                                                                            </dd>
-                                                                                        </div>
-                                                                                      );
-                                                                                })}
+                                                                                {visibleColumns.map(col => (
+                                                                                    <div key={col.id} className={cn("flex flex-col gap-1", (col.id === 'log_message' || col.id === 'report_id_name') && "md:col-span-3")}>
+                                                                                        <dt className="font-medium text-muted-foreground">{col.name}</dt>
+                                                                                        <dd className="flex items-start justify-between gap-2 font-mono">
+                                                                                            <CopyableCell value={log[col.id]} columnName={col.name} as="span" className="whitespace-pre-wrap break-all pt-1" />
+                                                                                        </dd>
+                                                                                    </div>
+                                                                                ))}
                                                                             </dl>
                                                                         </div>
                                                                     </TableCell>
@@ -487,14 +476,6 @@ export function ErrorTable({
     );
   };
 
-  const renderExpandedDetail = (log: ErrorLog, columnId: keyof ErrorLog) => {
-    const value = log[columnId];
-    if (value === null || value === undefined || value === '') {
-      return '—';
-    }
-    return String(value);
-  };
-
   const renderSkeleton = () => (
     Array.from({ length: 10 }).map((_, i) => (
       <TableRow key={`skeleton-${i}`}>
@@ -642,17 +623,14 @@ export function ErrorTable({
                             <div className="p-4 bg-muted/50 rounded-md space-y-3">
                               <h4 className="text-sm font-semibold">Full Log Details</h4>
                               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-xs">
-                                {visibleColumns.map(col => {
-                                  const detailValue = renderExpandedDetail(log, col.id);
-                                  return (
+                                {visibleColumns.map(col => (
                                     <div key={col.id} className={cn("flex flex-col gap-1", (col.id === 'log_message' || col.id === 'report_id_name') && "md:col-span-3")}>
                                       <dt className="font-medium text-muted-foreground">{col.name}</dt>
                                       <dd className="flex items-start justify-between gap-2 font-mono">
-                                          <CopyableCell value={detailValue} columnName={col.name} as="span" className="whitespace-pre-wrap break-all pt-1" />
+                                          <CopyableCell value={log[col.id]} columnName={col.name} as="span" className="whitespace-pre-wrap break-all pt-1" />
                                       </dd>
                                     </div>
-                                  );
-                                })}
+                                ))}
                               </dl>
                             </div>
                           </TableCell>
