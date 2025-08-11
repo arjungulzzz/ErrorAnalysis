@@ -269,7 +269,11 @@ start_nextjs_service() {
         echo 'Environment variables:'
         echo 'PORT='$port
         echo 'NEXT_PUBLIC_PORT='$port
-        npm run dev -- --port $port --hostname 0.0.0.0
+        if [[ "$mode" == "prod" ]]; then
+          npm run build && npm run start -- --port $port --hostname 0.0.0.0
+        else
+          npm run dev -- --port $port --hostname 0.0.0.0
+        fi
     "
     
     # Start the container with proper environment variables and port mapping
@@ -308,6 +312,12 @@ start_nextjs_service() {
 
 # Main function
 main() {
+  local mode="dev"
+  for arg in "$@"; do
+    if [[ "$arg" == "--prod" ]]; then
+      mode="prod"
+    fi
+  done
     log_info "Starting $SCRIPT_NAME for Next.js UI..."
     
     # Handle .env file

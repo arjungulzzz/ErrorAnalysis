@@ -33,11 +33,25 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Button } from "./ui/button";
 
-const CopyableCell = ({ value, as = "div", className }: { value: any, as?: 'div' | 'span', className?: string }) => {
+interface CopyableCellProps {
+  value: any;
+  as?: 'div' | 'span';
+  className?: string;
+  maxDisplayLength?: number;
+  showCharacterCount?: boolean;
+}
+
+const CopyableCell = ({ 
+  value, 
+  as = "div", 
+  className,
+  maxDisplayLength = 100,
+  showCharacterCount = true
+}: CopyableCellProps) => {
   const [isCopied, setIsCopied] = React.useState(false);
   const Tag = as;
 
-  const handleCopy = async (textToCopy: string) => {
+  const handleCopy = React.useCallback(async (textToCopy: string) => {
     if (!textToCopy || textToCopy === '—') return;
 
     let success = false;
@@ -45,15 +59,19 @@ const CopyableCell = ({ value, as = "div", className }: { value: any, as?: 'div'
       await navigator.clipboard.writeText(textToCopy);
       success = true;
     } catch (err) {
+      // Fallback for older browsers or when clipboard API is not available
       try {
         const textArea = document.createElement("textarea");
         textArea.value = textToCopy;
         textArea.style.position = "absolute";
         textArea.style.left = "-9999px";
-        document.body.prepend(textArea);
+        textArea.style.top = "-9999px";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
         textArea.select();
+        textArea.setSelectionRange(0, textArea.value.length);
         document.execCommand('copy');
-        textArea.remove();
+        document.body.removeChild(textArea);
         success = true;
       } catch (fallbackErr) {
         console.error("Copy to clipboard failed:", fallbackErr);
@@ -63,48 +81,93 @@ const CopyableCell = ({ value, as = "div", className }: { value: any, as?: 'div'
     
     if (success) {
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+      // Reset after 2.5 seconds
+      setTimeout(() => setIsCopied(false), 2500);
     }
-  };
+  }, []);
 
+  // Handle empty/null values
   if (value === null || value === undefined || value === '') {
     return <span className="text-muted-foreground">—</span>;
   }
   
   const textValue = String(value);
+  const isLongText = textValue.length > maxDisplayLength;
+  const displayValue = React.isValidElement(value) ? value : textValue;
 
   return (
-    <Tooltip delayDuration={100}>
+    <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
-        <Tag className={cn("truncate", as === "div" && "w-full", className)}>
-          {value}
+        <Tag className={cn(
+          "truncate cursor-pointer transition-colors hover:text-foreground/80", 
+          as === "div" && "w-full", 
+          className
+        )}>
+          {displayValue}
         </Tag>
       </TooltipTrigger>
       <TooltipContent
-        className="max-w-md bg-slate-900 text-slate-50"
+        className={cn(
+          "max-w-sm bg-gradient-to-br from-popover to-popover/95 backdrop-blur-sm text-popover-foreground border",
+          "shadow-lg animate-in fade-in-0 zoom-in-95 duration-200"
+        )}
         side="bottom"
         align="start"
+        sideOffset={6}
       >
-        <div className="flex flex-col gap-2 p-1">
-          <p className="font-mono text-sm whitespace-pre-wrap break-words">
-            {textValue}
-          </p>
+        <div className="flex flex-col gap-2 p-2">
+          {/* Text content with improved styling */}
+          <div className="relative">
+            <p className="font-mono text-xs whitespace-pre-wrap break-words leading-snug selection:bg-accent">
+              {textValue}
+            </p>
+            
+            {/* Subtle gradient overlay for very long text */}
+            {textValue.length > 200 && (
+              <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-popover/95 to-transparent pointer-events-none" />
+            )}
+          </div>
+          
+          {/* Enhanced copy button */}
           <Button
             variant="outline"
             size="sm"
             className={cn(
-                "h-7 gap-1 transition-all bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-50",
-                isCopied && "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20"
+              "h-6 px-2 gap-1.5 transition-all duration-200 ease-out font-medium text-xs",
+              "focus:ring-1 focus:ring-ring focus:ring-offset-1",
+              "active:scale-95",
+              isCopied && [
+                "bg-accent hover:bg-accent/80",
+                "border-accent-foreground/20 text-accent-foreground"
+              ]
             )}
             onClick={(e) => {
               e.stopPropagation();
               handleCopy(textValue);
             }}
+            disabled={isCopied}
           >
-            {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            {isCopied ? "Copied!" : "Copy"}
+            <div className="flex items-center gap-1">
+              {isCopied ? (
+                <Check className="h-3 w-3 animate-in zoom-in-50 duration-200" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+              <span className="font-medium">
+                {isCopied ? "Copied!" : "Copy"}
+              </span>
+            </div>
           </Button>
         </div>
+        
+        {/* Optional: Character count for long text */}
+        {showCharacterCount && textValue.length > 50 && (
+          <div className="px-2 pb-1">
+            <div className="text-xs text-muted-foreground font-mono">
+              {textValue.length.toLocaleString()} chars
+            </div>
+          </div>
+        )}
       </TooltipContent>
     </Tooltip>
   );
