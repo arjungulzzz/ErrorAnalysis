@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { FeedbackSubmission } from '@/types';
 import nodemailer from 'nodemailer';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import os from 'os';
+
+const execAsync = promisify(exec);
 
 // Helper function to format the application state for the email body
 const formatApplicationState = (state: FeedbackSubmission['applicationState']) => {
@@ -40,6 +45,136 @@ const formatUserEnvironment = (env: FeedbackSubmission['userEnvironment']) => {
   return output;
 };
 
+// Check if localhost SMTP is available (Linux/Mac)
+async function isLocalSMTPAvailable(): Promise<boolean> {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: 'localhost',
+      port: 25,
+      secure: false,
+      ignoreTLS: true,
+    });
+    
+    await transporter.verify();
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Send email using system sendmail command (Linux/Mac)
+async function sendViaSystemMail(to: string, subject: string, body: string): Promise<void> {
+  const message = `To: ${to}
+Subject: ${subject}
+Content-Type: text/plain; charset=utf-8
+
+${body}`;
+
+  try {
+    // Try sendmail first
+    await execAsync('which sendmail');
+    const sendmail = exec('sendmail -t');
+    sendmail.stdin?.write(message);
+    sendmail.stdin?.end();
+    
+    return new Promise((resolve, reject) => {
+      sendmail.on('exit', (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`sendmail exited with code ${code}`));
+        }
+      });
+      sendmail.on('error', reject);
+    });
+  } catch (error) {
+    // Fallback to mail command
+    const escapedSubject = subject.replace(/"/g, '\\"');
+    const command = `echo "${body.replace(/"/g, '\\"')}" | mail -s "${escapedSubject}" ${to}`;
+    await execAsync(command);
+  }
+}
+
+// Send email using localhost SMTP (Linux/Mac)
+async function sendViaLocalSMTP(to: string, subject: string, textBody: string, htmlBody: string): Promise<void> {
+  const transporter = nodemailer.createTransport({
+    host: 'localhost',
+    port: 25,
+    secure: false,
+    ignoreTLS: true,
+  });
+
+  await transporter.sendMail({
+    from: 'feedback@localhost',
+    to: to,
+    subject: subject,
+    text: textBody,
+    html: htmlBody,
+  });
+}
+
+// Send email using SMTP with credentials (Windows/fallback)
+async function sendViaSMTP(to: string, subject: string, textBody: string, htmlBody: string): Promise<void> {
+  const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
+  
+  if (!EMAIL_HOST || !EMAIL_PORT || !EMAIL_USER || !EMAIL_PASS) {
+    throw new Error('SMTP credentials not configured');
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: EMAIL_HOST,
+    port: parseInt(EMAIL_PORT, 10),
+    secure: parseInt(EMAIL_PORT, 10) === 465,
+    auth: {
+      user: EMAIL_USER,
+      pass: EMAIL_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: `"Error Dashboard Feedback" <${EMAIL_USER}>`,
+    to: to,
+    subject: subject,
+    text: textBody,
+    html: htmlBody,
+  });
+}
+
+// Smart email sender that tries different methods based on platform
+async function sendEmail(to: string, subject: string, textBody: string, htmlBody: string): Promise<{ success: boolean; method?: string; error?: string }> {
+  const platform = os.platform();
+  const isUnix = platform === 'linux' || platform === 'darwin';
+  
+  // On Unix-like systems, try local methods first
+  if (isUnix) {
+    // Try localhost SMTP first
+    try {
+      if (await isLocalSMTPAvailable()) {
+        await sendViaLocalSMTP(to, subject, textBody, htmlBody);
+        return { success: true, method: 'localhost SMTP' };
+      }
+    } catch (error) {
+      console.log('Localhost SMTP failed:', (error as Error).message);
+    }
+
+    // Try system mail commands
+    try {
+      await sendViaSystemMail(to, subject, textBody);
+      return { success: true, method: 'system sendmail' };
+    } catch (error) {
+      console.log('System sendmail failed:', (error as Error).message);
+    }
+  }
+
+  // Fallback to SMTP with credentials (Windows or when local methods fail)
+  try {
+    await sendViaSMTP(to, subject, textBody, htmlBody);
+    return { success: true, method: 'SMTP with credentials' };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const feedbackData = (await request.json()) as FeedbackSubmission;
@@ -50,27 +185,42 @@ export async function POST(request: Request) {
     console.log("Feedback Data:", JSON.stringify(feedbackData, null, 2));
     console.log("----------------------------");
 
-    // Check for necessary environment variables
-    const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_TO } = process.env;
-    if (!EMAIL_HOST || !EMAIL_PORT || !EMAIL_USER || !EMAIL_PASS || !EMAIL_TO) {
-      console.warn("Email configuration is incomplete. Skipping email notification.");
-      // Still return a success to the user, as the feedback was logged.
+    // Get email recipient from environment
+    const EMAIL_TO = process.env.EMAIL_TO;
+    const platform = os.platform();
+    const isWindows = platform === 'win32';
+
+    // Check if we can send emails
+    let canSendEmail = true;
+    let emailError = '';
+
+    if (isWindows) {
+      // On Windows, require all SMTP environment variables
+      const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
+      if (!EMAIL_HOST || !EMAIL_PORT || !EMAIL_USER || !EMAIL_PASS || !EMAIL_TO) {
+        canSendEmail = false;
+        emailError = "Email configuration incomplete. On Windows, EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, and EMAIL_TO are required.";
+      }
+    } else {
+      // On Unix-like systems, only EMAIL_TO is required (we can use system mail)
+      if (!EMAIL_TO) {
+        canSendEmail = false;
+        emailError = "EMAIL_TO environment variable is required.";
+      }
+    }
+
+    if (!canSendEmail) {
+      console.warn(emailError);
       return NextResponse.json(
-        { message: "Feedback submitted successfully. Thank you!" },
+        { 
+          message: "Feedback logged successfully, but email notification could not be sent.",
+          error: emailError,
+          logged: true,
+          emailSent: false
+        },
         { status: 200 }
       );
     }
-
-    // Create a transporter object using SMTP transport
-    const transporter = nodemailer.createTransport({
-      host: EMAIL_HOST,
-      port: parseInt(EMAIL_PORT, 10),
-      secure: parseInt(EMAIL_PORT, 10) === 465, // true for 465, false for other ports
-      auth: {
-        user: EMAIL_USER,
-        pass: EMAIL_PASS,
-      },
-    });
 
     // Prepare email content
     const subject = `[${feedbackData.feedbackType.toUpperCase()}] New Feedback for Error Dashboard`;
@@ -79,6 +229,7 @@ A new piece of feedback has been submitted.
 
 From: ${feedbackData.email || 'Not provided'}
 Type: ${feedbackData.feedbackType}
+Platform: ${platform}
 --------------------------------
 Description:
 ${feedbackData.description}
@@ -95,6 +246,7 @@ ${formatUserEnvironment(feedbackData.userEnvironment)}
         <h2>New Feedback Submission</h2>
         <p><strong>From:</strong> ${feedbackData.email || 'Not provided'}</p>
         <p><strong>Type:</strong> <span style="text-transform: capitalize; font-weight: bold;">${feedbackData.feedbackType}</span></p>
+        <p><strong>Platform:</strong> ${platform}</p>
         <hr>
         <h3>Description</h3>
         <p style="white-space: pre-wrap;">${feedbackData.description}</p>
@@ -107,23 +259,41 @@ ${formatUserEnvironment(feedbackData.userEnvironment)}
       </div>
     `;
 
-    // Send mail with defined transport object
-    await transporter.sendMail({
-      from: `"Error Dashboard Feedback" <${EMAIL_USER}>`,
-      to: EMAIL_TO,
-      subject: subject,
-      text: textBody,
-      html: htmlBody,
-    });
+    // Attempt to send email
+    const emailResult = await sendEmail(EMAIL_TO, subject, textBody, htmlBody);
 
-    return NextResponse.json(
-      { message: "Feedback submitted successfully. Thank you!" },
-      { status: 200 }
-    );
+    if (emailResult.success) {
+      console.log(`Email sent successfully via ${emailResult.method}`);
+      return NextResponse.json(
+        { 
+          message: "Feedback submitted successfully. Thank you!",
+          logged: true,
+          emailSent: true,
+          method: emailResult.method
+        },
+        { status: 200 }
+      );
+    } else {
+      console.warn(`Failed to send email: ${emailResult.error}`);
+      return NextResponse.json(
+        { 
+          message: "Feedback logged successfully, but email notification could not be sent.",
+          error: emailResult.error,
+          logged: true,
+          emailSent: false
+        },
+        { status: 200 }
+      );
+    }
   } catch (error) {
     console.error("Error processing feedback:", error);
     return NextResponse.json(
-      { message: "An error occurred while submitting feedback." },
+      { 
+        message: "An error occurred while submitting feedback.",
+        error: (error as Error).message,
+        logged: false,
+        emailSent: false
+      },
       { status: 500 }
     );
   }
