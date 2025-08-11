@@ -1079,7 +1079,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                 data={chartData} 
                 isLoading={isPending}
                 breakdownBy={chartBreakdownBy}
-                setBreakdownBy={setBreakdownBy}
+                setBreakdownBy={setChartBreakdownBy}
                 breakdownOptions={chartBreakdownOptions}
               />
           </TabsContent>
