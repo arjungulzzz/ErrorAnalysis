@@ -6,6 +6,8 @@
  * format from the API and the processed format used by the frontend.
  */
 
+import { type DateRange } from "react-day-picker";
+
 /**
  * Represents the raw error log entry as it comes from the API.
  * Dates are strings, expected to be pre-formatted by the backend.
@@ -186,4 +188,43 @@ export type LogsApiRequest = {
   chartBreakdownFields?: GroupByOption[];
   chartBucket?: ChartBucket;
   columns?: (keyof ErrorLog)[];
+};
+
+/**
+ * Defines the shape of the application state snapshot that gets sent
+ * with a feedback report for debugging purposes.
+ */
+export type FeedbackApplicationState = {
+  columnFilters: ColumnFilters;
+  dateRange?: DateRange;
+  selectedPreset: string | null;
+  groupBy: GroupByOption[];
+  sort: SortDescriptor;
+  activeTab: string;
+  visibleColumns: (keyof ErrorLog)[];
+  page: number;
+  latestRequestId: string | null;
+};
+
+/**
+ * Defines the shape of the user's environment details, captured
+ * automatically for a feedback report.
+ */
+export type FeedbackUserEnvironment = {
+  userAgent: string;
+  screenResolution: string;
+  viewport: string;
+  url: string;
+};
+
+/**
+ * Defines the overall structure of the feedback submission payload
+ * that will be sent to the backend.
+ */
+export type FeedbackSubmission = {
+  feedbackType: 'bug' | 'feature' | 'ux' | 'other';
+  description: string;
+  email?: string;
+  applicationState: FeedbackApplicationState;
+  userEnvironment: FeedbackUserEnvironment;
 };

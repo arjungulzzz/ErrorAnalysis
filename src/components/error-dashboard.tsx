@@ -14,7 +14,7 @@ import { type ErrorLog, type SortDescriptor, type ColumnFilters, type GroupByOpt
 import { Button } from "@/components/ui/button";
 import { ErrorTable } from "@/components/error-table";
 import { Card, CardContent } from "@/components/ui/card";
-import { RotateCw, ChevronDown, X, Calendar as CalendarIcon, Download, Loader2 } from "lucide-react";
+import { RotateCw, ChevronDown, X, Calendar as CalendarIcon, Download, Loader2, MessageSquare } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -27,6 +27,7 @@ import Logo from './logo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Progress } from "./ui/progress";
+import { FeedbackDialog } from "./feedback-dialog";
 
 const allColumns: { id: keyof ErrorLog; name: string }[] = [
     { id: 'log_date_time', name: 'Timestamp' },
@@ -104,6 +105,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
   const [exportDetails, setExportDetails] = useState({ rowCount: 0, totalRows: 0 });
   const websocketRef = useRef<WebSocket | null>(null);
   const [chartBreakdownBy, setChartBreakdownBy] = useState<ChartBreakdownByOption>('repository_path');
+  const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
   
   const { toast, dismiss } = useToast();
 
@@ -348,7 +350,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       if (!response.ok || data.error) {
           throw new Error(data.error || data.message || `API request failed with status ${response.status}`);
       }
-      const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
+      const processLogs = (logs: ApiErrorLog[]): ApiErrorLog[] => {
           return logs.map((log: ApiErrorLog, index: number) => ({
               ...log,
               id: `log-drilldown-${log.log_date_time}-${index}`,
@@ -742,6 +744,18 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
   const visibleColumnCount = useMemo(() => Object.values(columnVisibility).filter(v => v).length, [columnVisibility]);
   const totalColumnCount = allColumns.length;
+  
+  const applicationState = useMemo(() => ({
+    columnFilters,
+    dateRange,
+    selectedPreset,
+    groupBy,
+    sort,
+    activeTab,
+    visibleColumns: allColumns.filter(c => columnVisibility[c.id]).map(c => c.id),
+    page,
+    latestRequestId: latestRequestIdRef.current
+  }), [columnFilters, dateRange, selectedPreset, groupBy, sort, activeTab, columnVisibility, page]);
 
   return (
     <div className="space-y-6">
@@ -750,7 +764,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           <Logo src="/circana-logo.svg" fallbackSrc="/favicon.ico" className="h-7 w-7" />
           <span className="font-semibold text-base truncate">AnalyticServer Errors Dashboard</span>
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {lastRefreshed && (
             <TooltipProvider>
                 <Tooltip>
@@ -796,8 +810,26 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button onClick={() => setIsFeedbackDialogOpen(true)} variant="outline" size="icon" className="bg-white/10 border-white/20 hover:bg-white/20 text-white h-8 w-8">
+                      <MessageSquare className="h-4 w-4" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                    <p>Report an Issue</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
         </div>
       </header>
+
+      <FeedbackDialog
+          open={isFeedbackDialogOpen}
+          onOpenChange={setIsFeedbackDialogOpen}
+          applicationState={applicationState}
+      />
 
       <Card>
         <CardContent className="p-4 space-y-4">
@@ -1047,7 +1079,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                 data={chartData} 
                 isLoading={isPending}
                 breakdownBy={chartBreakdownBy}
-                setBreakdownBy={setChartBreakdownBy}
+                setBreakdownBy={setBreakdownBy}
                 breakdownOptions={chartBreakdownOptions}
               />
           </TabsContent>
