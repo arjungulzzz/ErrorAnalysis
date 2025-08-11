@@ -131,10 +131,19 @@ export function FeedbackDialog({ open, onOpenChange, applicationState }: Feedbac
         throw new Error(result.message || "An unknown error occurred.");
       }
 
-      toast({
-        title: "Feedback Submitted",
-        description: "Thank you! Your feedback has been received.",
-      });
+      if (result.logged && result.emailSent) {
+          toast({
+              title: "Feedback Sent",
+              description: "Your feedback has been logged and sent successfully.",
+          });
+      } else if (result.logged) {
+          toast({
+              title: "Feedback Logged",
+              description: "Your feedback was logged, but could not be sent via email.",
+          });
+      } else {
+          throw new Error(result.message || "An unknown error occurred during submission.");
+      }
       
       onOpenChange(false);
       form.reset();
