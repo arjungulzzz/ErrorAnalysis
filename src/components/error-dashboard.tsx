@@ -248,7 +248,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) {
-          toast({ variant: "destructive", title: "API URL Not Configured" });
+          toast({ variant: "destructive", title: "API URL Not Configured", description: "Please set NEXT_PUBLIC_API_URL in your environment." });
           setChartData([]);
           return;
       }
@@ -332,6 +332,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           toast({
               variant: "destructive",
               title: "API URL Not Configured",
+              description: "Please set NEXT_PUBLIC_API_URL in your environment."
           });
           return { logs: [], totalCount: 0 };
       }
@@ -473,6 +474,10 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         }
     } else {
         console.warn("WebSocket URL (NEXT_PUBLIC_WS_URL) is not configured. Progress updates will be disabled.");
+        toast({
+          title: "Exporting Data",
+          description: "Progress updates are not available. Please wait for the download to complete.",
+        });
     }
     
     try {
@@ -776,35 +781,55 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
             {isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RotateCw className="mr-1 h-4 w-4" />}
             Refresh
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button disabled={isPending || isExporting} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm relative">
-                {isExporting && (
-                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-sky-500"></span>
-                    </span>
-                )}
-                <Download className="mr-1 h-4 w-4" />
-                Export
-                <ChevronDown className="ml-1 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                disabled={isExporting || isPending || groupBy.length > 0}
-                onSelect={() => handleExport('visible')}
-              >
-                Export Visible Columns ({visibleColumnCount})
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={isExporting || isPending || groupBy.length > 0}
-                onSelect={() => handleExport('all')}
-              >
-                Export All Columns ({totalColumnCount})
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="relative">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button disabled={isPending || isExporting} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm relative">
+                  {isExporting && (
+                      <span className="absolute top-0 right-0 -mr-1 -mt-1 flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-300 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-sky-400"></span>
+                      </span>
+                  )}
+                  <Download className="mr-1 h-4 w-4" />
+                  Export
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={isExporting || isPending || groupBy.length > 0}
+                  onSelect={() => handleExport('visible')}
+                >
+                  Export Visible Columns ({visibleColumnCount})
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={isExporting || isPending || groupBy.length > 0}
+                  onSelect={() => handleExport('all')}
+                >
+                  Export All Columns ({totalColumnCount})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {isExporting && (
+              <div className="absolute top-full right-0 mt-2 w-64 z-20">
+                  <div className="border rounded-lg p-3 space-y-2 bg-background text-foreground shadow-lg animate-in fade-in-0 zoom-in-95">
+                      <div className="flex justify-between items-center">
+                        <p className="text-xs font-medium">
+                          {exportDetails.totalRows > 0 
+                            ? `Exporting ${exportDetails.rowCount.toLocaleString()} / ${exportDetails.totalRows.toLocaleString()} rows...`
+                            : 'Preparing export...'}
+                        </p>
+                        <Button variant="ghost" size="sm" onClick={handleCancelExport} className="h-6 px-1.5 text-muted-foreground hover:text-foreground">
+                          <X className="h-4 w-4" />
+                          <span className="sr-only">Cancel export</span>
+                        </Button>
+                      </div>
+                      <Progress value={exportProgress} className="w-full h-1.5" />
+                  </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -1023,24 +1048,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                 </div>
             )}
         </CardContent>
-        {isExporting && (
-          <div className="px-4 pb-4">
-              <div className="border rounded-lg p-3 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm font-medium">
-                      {exportDetails.totalRows > 0 
-                        ? `Exporting ${exportDetails.rowCount.toLocaleString()} / ${exportDetails.totalRows.toLocaleString()} rows...`
-                        : 'Preparing export...'}
-                    </p>
-                    <Button variant="ghost" size="sm" onClick={handleCancelExport} className="h-7 px-2">
-                      <X className="h-4 w-4 mr-1" />
-                      Cancel
-                    </Button>
-                  </div>
-                  <Progress value={exportProgress} className="w-full h-2" />
-              </div>
-          </div>
-        )}
       </Card>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -1074,7 +1081,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                 data={chartData} 
                 isLoading={isPending}
                 breakdownBy={chartBreakdownBy}
-                setBreakdownBy={setChartBreakdownBy}
+                setBreakdownBy={setBreakdownBy}
                 breakdownOptions={chartBreakdownOptions}
               />
           </TabsContent>
