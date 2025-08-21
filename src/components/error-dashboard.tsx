@@ -782,53 +782,53 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
             Refresh
           </Button>
           <div className="relative">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button disabled={isPending || isExporting} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm relative">
-                  {isExporting && (
-                      <span className="absolute top-0 right-0 -mr-1 -mt-1 flex h-3 w-3">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-300 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-sky-400"></span>
-                      </span>
-                  )}
-                  <Download className="mr-1 h-4 w-4" />
-                  Export
-                  <ChevronDown className="ml-1 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  disabled={isExporting || isPending || groupBy.length > 0}
-                  onSelect={() => handleExport('visible')}
-                >
-                  Export Visible Columns ({visibleColumnCount})
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={isExporting || isPending || groupBy.length > 0}
-                  onSelect={() => handleExport('all')}
-                >
-                  Export All Columns ({totalColumnCount})
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-              {isExporting && (
-                <div className="absolute top-full right-0 mt-2 w-96 z-20">
-                  <div className="border rounded-lg p-4 space-y-3 bg-background text-foreground shadow-lg animate-in fade-in-0 zoom-in-95">
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm font-medium text-foreground truncate pr-2">
-                        {exportDetails.totalRows > 0 
-                          ? `Exporting ${exportDetails.rowCount.toLocaleString()} / ${exportDetails.totalRows.toLocaleString()} rows`
-                          : 'Preparing export...'}
-                      </p>
-                      <Button variant="ghost" size="sm" onClick={handleCancelExport} className="h-6 px-2 text-sm">
-                        Cancel
-                      </Button>
-                    </div>
-                    <Progress value={exportProgress} className="w-full h-2" />
-                  </div>
-                </div>
-              )}
-          </div>
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button disabled={isPending || isExporting} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm relative">
+        {isExporting && (
+          <span className="absolute -top-1 -right-1 flex h-4 w-4">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-orange-500 border border-white"></span>
+          </span>
+        )}
+        <Download className="mr-1 h-4 w-4" />
+        Export
+        <ChevronDown className="ml-1 h-4 w-4" />
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end">
+      <DropdownMenuItem
+        disabled={isExporting || isPending || groupBy.length > 0}
+        onSelect={() => handleExport('visible')}
+      >
+        Export Visible Columns ({visibleColumnCount})
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        disabled={isExporting || isPending || groupBy.length > 0}
+        onSelect={() => handleExport('all')}
+      >
+        Export All Columns ({totalColumnCount})
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+  {isExporting && (
+    <div className="absolute top-full right-0 mt-2 w-96 z-20">
+      <div className="border rounded-lg p-4 space-y-3 bg-background text-foreground shadow-lg animate-in fade-in-0 zoom-in-95">
+        <div className="flex justify-between items-center">
+          <p className="text-sm font-medium text-foreground truncate pr-2">
+            {exportDetails.totalRows > 0 
+              ? `Exporting ${exportDetails.rowCount.toLocaleString()} / ${exportDetails.totalRows.toLocaleString()} rows`
+              : 'Preparing export...'}
+          </p>
+          <Button variant="ghost" size="sm" onClick={handleCancelExport} className="h-6 px-2 text-sm">
+            Cancel
+          </Button>
+        </div>
+        <Progress value={exportProgress} className="w-full h-2" />
+      </div>
+    </div>
+  )}
+</div>
         </div>
       </header>
 
