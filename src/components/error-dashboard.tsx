@@ -811,24 +811,23 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {isExporting && (
-              <div className="absolute top-full right-0 mt-2 w-64 z-20">
-                  <div className="border rounded-lg p-3 space-y-2 bg-background text-foreground shadow-lg animate-in fade-in-0 zoom-in-95">
-                      <div className="flex justify-between items-center">
-                        <p className="text-xs font-medium">
-                          {exportDetails.totalRows > 0 
-                            ? `Exporting ${exportDetails.rowCount.toLocaleString()} / ${exportDetails.totalRows.toLocaleString()} rows...`
-                            : 'Preparing export...'}
-                        </p>
-                        <Button variant="ghost" size="sm" onClick={handleCancelExport} className="h-6 px-1.5 text-muted-foreground hover:text-foreground">
-                          <X className="h-4 w-4" />
-                          <span className="sr-only">Cancel export</span>
-                        </Button>
-                      </div>
-                      <Progress value={exportProgress} className="w-full h-1.5" />
+              {isExporting && (
+                <div className="absolute top-full right-0 mt-2 w-96 z-20">
+                  <div className="border rounded-lg p-4 space-y-3 bg-background text-foreground shadow-lg animate-in fade-in-0 zoom-in-95">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-medium text-foreground truncate pr-2">
+                        {exportDetails.totalRows > 0 
+                          ? `Exporting ${exportDetails.rowCount.toLocaleString()} / ${exportDetails.totalRows.toLocaleString()} rows`
+                          : 'Preparing export...'}
+                      </p>
+                      <Button variant="ghost" size="sm" onClick={handleCancelExport} className="h-6 px-2 text-sm">
+                        Cancel
+                      </Button>
+                    </div>
+                    <Progress value={exportProgress} className="w-full h-2" />
                   </div>
-              </div>
-            )}
+                </div>
+              )}
           </div>
         </div>
       </header>
