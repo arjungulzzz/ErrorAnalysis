@@ -75,8 +75,7 @@ const chartBreakdownOptions: { value: ChartBreakdownByOption; label: string }[] 
 const defaultBreakdownFields = chartBreakdownOptions.map(o => o.value);
 
 export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallbackSrc = "/favicon.ico" }: { logoSrc?: string; fallbackSrc?: string } = {}) {
-  // Ref to store the toast updater for export progress
-  const exportToastUpdaterRef = useRef<any>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
   const [chartData, setChartData] = useState<ErrorTrendDataPoint[]>([]);
@@ -120,6 +119,19 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
 
   const latestRequestIdRef = useRef<string | null>(null);
 
+  const getApiErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+            return 'The request was cancelled.';
+        }
+        if (error.message.includes('Failed to fetch')) {
+            return 'The API endpoint is unreachable. Please check the network connection and endpoint configuration.';
+        }
+        return error.message;
+    }
+    return 'An unknown error occurred.';
+  };
+
   const fetchData = useCallback((isRefresh = false) => {
     startTransition(async () => {
       const isPresetActive = selectedPreset && selectedPreset !== 'none';
@@ -143,6 +155,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           title: "API URL Not Configured",
           description: "Please set NEXT_PUBLIC_API_URL in your environment.",
         });
+        setLogs([]); setTotalLogs(0); setGroupData([]);
         return;
       }
       
@@ -178,10 +191,16 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
-        const data: LogsApiResponse & { error?: string; message?: string } = await response.json();
-        if (!response.ok || data.error) {
-          throw new Error(data.error || data.message || `API request failed with status ${response.status}`);
+        if (!response.ok) {
+          let errorMsg = `API request failed with status ${response.status}`;
+          try {
+            const errData = await response.json();
+            errorMsg = getApiErrorMessage(errData?.error || errData?.message);
+          } catch {}
+          throw new Error(errorMsg);
         }
+        const data: LogsApiResponse & { error?: string; message?: string } = await response.json();
+
         if (requestId === latestRequestIdRef.current) {
           const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
               return logs.map((log, index) => ({
@@ -212,11 +231,9 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           toast({
             variant: "destructive",
             title: "Failed to Fetch Data",
-            description: error instanceof Error ? error.message : "An unknown error occurred.",
+            description: getApiErrorMessage(error),
           });
-          setLogs([]);
-          setTotalLogs(0);
-          setGroupData([]);
+          setLogs([]); setTotalLogs(0); setGroupData([]);
         }
       }
     });
@@ -230,7 +247,12 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       if (!isPresetActive && !isFullDateRange) return;
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (!apiUrl) return;
+      if (!apiUrl) {
+          toast({ variant: "destructive", title: "API URL Not Configured" });
+          setChartData([]);
+          return;
+      }
+
 
       const getChartBucket = (): ChartBucket => {
           if (selectedPreset) {
@@ -274,10 +296,15 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
-        const data: LogsApiResponse & { error?: string; message?: string } = await response.json();
-        if (!response.ok || data.error) {
-          throw new Error(data.error || data.message || `API request failed with status ${response.status}`);
+        if (!response.ok) {
+          let errorMsg = `API request failed with status ${response.status}`;
+          try {
+            const errData = await response.json();
+            errorMsg = getApiErrorMessage(errData?.error || errData?.message);
+          } catch {}
+          throw new Error(errorMsg);
         }
+        const data: LogsApiResponse & { error?: string; message?: string } = await response.json();
         if (requestId === latestRequestIdRef.current) {
             setChartData(data.chartData || []);
             if (data.dbTime && data.dbTimeUtc && data.dbTimezone) {
@@ -291,7 +318,7 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
             toast({
                 variant: "destructive",
                 title: "Failed to Fetch Chart Data",
-                description: error instanceof Error ? error.message : "An unknown error occurred.",
+                description: getApiErrorMessage(error),
             });
             setChartData([]);
         }
@@ -305,7 +332,6 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           toast({
               variant: "destructive",
               title: "API URL Not Configured",
-              description: "Please set NEXT_PUBLIC_API_URL in your environment.",
           });
           return { logs: [], totalCount: 0 };
       }
@@ -339,25 +365,41 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
         };
       }
       
-      const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-      });
-      const data: LogsApiResponse & { error?: string; message?: string } = await response.json();
-      if (!response.ok || data.error) {
-          throw new Error(data.error || data.message || `API request failed with status ${response.status}`);
+      try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+        });
+        if (!response.ok) {
+            let errorMsg = `API request failed with status ${response.status}`;
+            try {
+              const errData = await response.json();
+              errorMsg = getApiErrorMessage(errData?.error || errData?.message);
+            } catch {}
+            throw new Error(errorMsg);
+        }
+        const data: LogsApiResponse & { error?: string; message?: string } = await response.json();
+        const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
+            return logs.map((log: ApiErrorLog, index: number) => ({
+                ...log,
+                id: `log-drilldown-${log.log_date_time}-${index}`,
+            }));
+        };
+        return { logs: processLogs(data.logs), totalCount: data.totalCount };
+      } catch (error) {
+        toast({
+            variant: "destructive",
+            title: "Failed to Fetch Drilldown Data",
+            description: getApiErrorMessage(error),
+        });
+        return { logs: [], totalCount: 0 };
       }
-      const processLogs = (logs: ApiErrorLog[]): ErrorLog[] => {
-          return logs.map((log: ApiErrorLog, index: number) => ({
-              ...log,
-              id: `log-drilldown-${log.log_date_time}-${index}`,
-          }));
-      };
-      return { logs: processLogs(data.logs), totalCount: data.totalCount };
   }, [columnFilters, dateRange, pageSize, selectedPreset, sort, toast]);
 
   const handleExport = useCallback(async (exportType: 'visible' | 'all') => {
+    if (isExporting) return;
+
     if (groupBy.length > 0) {
       toast({
         variant: "destructive",
@@ -375,200 +417,165 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
       return;
     }
 
-    try {
-      // Use a dedicated export endpoint if available
-      const exportApiUrl = process.env.NEXT_PUBLIC_EXPORT_API_URL;
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
-      if (!exportApiUrl || !wsUrl) {
-        toast({
-          variant: "destructive",
-          title: "Export Service Not Configured",
-          description: "Please set export and WebSocket URLs in your environment.",
-        });
-        setIsExporting(false);
-        return;
-      }
+    const exportApiUrl = process.env.NEXT_PUBLIC_EXPORT_API_URL;
+    if (!exportApiUrl) {
+      toast({
+        variant: "destructive",
+        title: "Export Service Not Configured",
+        description: "Please set NEXT_PUBLIC_EXPORT_API_URL in your environment.",
+      });
+      return;
+    }
 
-      setIsExporting(true);
-      setExportProgress(0);
-      setExportDetails({ rowCount: 0, totalRows: 0 });
+    setIsExporting(true);
+    setExportProgress(0);
+    setExportDetails({ rowCount: 0, totalRows: 0 });
+    
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
     const requestId = `req_export_${new Date().getTime()}`;
-    // Ensure wsUrl is just the base (e.g. ws://localhost:3009), then append the correct path
-    let wsBase = wsUrl;
-    // Remove any trailing slash
-    if (wsBase.endsWith('/')) wsBase = wsBase.slice(0, -1);
-    const fullWsUrl = `${wsBase}?requestId=${requestId}`;
-      
-    // Store the updater for live progress updates
-    const exportToastUpdater = toast({
-      title: "Export in Progress",
-      description: (
-        <div className="mt-2">
-          <p className="text-sm text-muted-foreground mb-2">Generating your CSV file... (0 / 0 rows)</p>
-          <Progress value={0} className="w-full" />
-        </div>
-      ),
-      duration: Infinity, 
-    });
-    // Save updater to ref for use in effect
-    exportToastUpdaterRef.current = exportToastUpdater;
-      
-      // Setup WebSocket
-      try {
-        websocketRef.current = new WebSocket(fullWsUrl);
-        
-        websocketRef.current.onopen = () => {
-          console.log("WebSocket connection established for export progress.");
-        };
 
-        websocketRef.current.onmessage = (event) => {
-          try {
-              const message = JSON.parse(event.data);
-              const { rowCount, totalRows } = message;
-              
-              if (typeof rowCount === 'number' && typeof totalRows === 'number') {
-                  const progress = totalRows > 0 ? (rowCount / totalRows) * 100 : 0;
-                  setExportProgress(progress);
-                  setExportDetails({ rowCount, totalRows });
+    if (wsUrl) {
+        try {
+            let wsBase = wsUrl;
+            if (wsBase.endsWith('/')) wsBase = wsBase.slice(0, -1);
+            const fullWsUrl = `${wsBase}?requestId=${requestId}`;
+            
+            websocketRef.current = new WebSocket(fullWsUrl);
+            websocketRef.current.onopen = () => console.log("WebSocket for export progress connected.");
+            websocketRef.current.onmessage = (event) => {
+              try {
+                  const message = JSON.parse(event.data);
+                  const { rowCount, totalRows } = message;
+                  if (typeof rowCount === 'number' && typeof totalRows === 'number') {
+                      const progress = totalRows > 0 ? (rowCount / totalRows) * 100 : 0;
+                      setExportProgress(progress);
+                      setExportDetails({ rowCount, totalRows });
+                  }
+              } catch (e) {
+                  console.error("Failed to parse WebSocket message:", e);
               }
-          } catch (e) {
-              console.error("Failed to parse WebSocket message:", e);
-          }
-        };
+            };
+            websocketRef.current.onerror = (error) => {
+                console.error("WebSocket Error:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Progress Update Unavailable",
+                    description: "Could not connect to the progress update service. Export will continue.",
+                });
+            };
+            websocketRef.current.onclose = () => console.log("WebSocket connection closed.");
+        } catch (err) {
+            console.error("Failed to create WebSocket connection:", err);
+            toast({ variant: "destructive", title: "WebSocket Error", description: "Could not connect to the progress update service." });
+        }
+    } else {
+        console.warn("WebSocket URL (NEXT_PUBLIC_WS_URL) is not configured. Progress updates will be disabled.");
+    }
+    
+    try {
+      const columnsToExport: (keyof ErrorLog)[] = exportType === 'visible'
+        ? allColumns.filter(c => columnVisibility[c.id]).map(c => c.id)
+        : allColumns.map(c => c.id);
 
-        websocketRef.current.onerror = (error) => {
-          console.error("WebSocket Error:", error);
-          toast({
-            variant: "destructive",
-            title: "Progress Update Error",
-            description: "Could not connect to the progress update service.",
-          });
+      const requestBody: LogsApiRequest = {
+        requestId,
+        filters: columnFilters,
+        sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
+        columns: columnsToExport,
+      };
+
+      const preset = timePresets.find(p => p.key === selectedPreset);
+      if (preset?.interval) {
+        requestBody.interval = preset.interval;
+      } else if (dateRange?.from && dateRange?.to) {
+        const from = dateRange.from;
+        const to = dateRange.to;
+        const utcFrom = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0));
+        const utcTo = new Date(Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999));
+        requestBody.dateRange = {
+          from: utcFrom.toISOString(),
+          to: utcTo.toISOString(),
         };
-      } catch (err) {
-        toast({ variant: "destructive", title: "WebSocket Error", description: "Failed to create WebSocket connection." });
-        setIsExporting(false);
-        if (exportToastUpdaterRef.current && exportToastUpdaterRef.current.dismiss) exportToastUpdaterRef.current.dismiss();
-        return;
       }
 
-      // Prepare and send export request
-      try {
-        const columnsToExport: (keyof ErrorLog)[] = exportType === 'visible'
-          ? allColumns.filter(c => columnVisibility[c.id]).map(c => c.id)
-          : allColumns.map(c => c.id);
+      delete requestBody.pagination;
+      delete requestBody.groupBy;
+      delete requestBody.chartBucket;
+      delete requestBody.chartBreakdownFields;
+      
+      const response = await fetch(exportApiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        signal,
+      });
 
-        const requestBody: LogsApiRequest = {
-          requestId,
-          filters: columnFilters,
-          sort: sort.column && sort.direction ? sort : { column: 'log_date_time', direction: 'descending' },
-          columns: columnsToExport,
-        };
-
-        const preset = timePresets.find(p => p.key === selectedPreset);
-        if (preset?.interval) {
-          requestBody.interval = preset.interval;
-        } else if (dateRange?.from && dateRange?.to) {
-          const from = dateRange.from;
-          const to = dateRange.to;
-          const utcFrom = new Date(Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0));
-          const utcTo = new Date(Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999));
-          requestBody.dateRange = {
-            from: utcFrom.toISOString(),
-            to: utcTo.toISOString(),
-          };
+      if (!response.ok) {
+        let errorMsg = `API request failed with status ${response.status}`;
+        try {
+          const errData = await response.json();
+          errorMsg = getApiErrorMessage(errData?.error || errData?.message);
+        } catch {}
+        throw new Error(errorMsg);
+      }
+      
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `as_error_logs_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch && filenameMatch.length > 1) {
+          filename = filenameMatch[1];
         }
+      }
+      
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      setExportProgress(100);
+      toast({
+        title: "Export Successful",
+        description: `${filename} has been downloaded.`,
+      });
 
-        delete requestBody.pagination;
-        delete requestBody.groupBy;
-        delete requestBody.chartBucket;
-        delete requestBody.chartBreakdownFields;
-
-        // Streaming export: expect CSV from backend
-        const response = await fetch(exportApiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-        if (!response.ok) {
-          let errorMsg = `API request failed with status ${response.status}`;
-          try {
-            const errData = await response.json();
-            if (errData?.error || errData?.message) errorMsg = errData.error || errData.message;
-          } catch {}
-          throw new Error(errorMsg);
-        }
-
-        const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = `as_error_logs_${format(new Date(), 'yyyy-MM-dd')}.csv`;
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
-          if (filenameMatch && filenameMatch.length > 1) {
-            filename = filenameMatch[1];
-          }
-        }
-
-        // Stream the CSV file from the response
-        const blob = await response.blob();
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        setExportProgress(100);
-        toast({
-          title: "Export Successful",
-          description: `${filename} has been downloaded.`,
-        });
-
-      } catch (error) {
-        console.error("Failed to export logs:", error);
+    } catch (error) {
+      console.error("Failed to export logs:", error);
+      if ((error as Error).name !== 'AbortError') {
         toast({
           variant: "destructive",
           title: "Export Failed",
-          description: error instanceof Error ? error.message : "An unknown error occurred.",
+          description: getApiErrorMessage(error),
         });
-      } finally {
-        setIsExporting(false);
-        if (exportToastUpdaterRef.current && exportToastUpdaterRef.current.dismiss) exportToastUpdaterRef.current.dismiss();
-        if (websocketRef.current) {
-          websocketRef.current.close();
-          websocketRef.current = null;
-        }
+      } else {
+        toast({
+            title: "Export Cancelled",
+        });
       }
-
-    } catch (error) {
-      console.error("Export error:", error);
-      toast({
-        variant: "destructive",
-        title: "Export Failed",
-        description: "An unexpected error occurred during export.",
-      });
+    } finally {
       setIsExporting(false);
+      if (websocketRef.current) {
+        websocketRef.current.close();
+        websocketRef.current = null;
+      }
+      abortControllerRef.current = null;
     }
-  }, [totalLogs, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility]);
+  }, [totalLogs, sort, columnFilters, groupBy, dateRange, selectedPreset, toast, columnVisibility, isExporting]);
 
-  // Live update the export progress toast
-  useEffect(() => {
-    if (isExporting && exportToastUpdaterRef.current && exportToastUpdaterRef.current.update) {
-      exportToastUpdaterRef.current.update({
-        title: "Export in Progress",
-        description: (
-          <div className="mt-2">
-            <p className="text-sm text-muted-foreground mb-2">
-              Generating your CSV file... ({exportDetails.rowCount.toLocaleString()} / {exportDetails.totalRows.toLocaleString()} rows)
-            </p>
-            <Progress value={exportProgress} className="w-full" />
-          </div>
-        ),
-        duration: Infinity,
-      });
+  const handleCancelExport = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
-  }, [isExporting, exportDetails, exportProgress]);
+  };
 
   // Reset page to 1 when filters change, but not on page change itself
   useEffect(() => {
@@ -771,8 +778,14 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button disabled={isPending || isExporting || groupBy.length > 0} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm">
-                {isExporting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
+              <Button disabled={isPending || isExporting} variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white px-2 py-1 h-8 text-sm relative">
+                {isExporting && (
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-sky-500"></span>
+                    </span>
+                )}
+                <Download className="mr-1 h-4 w-4" />
                 Export
                 <ChevronDown className="ml-1 h-4 w-4" />
               </Button>
@@ -780,17 +793,13 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 disabled={isExporting || isPending || groupBy.length > 0}
-                onSelect={() => {
-                  if (!isExporting) handleExport('visible');
-                }}
+                onSelect={() => handleExport('visible')}
               >
                 Export Visible Columns ({visibleColumnCount})
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={isExporting || isPending || groupBy.length > 0}
-                onSelect={() => {
-                  if (!isExporting) handleExport('all');
-                }}
+                onSelect={() => handleExport('all')}
               >
                 Export All Columns ({totalColumnCount})
               </DropdownMenuItem>
@@ -1014,6 +1023,24 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
                 </div>
             )}
         </CardContent>
+        {isExporting && (
+          <div className="px-4 pb-4">
+              <div className="border rounded-lg p-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm font-medium">
+                      {exportDetails.totalRows > 0 
+                        ? `Exporting ${exportDetails.rowCount.toLocaleString()} / ${exportDetails.totalRows.toLocaleString()} rows...`
+                        : 'Preparing export...'}
+                    </p>
+                    <Button variant="ghost" size="sm" onClick={handleCancelExport} className="h-7 px-2">
+                      <X className="h-4 w-4 mr-1" />
+                      Cancel
+                    </Button>
+                  </div>
+                  <Progress value={exportProgress} className="w-full h-2" />
+              </div>
+          </div>
+        )}
       </Card>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -1055,3 +1082,5 @@ export default function ErrorDashboard({ logoSrc = "/circana-logo.svg", fallback
     </div>
   );
 }
+
+    
